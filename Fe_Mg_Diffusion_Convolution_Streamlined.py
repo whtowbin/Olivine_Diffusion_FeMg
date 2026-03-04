@@ -7,7 +7,7 @@ import scipy.interpolate as interp
 #import mc3
 
 # from numba import jit  #
-from pykrige import OrdinaryKriging
+from pykrige import OrdinaryKriging, UniversalKriging 
 
 # import mc3
 
@@ -590,16 +590,18 @@ def Best_fit_Chi2(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error=F
 
 
 def Krige_Interpolate(
-    X, Y, new_X, variogram_parameters={"slope": 1e-4, "nugget": 1e-5}
+    X, Y, new_X, variogram_model="linear", variogram_parameters={"slope": 1e-4, "nugget": 1e-5},
 ):
 
-    uk = OrdinaryKriging(
+    # uk = OrdinaryKriging(
+    uk = UniversalKriging(
         X,
         np.zeros(X.shape),
         Y,
         pseudo_inv=True,
-        variogram_model="linear",
+        variogram_model=variogram_model,
         variogram_parameters=variogram_parameters,
+        # nlags = nlags
     )
 
     y_pred, y_std = uk.execute("grid", new_X, np.array([0.0]))
@@ -758,109 +760,109 @@ def D_Fo_For_PT_Sampling(T, P, fO2, EFo=201000):
 
 #%%
 
-def model_diffusion(
-    profile_name, data_db=Ol_Data, parameter_db=ol_param_db, Total_time_days=200
-):
-    # This function works for a single step, change how edge_x params are input to accept tuples to change for multiple steps
-    parameters = parameter_db.loc[(ol_param_db.File_Name == profile_name)]
+# def model_diffusion(
+#     profile_name, data_db=Ol_Data, parameter_db=ol_param_db, Total_time_days=200
+# ):
+#     # This function works for a single step, change how edge_x params are input to accept tuples to change for multiple steps
+#     parameters = parameter_db.loc[(ol_param_db.File_Name == profile_name)]
 
-    # load parameters from database
-    theta = parameters.prof_angle.item()
-    phi1 = parameters.phi1.item()
-    Phi = parameters.Phi.item()
-    phi2 = parameters.phi2.item()
+#     # load parameters from database
+#     theta = parameters.prof_angle.item()
+#     phi1 = parameters.phi1.item()
+#     Phi = parameters.Phi.item()
+#     phi2 = parameters.phi2.item()
 
-    dx_micron = parameters.dx.item()
-    dt = parameters.dt.item()
-    T_Celsius = parameters["T"].item()
-    T = T_Celsius + 273.15  # T in kelvin
-    P = parameters.P.item()
-    fO2_dQFM = parameters.FO2_dQFM.item()
+#     dx_micron = parameters.dx.item()
+#     dt = parameters.dt.item()
+#     T_Celsius = parameters["T"].item()
+#     T = T_Celsius + 273.15  # T in kelvin
+#     P = parameters.P.item()
+#     fO2_dQFM = parameters.FO2_dQFM.item()
 
-    # "Category"
+#     # "Category"
 
-    # This section interprets the string in the database row and converts it to segments to make the initial step function
-    inflection_x = parameters.inflection_x.item()
-    if isinstance(inflection_x, str):
-        inflection_x = ast.literal_eval(inflection_x)
+#     # This section interprets the string in the database row and converts it to segments to make the initial step function
+#     inflection_x = parameters.inflection_x.item()
+#     if isinstance(inflection_x, str):
+#         inflection_x = ast.literal_eval(inflection_x)
 
-    inflection_c = parameters.inflection_c.item()
-    if isinstance(inflection_c, str): # If several numbers are given as strings in list form.
-        inflection_c = ast.literal_eval(inflection_c)
-        inflection_c = [x / 100 for x in inflection_c]
+#     inflection_c = parameters.inflection_c.item()
+#     if isinstance(inflection_c, str): # If several numbers are given as strings in list form.
+#         inflection_c = ast.literal_eval(inflection_c)
+#         inflection_c = [x / 100 for x in inflection_c]
 
-    if isinstance(inflection_c, (int, float)): # If only one number is given
-        inflection_c = inflection_c / 100 # Converts Fo scaled to max of 100 to fractional units
+#     if isinstance(inflection_c, (int, float)): # If only one number is given
+#         inflection_c = inflection_c / 100 # Converts Fo scaled to max of 100 to fractional units
 
-    edge_x1, edge_x2 = parameters.edge_x1.item(), parameters.edge_x2.item()
-    edge_c, center_c = parameters.edge_c.item(), parameters.center_c.item()
+#     edge_x1, edge_x2 = parameters.edge_x1.item(), parameters.edge_x2.item()
+#     edge_c, center_c = parameters.edge_c.item(), parameters.center_c.item()
 
-    alpha, beta, gamma = g.vector_direction(theta, phi1, Phi, phi2)
+#     alpha, beta, gamma = g.vector_direction(theta, phi1, Phi, phi2)
 
 
-    x, y = get_C_prof(profile_name, data_db)
-    edge_c, center_c = edge_c / 100, center_c / 100        # Concentrations measured in units scaled to max of 100
-    y = y / 100         # Concentrations measured in units scaled to max of 100
+#     x, y = get_C_prof(profile_name, data_db)
+#     edge_c, center_c = edge_c / 100, center_c / 100        # Concentrations measured in units scaled to max of 100
+#     y = y / 100         # Concentrations measured in units scaled to max of 100
 
-    fO2 = Ol_Diff.fo2buffer(T, P, delta=fO2_dQFM, buff="FMQ")
+#     fO2 = Ol_Diff.fo2buffer(T, P, delta=fO2_dQFM, buff="FMQ")
 
-    # generate step function
-    length = abs(x.max() - x.min())
-    num_x = int(round(length / dx_micron, 0))
-    step_x, dx_micron = np.linspace(0, x.max(), num_x, endpoint=True, retstep=True)
+#     # generate step function
+#     length = abs(x.max() - x.min())
+#     num_x = int(round(length / dx_micron, 0))
+#     step_x, dx_micron = np.linspace(0, x.max(), num_x, endpoint=True, retstep=True)
 
-    # interpolate data and uncertainty to step spacing.
-    X_interp, Y_interp, Y_interp_std = Ol_Diff.Krige_Interpolate(
-        x,
-        y,
-        step_x,
-        variogram_parameters={"slope": 1e-4, "nugget": 2e-4},
-    )
+#     # interpolate data and uncertainty to step spacing.
+#     X_interp, Y_interp, Y_interp_std = Ol_Diff.Krige_Interpolate(
+#         x,
+#         y,
+#         step_x,
+#         variogram_parameters={"slope": 1e-4, "nugget": 2e-4},
+#     )
 
-    low_x_idx = (np.abs(step_x - edge_x1)).argmin()
-    high_x_idx = (np.abs(step_x - edge_x2)).argmin()
+#     low_x_idx = (np.abs(step_x - edge_x1)).argmin()
+#     high_x_idx = (np.abs(step_x - edge_x2)).argmin()
 
-    model_x = step_x[low_x_idx : high_x_idx + 1]
-    data_interp = Y_interp[low_x_idx : high_x_idx + 1]
-    std_interp = Y_interp_std[low_x_idx : high_x_idx + 1]
+#     model_x = step_x[low_x_idx : high_x_idx + 1]
+#     data_interp = Y_interp[low_x_idx : high_x_idx + 1]
+#     std_interp = Y_interp_std[low_x_idx : high_x_idx + 1]
 
-    Total_time = Total_time_days * 24 * 60 * 60  # seconds
-    timesteps = int(Total_time / dt)
+#     Total_time = Total_time_days * 24 * 60 * 60  # seconds
+#     timesteps = int(Total_time / dt)
 
-    EFo = 201000
+#     EFo = 201000
 
-    p = (T, P, fO2, inflection_x, low_x_idx, high_x_idx, edge_c, center_c, inflection_c)
+#     p = (T, P, fO2, inflection_x, low_x_idx, high_x_idx, edge_c, center_c, inflection_c)
 
-    time, idx_min, sum_r2, Fo_diffusion_results = Ol_Diff.Diffusion_call(
-        # Fo_diffusion_results = Ol_Diff.Diffusion_call(
-        p,
-        alpha,
-        beta,
-        gamma,
-        EFo,
-        timesteps,  # I should calculate the max timesteps based on the slowest diffusivity I expect.
-        model_x,
-        data_interp,
-        std_interp,
-        dx_micron,
-        dt=dt,
-        output_full=True,
-    )
-    # return Fo_diffusion_results
-    return {
-        "time": time,
-        "idx_min": idx_min,
-        "sum_r2": sum_r2,
-        "model_x": model_x,
-        "Fo_diffusion_results": Fo_diffusion_results,
-        "x": x,
-        "y": y,
-        "X_interp": X_interp,
-        "Y_interp": Y_interp,
-        "Y_interp_std": Y_interp_std,
-        "T_Celsius": T_Celsius,
-        "P": P,
-        "fO2": fO2,
-        "profile_name": profile_name,
-        "Category": parameters.Category.item(),
-    }
+#     time, idx_min, sum_r2, Fo_diffusion_results = Ol_Diff.Diffusion_call(
+#         # Fo_diffusion_results = Ol_Diff.Diffusion_call(
+#         p,
+#         alpha,
+#         beta,
+#         gamma,
+#         EFo,
+#         timesteps,  # I should calculate the max timesteps based on the slowest diffusivity I expect.
+#         model_x,
+#         data_interp,
+#         std_interp,
+#         dx_micron,
+#         dt=dt,
+#         output_full=True,
+#     )
+#     # return Fo_diffusion_results
+#     return {
+#         "time": time,
+#         "idx_min": idx_min,
+#         "sum_r2": sum_r2,
+#         "model_x": model_x,
+#         "Fo_diffusion_results": Fo_diffusion_results,
+#         "x": x,
+#         "y": y,
+#         "X_interp": X_interp,
+#         "Y_interp": Y_interp,
+#         "Y_interp_std": Y_interp_std,
+#         "T_Celsius": T_Celsius,
+#         "P": P,
+#         "fO2": fO2,
+#         "profile_name": profile_name,
+#         "Category": parameters.Category.item(),
+#     }
