@@ -1,4 +1,4 @@
-#%%
+# %%
 # from Users.henry.Python Files.Electrical Conductivity SIMS Data.NS_ConductivityOlivines import Sample_Interpolate
 # import Fe_Mg_Diffusion_Convolution
 
@@ -41,7 +41,7 @@ from matplotlib import rc
 rc("axes", linewidth=2)
 rc("font", weight="bold", stretch="condensed", size=14, family="Avenir")
 
-#%%
+# %%
 
 excel_db_path = "Diffusion Round Robin/Round_Robin_Olivine_Profile_Diffusion_Modeling_Parameters_DB.xlsx"
 
@@ -52,7 +52,7 @@ ol_param_db = pd.read_excel(
     engine="openpyxl",
 )
 
-#%%
+# %%
 excel_path = "Diffusion Round Robin/Diffusion Round Robin Data Reorg.xlsx"
 
 Ol_Data = pd.read_excel(
@@ -64,15 +64,14 @@ Ol_Data = pd.read_excel(
 
 Ol_profiles = Ol_Data.loc[
     # (Ol_Data.Profile == "yes")
-    (Ol_Data.Marked_bad != "bad")
-    & (Ol_Data.Ignore != "yes")
+    (Ol_Data.Marked_bad != "bad") & (Ol_Data.Ignore != "yes")
 ]
 
 
 # %%
 # Original
 
-sample_names =Ol_profiles.Profile_Name.unique()
+sample_names = Ol_profiles.Profile_Name.unique()
 
 # %%
 
@@ -95,7 +94,7 @@ def plot_c_prof_diff(prof_name, DF, Element="Fo#", diff_number=1, ax=None):
     plt.plot(diff_c)
 
 
-#%%
+# %%
 
 
 def select_data(DF, selection_dict):
@@ -107,7 +106,7 @@ def select_data(DF, selection_dict):
     return new_df
 
 
-#%%
+# %%
 
 
 def plot_trace(
@@ -266,34 +265,49 @@ Output the number of timesteps, the dt*D and the initial DT for each.
 
 
 """
-#%%
+# %%
 
 # To Do convert data to fraction Fo not normed to 100.
 
 importlib.reload(Ol_Diff)
+
+
 # import Fe_Mg_Diffusion_Convolution_Streamlined as Ol_Diff
 def model_diffusion(
-    profile_name, data_db=Ol_Data, parameter_db=ol_param_db, kriging_variogram_model="linear", kriging_variogram_parameters={"slope": 1e-4, "nugget": 2e-4}, kriging_nlags = None,  activation_EFo = 201000, Total_time_days=200
+    profile_condition_name,
+    data_db=Ol_Data,
+    parameter_db=ol_param_db,
+    kriging_variogram_model="linear",
+    kriging_variogram_parameters={"slope": 1e-4, "nugget": 2e-4},
+    kriging_nlags=None,
+    activation_EFo=201000,
+    Total_time_days=200,
+    uniform_uncert = 0.001, # Fractional Fo units
 ):
     # This function works for a single step, change how edge_x params are input to accept tuples to change for multiple steps
-    parameters = parameter_db.loc[(ol_param_db.File_Name == profile_name)]
+
+
+    parameters = parameter_db.loc[(ol_param_db.Sample == profile_condition_name)]
+     
 
     # load parameters from database
     # theta = parameters.prof_angle.item()
     # phi1 = parameters.phi1.item()
     # Phi = parameters.Phi.item()
     # phi2 = parameters.phi2.item()
+
+    profile_name = parameters.File_Name.item()
     alpha = parameters.alpha.item()
     beta = parameters.beta.item()
     gamma = parameters.gamma.item()
 
-    dx_micron = parameters.dx.item()
-    dt = parameters.dt.item()
-    T_Celsius = parameters["T"].item()
+    dx_micron = parameters.dx_um.item()
+    dt = parameters.dt_s.item()
+    T_Celsius = parameters["T_C"].item()
     T = T_Celsius + 273.15  # T in kelvin
-    P = parameters.P.item()
+    P = parameters.P_Pa.item()
     # fO2_dQFM = parameters.FO2_dQFM.item()
-    fO2 = parameters.fO2.item()
+    fO2 = parameters.fO2_Pa.item()
 
     # "Category"
 
@@ -321,8 +335,6 @@ def model_diffusion(
 
     # fO2 = Ol_Diff.fo2buffer(T, P, delta=fO2_dQFM, buff="FMQ")
 
-
-
     # generate step function
     length = abs(x.max() - x.min())
     num_x = int(round(length / dx_micron, 0))
@@ -333,8 +345,8 @@ def model_diffusion(
         x,
         y,
         step_x,
-        variogram_model = kriging_variogram_model,
-        variogram_parameters= kriging_variogram_parameters, 
+        variogram_model=kriging_variogram_model,
+        variogram_parameters=kriging_variogram_parameters,
         # nlags = kriging_nlags
     )
 
@@ -343,7 +355,7 @@ def model_diffusion(
 
     model_x = step_x[low_x_idx : high_x_idx + 1]
     data_interp = Y_interp[low_x_idx : high_x_idx + 1]
-    std_interp = Y_interp_std[low_x_idx : high_x_idx + 1]
+    std_interp = Y_interp_std[low_x_idx : high_x_idx + 1] + uniform_uncert
 
     Total_time = Total_time_days * 24 * 60 * 60  # seconds
     timesteps = int(Total_time / dt)
@@ -352,7 +364,7 @@ def model_diffusion(
 
     p = (T, P, fO2, inflection_x, low_x_idx, high_x_idx, edge_c, center_c, inflection_c)
 
-    time, idx_min, sum_r2, Fo_diffusion_results = Ol_Diff.Diffusion_call(
+    time, idx_min, sum_chi2, Fo_diffusion_results = Ol_Diff.Diffusion_call(
         # Fo_diffusion_results = Ol_Diff.Diffusion_call(
         p,
         alpha,
@@ -371,29 +383,31 @@ def model_diffusion(
     return {
         "time": time,
         "idx_min": idx_min,
-        "sum_r2": sum_r2,
+        "sum_chi2": sum_chi2,
         "model_x": model_x,
         "Fo_diffusion_results": Fo_diffusion_results,
         "x": x,
         "y": y,
         "X_interp": X_interp,
         "Y_interp": Y_interp,
-        "Y_interp_std": Y_interp_std,
+        "Y_interp_std": Y_interp_std + uniform_uncert,
         "T_Celsius": T_Celsius,
-        "P": P,
-        "fO2": fO2,
+        "P_MPa": P,
+        "fO2_MPa": fO2,
         "profile_name": profile_name,
+        "model_run_name": profile_condition_name,
         "Category": parameters.Category.item(),
         "edge_x_micron": [edge_x1, edge_x2],
         "edge_c": [edge_c, center_c],
         "inflection_x_µm": inflection_x,
-        "inflection_c": inflection_c
-
+        "inflection_c": inflection_c,
     }
 
 
-#%%
-def plot_diffusion_results(Model_dict, ax=None, tick_mark_major_multiple = 10, tick_mark_minor_multiple = 2.5):
+# %%
+def plot_diffusion_results(
+    Model_dict, ax=None, tick_mark_major_multiple=10, tick_mark_minor_multiple=2.5
+):
     if ax is None:
         ax = plt.gca()
     ax.plot(
@@ -429,9 +443,7 @@ def plot_diffusion_results(Model_dict, ax=None, tick_mark_major_multiple = 10, t
         linestyle="dashed",
         linewidth=1,
         color="k",
-        
     )
-
 
     ax.plot(
         Model_dict["model_x"],
@@ -459,23 +471,29 @@ def plot_diffusion_results(Model_dict, ax=None, tick_mark_major_multiple = 10, t
     ax.set_title(
         Model_dict["profile_name"]
         + "\n"
-        + f"Best fit time: {round(time_days[0],1)}±{round(time_days[1:None].max(),1)} days"
+        + f"Best fit time: {round(time_days[0], 1)}±{round(np.abs(time_days[1:None]).max(), 1)} days"
         + f" Temperature: {Model_dict['T_Celsius']} ˚C",
         weight="bold",
     )
 
-    Model_dict["time"] / (60 * 60 * 24)
+    
 
-    textstr = '...Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()......Additional information using ax.annotate()...'
-    wrapped_text = textwrap.fill(textstr, width=150)
+    parameter_annotation = f"Best fit time: {time_days[0]:.1f} (-{time_days[1:None].min():.1f}/+{time_days[1:None].max():.1f}) Temperature: {Model_dict['T_Celsius']:.1f} ˚C, Pressure: {Model_dict['P_MPa']:.2e} MPa, fO2:{Model_dict['fO2_MPa']:.2e} MPa, Minimum Chi2: {Model_dict['sum_chi2'].min():.2f}, \n bounds_edge_positions: {Model_dict["edge_x_micron"]} µm, bounds_edge_concentration: {Model_dict["edge_c"]} Fo, Inflection_point_positions: {Model_dict["inflection_x_µm"]} µm, Central Interval Concentrations: {Model_dict["inflection_c"]} Fo "
+    wrapped_text = textwrap.fill(parameter_annotation, width=150)
     # Place the text using annotate
     # xy=(0.5, 0) specifies the reference point at the bottom-center of the axes (axes fraction coords)
     # xytext=(0, -40) specifies an offset of -40 points vertically downwards from the reference
-    ax.annotate(wrapped_text, xy=(0.5, 0), xytext=(0, -120),
-                xycoords='axes fraction',
-                textcoords='offset points',
-                size=10, ha='center', va='bottom',
-                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    ax.annotate(
+        wrapped_text,
+        xy=(0.5, 0),
+        xytext=(0, -120),
+        xycoords="axes fraction",
+        textcoords="offset points",
+        size=12,
+        ha="center",
+        va="bottom",
+        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+    )
 
     # Adjust layout to make room for the text
     plt.subplots_adjust(bottom=0.2)
@@ -505,34 +523,9 @@ def plot_diffusion_results(Model_dict, ax=None, tick_mark_major_multiple = 10, t
     return ax
 
 
-#%%
-# Model_dict = model_diffusion("AZ18 WHT06_ol44_prof 1")
-# Model_dict = model_diffusion('GCB1A R31_MP_Ol5_prof_2')
-# Model_dict = model_diffusion("GCB1A R31_MP_Ol5_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT01_bigol2_overgrowth_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT06_ol_overgrowth2_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT01_Ol_181_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT01_Ol_180_prof_1")
-#
+# %%
 
-# Model_dict = model_diffusion('Xenocryst_ol6_prof_1')
-# Model_dict = model_diffusion('Xenocryst_ol6_prof_2')
-# Model_dict = model_diffusion("AZ18 WHT06_ol43_prof 1")
-# Model_dict = model_diffusion('Xenocryst_ol23_prof_1')
-# Model_dict = model_diffusion('AZ18 WHT06_ol48_prof 1')
-
-# Model_dict = model_diffusion("AZ18 WHT01_Ol_181_prof_2") #something is going wrong here. Not sure what.
-# Model_dict = model_diffusion("AZ18 WHT01_Ol_192_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT01_bigol1_overgrowth_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT01_bigol2_overgrowth_prof_1")
-
-# Model_dict = model_diffusion("AZ18 WHT01_Ol_181_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT01_Ol_191_prof_1")
-# Model_dict = model_diffusion("AZ18 WHT01_Ol_193_prof_1")
-# #Model_dict = model_diffusion('GCB1A R31_MP_Ol5_prof_2')
-
-
-#%%
+# %%
 ol_param_db = pd.read_excel(
     excel_db_path,
     # sheet_name="Olivine",
@@ -541,22 +534,35 @@ ol_param_db = pd.read_excel(
 )
 
 # sample_name = "KS20-527_2-transect"  #
-# sample_name = "KS20-527_5-transect"
-sample_name = "KS20-527-8_transect"
+sample_name = "KS20-527_5-transect"
+# sample_name = "KS20-527-8_transect"
 
 # sample_name = "SH63olv066"
-# sample_name =  "SH63olv084"
+# sample_name = "SH63olv084"
 
 # sample_name = "AZ18 WHT06_ol43_prof 1"
 
-Model_dict = model_diffusion(sample_name, data_db=Ol_Data, parameter_db=ol_param_db, Total_time_days=365, kriging_variogram_model="linear", kriging_variogram_parameters={"slope": (5/100)**2/10, "nugget":  (.2/100)**2}) #kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
+Model_dict = model_diffusion(
+    sample_name,
+    data_db=Ol_Data,
+    parameter_db=ol_param_db,
+    Total_time_days=365*2,
+    # kriging_variogram_model="gaussian",
+    # kriging_variogram_parameters=None,
+    kriging_variogram_model="linear",
+    kriging_variogram_parameters= {"slope": (5/100)**2/10, "nugget":  (.2/100)**2}
+ ) 
+#kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
+
 # I think a slope of 5% within 10 µm  should be (5/100)**2/10
-# and a Nugget of .2 Fo is (.2/100)**2} since units are likely in variance so squared. 
+# and a Nugget of .2 Fo is (.2/100)**2} since units are likely in variance so squared.
 # Model_dict = model_diffusion(sample_name, Total_time_days=365, kriging_variogram_model="linear", kriging_variogram_parameters=None, kriging_nlags = 2)
-#%%
+# %%
 element_2 = "NiO"  #
 fig, ax = plt.subplots(figsize=(12, 9))
-plot_diffusion_results(Model_dict, tick_mark_major_multiple = 20, tick_mark_minor_multiple = 10, ax=ax)
+plot_diffusion_results(
+    Model_dict, tick_mark_major_multiple=20, tick_mark_minor_multiple=10, ax=ax
+)
 # Calculate_Gradient(sample, ax = ax, dx_micron=5) # This should probably be more explicit where I can turn off smoothing and interpolation
 
 
@@ -571,25 +577,36 @@ ax2.tick_params(axis="y", labelcolor=color)
 plt.legend()
 
 
-
 # ax.xaxis.set_major_locator(MultipleLocator(20))
 plt.savefig(f"{sample_name}_diffusion_plus_{element_2}.svg")
 
-#%%
+# %%
 files_to_model = ol_param_db.File_Name.dropna().unique()
 sample_models = {}
 
 for idx, sample in enumerate(files_to_model):
     try:
-        Model_dict = model_diffusion(sample, data_db=Ol_Data, parameter_db=ol_param_db, Total_time_days=365, kriging_variogram_model="linear", kriging_variogram_parameters={"slope": (5/100)**2/10, "nugget":  (.2/100)**2}) #kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
+        Model_dict = model_diffusion(
+            sample,
+            data_db=Ol_Data,
+            parameter_db=ol_param_db,
+            Total_time_days=2*365,
+            kriging_variogram_model="linear",
+            kriging_variogram_parameters={
+                "slope": (5 / 100) ** 2 / 10,
+                "nugget": (0.2 / 100) ** 2,
+            },
+        )  # kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
         sample_models[sample] = Model_dict
 
         fig, ax = plt.subplots(figsize=(12, 8))
-        plot_diffusion_results(Model_dict, tick_mark_major_multiple = 20, tick_mark_minor_multiple = 10, ax=ax)
+        plot_diffusion_results(
+            Model_dict, tick_mark_major_multiple=20, tick_mark_minor_multiple=10, ax=ax
+        )
         # Calculate_Gradient(sample, ax = ax)
         plt.savefig(f"Xenolith_Ol_Diffusion_Models/{sample}_model.svg")
         plt.savefig(f"{sample}_model.png")
-        print(f"{idx+1} of {len(files_to_model)} completed")
+        print(f"{idx + 1} of {len(files_to_model)} completed")
     except:
         print(f"An Exception Occcured and {sample} Could not be calculated")
     Model_dict["time"] / (60 * 60 * 24)
@@ -601,7 +618,7 @@ for idx, sample in enumerate(files_to_model):
 # #%%
 # model_times_1280= model_times
 # %%
-def D_Fo_For_PT_Sampling(T, P, fO2_delta, EFo=201000):
+def D_Fo_For_PT_Sampling(T, P, fO2_MPa, EFo=201000):
     """
     Function that calculates the diffusivity for Forsterite (and Mn) in olivine.
     Returns a function that only requires XFo = XMg/(XMg+XFe)
@@ -610,7 +627,7 @@ def D_Fo_For_PT_Sampling(T, P, fO2_delta, EFo=201000):
     during the diffusion period consider inputting all terms in main function.
 
     Parameters:
-        fO2, - Oxygen Fugacity with a reference of NNO  Pa
+        fO2, - Oxygen Fugacity in MPa
         E, - Activation Energy 201000. # J/mol
         P, - Pressure in Pa
         R, Ideal Gas Constant 8.3145 # J/mol
@@ -619,92 +636,21 @@ def D_Fo_For_PT_Sampling(T, P, fO2_delta, EFo=201000):
 
     """
 
-    fO2 = Ol_Diff.fo2buffer(1250, 1e8, fO2_delta, "QFM")
-
+   
     R = 8.3145
     tenterm = (
         10**-9.21
     )  # I am not modeling uncertainty in this term but I probably should
-    fugacityterm = (fO2 / (1e-7)) ** (1.0 / 6.0)
+    fugacityterm = (fO2_MPa / (1e-7)) ** (1.0 / 6.0)
 
-    D = (
-        tenterm
-        * fugacityterm
-        * np.exp(-(EFo + 7 * (10**-6 * (P - 10**5))) / (R * T))
-    )
+    D = tenterm * fugacityterm * np.exp(-(EFo + 7 * (10**-6 * (P - 10**5))) / (R * T))
 
     return D  # units of m2/s
 
 
-#%%
-# """
-
-# Original Code that samples start and end Temp (But fails to account for covariance of those)
-# Default_Fo2 = Ol_Diff.fo2buffer(
-#     1250+ 273.15, 5e8, 0.3, buff="QFM"
-# )  # Inputs are(T, P_pa, delta, buff)
-
-# Default_D = Ol_Diff.D_Fo_For_PT_Sampling(
-#     1250 + 273.15, 5e8, Default_Fo2
-# )  # Ol_Diff.D_Fo_For_PT_Sampling(1250 + 273.15, 5e8, 0.3)  # T, P, fO2_delta,
-
-# # All_Deep_D = Ol_Diff.D_Fo_For_PT_Sampling(
-# #     1278 + 273.15, 1.2e9, Default_Fo2
-# # )
-
-# # All_Shallow_D = Ol_Diff.D_Fo_For_PT_Sampling(
-# #     1216 + 273.15, 1e7, Default_Fo2
-# # )
-
-# num_samples = 10000
-
-# num_time_steps = 1000
-
-# #T_start = np.random.normal(1278.0, 14.0, num_samples) + 273.15  # Kelvin Original estimate of start temp
-# T_start = np.random.normal(1292.0, 20.0, num_samples) + 273.15 # Kelvin Bigger estiamte of Start
-# # T_end = (
-# #     np.random.normal(1189.0, 19.0, num_samples) + 273.15
-# # )  # Kelvin # Just average from Putirka Eq 22
-# # T_end = (
-# #     np.random.normal(1195, 21, num_samples) + 273.15
-# # )  # Kelvin #  Putirka eq. 22, averaged comp for whole rock and Melt inclusions calcualted at 0.5 and 0.1 GPa
-
-# T_end = (
-#     np.random.normal(1216, 40, num_samples) + 273.15
-# ) # Kelvin #  Putirka eq. 22 and 21, averaged comp for whole rock and Melt inclusions
 
 
-# T_path = np.linspace(start=T_start, stop=T_end, num=num_time_steps)
-
-
-# P_start = np.random.normal(1.25, 0.21, num_samples) * (1e9)
-# P_end = np.zeros(num_samples)
-
-# P_path = np.linspace(P_start, P_end, num_time_steps)
-
-# # fO2 modeling along a limited PT range
-# # Rough relationship between PT for the melt inclusions calcucalted with Putirka et al. T = 3E-08P + 1212.9 +(rand norm(1˚C))
-# P_fO2 = np.random.normal(0.8, 0.2, num_samples) * (1e9)  # Pa
-# T_fO2 = 3e-08 * P_fO2 + 1212.9 + np.random.normal(0, 10, num_samples) + 273.15  # Kelvin
-
-# delta = np.random.normal(0.85, 0.35, num_samples)  # delta log(FMQ)
-# fO2 = Ol_Diff.fo2buffer(
-#     T_fO2, P_fO2, delta, buff="QFM"
-# )  # Inputs are(T, P_pa, delta, buff)
-
-# Diffusivity_array = Ol_Diff.D_Fo_For_PT_Sampling(T=T_path, P=P_path, fO2=fO2)
-
-# dtD_array = np.ones(num_time_steps) * 60 * Default_D
-# #
-
-# Diffusivity_Scale = Diffusivity_array.mean() / Default_D
-
-# Diffusivity_std = (Diffusivity_array.mean() / Default_D) * (
-#     Diffusivity_array.std() / Diffusivity_array.mean()
-# )
-# """
-
-#%%
+# %%
 
 # Updated PT path Based on Well known parameters
 # Magma Temp at last equilibrium with solid. 1330 +/- 15 ˚C
@@ -751,7 +697,7 @@ T_path_magma_full = np.linspace(
     start=T_Magma_start, stop=T_Xenolith_end, num=num_time_steps
 )
 P_path_magma_full = np.linspace(P_Magma_start, P_end, num_time_steps)
-#%%
+# %%
 
 # fO2 modeling along a limited PT range
 # Rough relationship between PT for the melt inclusions calcucalted with Putirka et al. T = 3E-08P + 1212.9 +(rand norm(1˚C))
@@ -840,7 +786,7 @@ DB_of_all_time["Category"] = model_category
 
 times_DB.to_excel("Times_database_Diffusivities.xlsx")
 
-#%%
+# %%
 
 # plt.figure(figsize=(12, 8))
 # sns.boxenplot(
@@ -849,7 +795,7 @@ times_DB.to_excel("Times_database_Diffusivities.xlsx")
 #     data=times_DB,
 # )
 
-#%%
+# %%
 # Code for producing time uncertainty for diffusion models.
 
 
@@ -886,7 +832,7 @@ times_DB.to_excel("Times_database_Diffusivities.xlsx")
 # plt.xlable = "Days for Diffusion Profile to Form"
 
 
-#%%
+# %%
 
 # fig, axs = plt.subplots(
 #     nrows=len(categories_to_model), figsize=(8.2, 10.5), sharex=True, squeeze=True
@@ -1362,7 +1308,7 @@ axs[-1].tick_params(which="major", length=7)
 axs[-1].tick_params(which="minor", length=4)
 
 
-#%%%
+# %%%
 
 Data_Dict = {}
 
@@ -1374,7 +1320,6 @@ for idx, category in enumerate(categories_to_model):
 
     Category_times = []
     for prof in profs:
-
         Times = times_DB.loc[times_DB.index == prof]["PT_corrected_times"].to_numpy()[0]
         Category_times.append(Times)
 

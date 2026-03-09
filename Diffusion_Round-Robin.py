@@ -73,9 +73,9 @@ def _():
 
 
 @app.cell
-def _(Ol_Diff):
+def _():
 
-    Ol_Diff.fo2buffer()
+    # Ol_Diff.fo2buffer()
     return
 
 
@@ -84,7 +84,6 @@ def _(Ol_Diff):
     # Promt 1b
     # Assume a Fo82 olivine at 1200°C, 420 bars, and log(fO2) = -7.87 in bars and a profile parallel to the c-axis [001] 
     Ol_Diff.D_Fo(1200 + 273.15,420*1e5,10**-7.87,90,90,0,0.82)
-
     return
 
 
@@ -123,7 +122,6 @@ def _(Ol_Diff):
     # Promt 1g
     # Assume a Fo82 olivine at 1200°C, 420 bars, and log(fO2) = -7.87 in bars and a profile parallel to alpha = 70, beta = 152, gamma 108
     Ol_Diff.D_Fo(1200 + 273.15,420*1e5,10**-7.87,70,152,108,0.82)
-
     return
 
 

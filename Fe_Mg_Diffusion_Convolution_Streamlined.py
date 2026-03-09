@@ -539,13 +539,16 @@ def Best_fit_R2(results, data_interp, dt):
 
 def Best_fit_Chi2(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error=False):
     # This minimizes for sum of residuals^2/sigma
+    # includes sigma_min to ensure that uncertainties are never zero
+    # Andrae 2010 has a good description of the pitfalls of chi^2 error estimation. I need to dive in a bit more to that paper
+    # Also look up Andrae et al. 2010 which is just focused on Chi2 
 
     residual = results - data_interp
     sum_Chi2 = np.sum((residual**2) / (sigma + sigma_min) ** 2, axis=1)
     idx_min = np.argmin(sum_Chi2)
 
     min_Chi2 = sum_Chi2.min()
-    Chi2_Bound = (2 * (len(data_interp) - 1)) ** (1 / 2)
+    Chi2_Bound = (2 * (len(data_interp) - 1)) ** (1 / 2) # This calculates the uncertainty boundary based in the units of Chi^2 but I need to find reference fro where I found this vs normal reduced chi^2 fit
     reduced_chi2 = 1
 
     if scale_error == True:
@@ -559,6 +562,7 @@ def Best_fit_Chi2(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error=F
         (np.round(sum_Chi2, 1) < np.round(min_Chi2 + Chi2_Bound, 1))
         & (np.round(sum_Chi2, 1) > np.round(min_Chi2 + Chi2_Bound, 1) - 1)
     )
+
     # Trying to reduce errors by taking out rounding.
     # Chi2_error = np.where(
     #     (sum_Chi2 < (min_Chi2 + Chi2_Bound)) & (sum_Chi2 > (min_Chi2 + Chi2_Bound - 1))
@@ -593,14 +597,15 @@ def Krige_Interpolate(
     X, Y, new_X, variogram_model="linear", variogram_parameters={"slope": 1e-4, "nugget": 1e-5},
 ):
 
-    # uk = OrdinaryKriging(
-    uk = UniversalKriging(
+    uk = OrdinaryKriging(
+    # uk = UniversalKriging(
         X,
         np.zeros(X.shape),
         Y,
         pseudo_inv=True,
         variogram_model=variogram_model,
         variogram_parameters=variogram_parameters,
+        exact_values = False
         # nlags = nlags
     )
 
