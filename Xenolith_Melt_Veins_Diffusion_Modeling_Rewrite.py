@@ -282,7 +282,7 @@ def model_diffusion(
     kriging_nlags=None,
     activation_EFo=201000,
     Total_time_days=200,
-    uniform_uncert = 0.001, # Fractional Fo units
+    uniform_uncert = 0.00001, # Fractional Fo units
 ):
     # This function works for a single step, change how edge_x params are input to accept tuples to change for multiple steps
 
@@ -308,7 +308,7 @@ def model_diffusion(
     P = parameters.P_Pa.item()
     # fO2_dQFM = parameters.FO2_dQFM.item()
     fO2 = parameters.fO2_Pa.item()
-
+    Uncert_Category = parameters.Uncert_Category.item()
     # "Category"
 
     # This function
@@ -327,6 +327,7 @@ def model_diffusion(
     edge_x1, edge_x2 = parameters.edge_x1.item(), parameters.edge_x2.item()
     edge_c, center_c = parameters.edge_c.item(), parameters.center_c.item()
 
+    
     # alpha, beta, gamma = g.vector_direction(theta, phi1, Phi, phi2)
 
     x, y = get_C_prof(profile_name, data_db)
@@ -384,6 +385,7 @@ def model_diffusion(
         "time": time,
         "idx_min": idx_min,
         "sum_chi2": sum_chi2,
+        "reduced_chi2": sum_chi2/(len(data_interp)-1),
         "model_x": model_x,
         "Fo_diffusion_results": Fo_diffusion_results,
         "x": x,
@@ -396,6 +398,7 @@ def model_diffusion(
         "fO2_MPa": fO2,
         "profile_name": profile_name,
         "model_run_name": profile_condition_name,
+        "Uncert_Category": Uncert_Category,
         "Category": parameters.Category.item(),
         "edge_x_micron": [edge_x1, edge_x2],
         "edge_c": [edge_c, center_c],
@@ -478,7 +481,7 @@ def plot_diffusion_results(
 
     
 
-    parameter_annotation = f"Best fit time: {time_days[0]:.1f} (-{time_days[1:None].min():.1f}/+{time_days[1:None].max():.1f}) Temperature: {Model_dict['T_Celsius']:.1f} ˚C, Pressure: {Model_dict['P_MPa']:.2e} MPa, fO2:{Model_dict['fO2_MPa']:.2e} MPa, Minimum Chi2: {Model_dict['sum_chi2'].min():.2f}, \n bounds_edge_positions: {Model_dict["edge_x_micron"]} µm, bounds_edge_concentration: {Model_dict["edge_c"]} Fo, Inflection_point_positions: {Model_dict["inflection_x_µm"]} µm, Central Interval Concentrations: {Model_dict["inflection_c"]} Fo "
+    parameter_annotation = f"Best fit time: {time_days[0]:.1f} ({time_days[1:None].min():.1f}/+{time_days[1:None].max():.1f}) Temperature: {Model_dict['T_Celsius']:.1f} ˚C, Pressure: {Model_dict['P_MPa']:.2e} MPa, fO2:{Model_dict['fO2_MPa']:.2e} MPa, Minimum Chi2: {Model_dict['sum_chi2'].min():.2f}, Reduced_Chi2 {Model_dict['reduced_chi2'].min():.2f} \n bounds_edge_positions: {Model_dict["edge_x_micron"]} µm, bounds_edge_concentration: {Model_dict["edge_c"]} Fo, Inflection_point_positions: {Model_dict["inflection_x_µm"]} µm, Central Interval Concentrations: {Model_dict["inflection_c"]} Fo "
     wrapped_text = textwrap.fill(parameter_annotation, width=150)
     # Place the text using annotate
     # xy=(0.5, 0) specifies the reference point at the bottom-center of the axes (axes fraction coords)
@@ -534,8 +537,8 @@ ol_param_db = pd.read_excel(
 )
 
 # sample_name = "KS20-527_2-transect"  #
-sample_name = "KS20-527_5-transect"
-# sample_name = "KS20-527-8_transect"
+# sample_name = "KS20-527_5-transect-2"
+sample_name = "KS20-527-8_transect-3"
 
 # sample_name = "SH63olv066"
 # sample_name = "SH63olv084"
@@ -550,7 +553,8 @@ Model_dict = model_diffusion(
     # kriging_variogram_model="gaussian",
     # kriging_variogram_parameters=None,
     kriging_variogram_model="linear",
-    kriging_variogram_parameters= {"slope": (5/100)**2/10, "nugget":  (.2/100)**2}
+    kriging_variogram_parameters= {"slope": ((5/100)**2)/10, "nugget":  (.2/100)**2},
+    uniform_uncert = 0.0005,
  ) 
 #kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
 
@@ -581,7 +585,15 @@ plt.legend()
 plt.savefig(f"{sample_name}_diffusion_plus_{element_2}.svg")
 
 # %%
-files_to_model = ol_param_db.File_Name.dropna().unique()
+
+ol_param_db = pd.read_excel(
+    excel_db_path,
+    # sheet_name="Olivine",
+    # index_col="DataSet/Point",
+    engine="openpyxl",
+)
+
+files_to_model = ol_param_db.Sample.dropna().unique()
 sample_models = {}
 
 for idx, sample in enumerate(files_to_model):
@@ -593,10 +605,11 @@ for idx, sample in enumerate(files_to_model):
             Total_time_days=2*365,
             kriging_variogram_model="linear",
             kriging_variogram_parameters={
-                "slope": (5 / 100) ** 2 / 10,
+                "slope": ((5 / 100) ** 2 )/ 10,
                 "nugget": (0.2 / 100) ** 2,
             },
-        )  # kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
+            uniform_uncert = 0.0005,
+        )  
         sample_models[sample] = Model_dict
 
         fig, ax = plt.subplots(figsize=(12, 8))
@@ -618,16 +631,16 @@ for idx, sample in enumerate(files_to_model):
 # #%%
 # model_times_1280= model_times
 # %%
-def D_Fo_For_PT_Sampling(T, P, fO2_MPa, EFo=201000):
+def D_Fo_For_PT_Uncert_Sampling(T, P, fO2_Pa, EFo=201000):
     """
-    Function that calculates the diffusivity for Forsterite (and Mn) in olivine.
-    Returns a function that only requires XFo = XMg/(XMg+XFe)
-    this assumes that the only thing changing during diffusion is XFo.
+    Function that calculates the diffusivity for Forsterite excluding terms for xFo and crystallographic Orientation
     If Temperature, Pressure, or Oxygen fugacity change significantly
     during the diffusion period consider inputting all terms in main function.
 
+    This function should only be used to scale diffusivity in monte carlo samples relative to values used in main model fits. 
+
     Parameters:
-        fO2, - Oxygen Fugacity in MPa
+        fO2, - Oxygen Fugacity in Pa
         E, - Activation Energy 201000. # J/mol
         P, - Pressure in Pa
         R, Ideal Gas Constant 8.3145 # J/mol
@@ -635,99 +648,72 @@ def D_Fo_For_PT_Sampling(T, P, fO2_MPa, EFo=201000):
 
 
     """
-
-   
     R = 8.3145
     tenterm = (
         10**-9.21
     )  # I am not modeling uncertainty in this term but I probably should
-    fugacityterm = (fO2_MPa / (1e-7)) ** (1.0 / 6.0)
+    fugacityterm = (fO2_Pa / (1e-7)) ** (1.0 / 6.0)
 
     D = tenterm * fugacityterm * np.exp(-(EFo + 7 * (10**-6 * (P - 10**5))) / (R * T))
 
     return D  # units of m2/s
 
+#%%
+# Monte Carlo Modeling of Diffusivites for error propagation 
 
+
+def sample_PT_fO2(T_C, T_C_uncert, P_Pa, P_Pa_uncert, fO2_LogPa, fO2_LogPa_uncert, return_fO2_in_Pa = True, n_samples = 1000000):
+    T_C_rand = np.random.normal(T_C, T_C_uncert, n_samples)
+    P_Pa_rand = np.random.normal(P_Pa, P_Pa_uncert, n_samples)
+    fO2_LogPa_rand = np.random.normal(fO2_LogPa, fO2_LogPa_uncert, n_samples)
+
+    if return_fO2_in_Pa is True:
+        fO2_Pa_rand = 10**fO2_LogPa_rand
+    else:
+        fO2_Pa_rand = None
+
+
+    return {"T_C_rand": T_C_rand, "P_Pa_rand": P_Pa_rand, "fO2_LogPa_rand":fO2_LogPa_rand, "fO2_Pa_rand":fO2_Pa_rand}
+#%%
+
+# Samples 1 - 3 
+Sample_1to3 = sample_PT_fO2(T_C=1200,T_C_uncert=30, P_Pa=42*10**6, P_Pa_uncert=10 * 10**6, fO2_LogPa=(-7.86+5), fO2_LogPa_uncert=0.2)
+
+Default_D_FO_1to3 = D_Fo_For_PT_Uncert_Sampling(T= 1200, P = 42*10**6, fO2_Pa= 10**(-7.86+5))
+Sample_1to3_Diffusivity_array =D_Fo_For_PT_Uncert_Sampling(T= Sample_1to3['T_C_rand'], P = Sample_1to3['P_Pa_rand'] , fO2_Pa = Sample_1to3['fO2_Pa_rand'])
+
+Sample_1to3_Diffusivity_array_scale = Sample_1to3_Diffusivity_array/ Default_D_FO_1to3
+
+
+
+#%%
+
+# Samples 4 - 5
+Sample_4to5 = sample_PT_fO2(T_C=1102,T_C_uncert=30, P_Pa=70*10**6, P_Pa_uncert=10 * 10**6, fO2_LogPa=(-8.74+5), fO2_LogPa_uncert=0.2)
+
+Default_D_FO_4to5 = D_Fo_For_PT_Uncert_Sampling(T= 1102, P = 70*10**6, fO2_Pa= 10**(-8.74+5))
+
+Sample_4to5_Diffusivity_array =D_Fo_For_PT_Uncert_Sampling(T= Sample_4to5['T_C_rand'], P = Sample_4to5['P_Pa_rand'] , fO2_Pa = Sample_4to5['fO2_Pa_rand'])
+
+Sample_4to5_Diffusivity_array_scale = Sample_4to5_Diffusivity_array / Default_D_FO_4to5
+
+
+Diffusivity_Scale_Dict = {"Sample_1to3": Sample_1to3_Diffusivity_array_scale, "Sample_4to5": Sample_4to5_Diffusivity_array_scale }
+# %%
 
 
 # %%
-
-# Updated PT path Based on Well known parameters
-# Magma Temp at last equilibrium with solid. 1330 +/- 15 ˚C
-# Starting pressure 2.26+-.2? Gpa. Uncertainty is a bit less known here
-# Slope is a uniform distribution between 25 and 60 ˚C
-# Pressure at which xenoliths are picked up: 1.15 +- 0.04 Roughly based on P&F16 Geotherm and B&K temps from Li et al. 2008 GCbx (920˚C)
-
-Default_Fo2 = Ol_Diff.fo2buffer(
-    1250 + 273.15, 5e8, 0.3, buff="QFM"
-)  # Inputs are(T, P_pa, delta, buff)
-
-Default_D = Ol_Diff.D_Fo_For_PT_Sampling(1250 + 273.15, 5e8, Default_Fo2)
-
-
-num_samples = 10000
-
-num_time_steps = 1000
-
-
-def point_slope_line(slope, P1, T1, P2_eval):
-    """Takes a slope and coordiantes of a point in PT space, Given a pressure to evaluate returns a temp in C or K depending on starting T units"""
-    return slope * (P2_eval - P1) + T1
-
-
-T_slope = np.random.uniform(46, 90, num_samples) / 1e9
-T_Magma_start = np.random.normal(1330, 15, num_samples) + 273.15
-P_Magma_start = np.random.normal(2.26, 0.1, num_samples) * (1e9)
-
-P_Xenolith_start = np.random.normal(1.15, 0.04, num_samples) * (1e9)
-
-P_end = np.zeros(num_samples)
-P_path = np.linspace(P_Xenolith_start, P_end, num_time_steps)
-
-T_Xenolith_start = point_slope_line(
-    slope=T_slope, P1=P_Magma_start, T1=T_Magma_start, P2_eval=P_Xenolith_start
-)
-T_Xenolith_end = point_slope_line(
-    slope=T_slope, P1=P_Magma_start, T1=T_Magma_start, P2_eval=0
-)
-
-T_path = np.linspace(start=T_Xenolith_start, stop=T_Xenolith_end, num=num_time_steps)
-
-T_path_magma_full = np.linspace(
-    start=T_Magma_start, stop=T_Xenolith_end, num=num_time_steps
-)
-P_path_magma_full = np.linspace(P_Magma_start, P_end, num_time_steps)
-# %%
-
-# fO2 modeling along a limited PT range
-# Rough relationship between PT for the melt inclusions calcucalted with Putirka et al. T = 3E-08P + 1212.9 +(rand norm(1˚C))
-P_fO2 = np.random.normal(0.8, 0.2, num_samples) * (1e9)  # Pa
-T_fO2 = point_slope_line(
-    slope=T_slope, P1=P_Magma_start, T1=T_Magma_start, P2_eval=P_fO2
-)
-
-# delta = np.random.normal(0.85, 0.35, num_samples)  # delta log(FMQ) # this is the average of the Melt Inclusions and the Xenolith Spinel MP Veins.
-delta = np.random.normal(0.88, 0.17, num_samples)
-
-fO2 = Ol_Diff.fo2buffer(
-    T_fO2, P_fO2, delta, buff="QFM"
-)  # Inputs are(T, P_pa, delta, buff)
-
-Diffusivity_array = Ol_Diff.D_Fo_For_PT_Sampling(T=T_path, P=P_path, fO2=fO2)
-
-dtD_array = np.ones(num_time_steps) * 60 * Default_D
-#
 
 
 def geo_mean_overflow(iterable):
     return np.exp(np.log(iterable).mean())
 
 
-Diffusivity_Scale = Diffusivity_array.mean() / Default_D
+# Diffusivity_Scale = Diffusivity_array.mean() / Default_D
 
-Diffusivity_std = (Diffusivity_array.mean() / Default_D) * (
-    Diffusivity_array.std() / Diffusivity_array.mean()
-)
+# Diffusivity_std = (Diffusivity_array.mean() / Default_D) * (
+#     Diffusivity_array.std() / Diffusivity_array.mean()
+# )
 
 
 # %%
@@ -742,49 +728,118 @@ dt_i*dx_i = dt_n * dx_n
 """
 model_times = {}
 model_category = []
+model_title = []
 PT_corrected_times = []
 
 for sample in sample_models.keys():
     model_times[sample] = sample_models[sample]["time"]
-    model_category.append(sample_models[sample]["Category"])
-    # model_category.append(sample_models[sample]["Category"])
+    model_category.append(sample_models[sample]['model_run_name'])
+    model_title.append(sample_models[sample]['model_run_name'])
+    match sample_models[sample]['Uncert_Category']:
+        case "Diffusion_Uncert1":
+            Diffusivity_Scale = Sample_1to3_Diffusivity_array_scale
+        case "Diffusion_Uncert2":
+            Diffusivity_Scale = Sample_1to3_Diffusivity_array_scale
+
     PT_corrected_times.append(
         np.array(
-            Default_D
-            * sample_models[sample]["time"][0]
-            / Diffusivity_array.mean(
-                0
-            )  # Mean(0) is mean of PT Path), Mean(1) is mean at each PT step of path
+            sample_models[sample]["time"][0]
+            / Diffusivity_Scale
             / (60 * 60 * 24)
         )
     )
 
 
-times_DB = pd.DataFrame(model_times, index=("Bestfit Time", "Uncert-", "Uncert+")).T / (
-    60 * 60 * 24
-)
-
-times_DB["Diffusivity_adjusted_time"] = times_DB["Bestfit Time"] / Diffusivity_Scale
-
-times_DB["Diffusivity_adjusted_time_+std"] = times_DB["Bestfit Time"] / (
-    Diffusivity_Scale + Diffusivity_std
-)
-times_DB["Diffusivity_adjusted_time_-std"] = times_DB["Bestfit Time"] / (
-    Diffusivity_Scale - Diffusivity_std
-)
-
-# times_DB["All_Deep_time"] = times_DB["Bestfit Time"] * Default_D / All_Deep_D
-
-# times_DB["All_Shallow_time"] = times_DB["Bestfit Time"] * Default_D / All_Shallow_D
-
-times_DB["Category"] = model_category
-times_DB["PT_corrected_times"] = PT_corrected_times
-
 DB_of_all_time = pd.DataFrame(PT_corrected_times)
-DB_of_all_time["Category"] = model_category
+DB_of_all_time['Category'] = model_category
+DB_of_all_time.set_index('Category', inplace=True)
+
+Timescales = pd.DataFrame(np.quantile(DB_of_all_time,[0.5, 0.025, 0.3333, 0.6666, 0.975], axis = 1))
+Timescales['Quantiles'] = ['50% Quantile', '2.5% Quantile', '33.33% Quantile', '66.66% Quantile', '97.5% Quantile']
+Timescales.set_index('Quantiles', inplace=True)
+
+Timescales.columns =model_category
 
 
-times_DB.to_excel("Times_database_Diffusivities.xlsx")
+
+#%%
+from matplotlib.ticker import ScalarFormatter
+formatter = ScalarFormatter()
+formatter.set_scientific(False)
+
+
+#%%
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T, log_scale=True, ax = ax, showfliers=False)
+ax.tick_params(axis='x', labelrotation=90)
+ax.set_ylabel("Days")
+ax.yaxis.set_major_formatter(formatter)
+
+
+#%%
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T.iloc[:, 0:3], ax = ax, log_scale=True, showfliers=False)
+ax.tick_params(axis='x', labelrotation=90)
+ax.set_ylabel("Days")
+
+ax.yaxis.set_major_formatter(formatter)
+
+#%%
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T.iloc[:, 3:6], ax = ax, log_scale=True, showfliers=False)
+ax.tick_params(axis='x', labelrotation=90)
+ax.set_ylabel("Days")
+
+ax.yaxis.set_major_formatter(formatter)
+
+#%%
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T.iloc[:, 6:8], ax = ax, log_scale=True, showfliers=False)
+ax.tick_params(axis='x', labelrotation=90)
+ax.set_ylabel("Days")
+
+ax.yaxis.set_major_formatter(formatter)
+#%%
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T.iloc[:, 6:11], ax = ax, log_scale=True, showfliers=False)
+ax.tick_params(axis='x', labelrotation=90)
+ax.set_ylabel("Days")
+ax.yaxis.set_major_formatter(formatter)
+#%%
+
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T.iloc[:, 11:13], ax = ax, log_scale=True, showfliers=False)
+ax.tick_params(axis='x', labelrotation=90)
+ax.set_ylabel("Days")
+
+ax.yaxis.set_major_formatter(formatter)
+#%%
+
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T.iloc[:, 13], ax = ax, log_scale=True, showfliers=False)
+ax.tick_params(axis='x', labelrotation=90)
+ax.set_ylabel("Days")
+
+ax.yaxis.set_major_formatter(formatter)
+
+#%%
+
+# times_DB = pd.DataFrame(model_times, index=("Bestfit Time", "Uncert-", "Uncert+")).T / (
+#     60 * 60 * 24
+# )
+
+# times_DB["Diffusivity_adjusted_time"] = times_DB["Bestfit Time"] / Diffusivity_Scale
+
+
+
+# times_DB["Category"] = model_category
+# times_DB["PT_corrected_times"] = PT_corrected_times
+
+# DB_of_all_time = pd.DataFrame(PT_corrected_times)
+# DB_of_all_time["Category"] = model_category
+
+
+# times_DB.to_excel("Times_database_Diffusivities.xlsx")
 
 # %%
 
@@ -951,326 +1006,11 @@ axs[-1].tick_params(which="minor", length=4)
 
 plt.savefig("Melt_Vein_Olivine_Mg-Fe_Diffusion_Timescales_sum.svg")
 # %%
-plt.close("all")
-# Plotting PT Path
-fig, ax = plt.subplots(figsize=(12, 8))
-
-ax.xaxis.tick_top()
-ax.xaxis.set_label_position("top")
-
-
-def gpa_to_km(gpa_in):
-    return (gpa_in + 0.1588) / 0.0319
-
-
-def km_to_gpa(km_in):
-    return 0.0319 * km_in - 0.1588  # taken from Plank and Forsythe Supplement
-
-
-secax = ax.secondary_yaxis("right", functions=(gpa_to_km, km_to_gpa))
-secax.set_ylabel("km", weight="bold")
-
-# plt.plot(T_path_magma_full - 273.15, P_path_magma_full / 1e9, color="r", alpha=0.003)
-plt.plot(
-    T_path_magma_full.mean(axis=1) - 273.15,
-    P_path_magma_full.mean(axis=1) / 1e9,
-    color="k",
-    alpha=1,
-    label="Average Magma PT path",
-    linewidth=3.0,
-)
-
-
-plt.plot(
-    T_path_magma_full.mean(axis=1) + T_path_magma_full.std(axis=1) - 273.15,
-    P_path_magma_full.mean(axis=1) / 1e9,
-    color="k",
-    alpha=1,
-    linestyle="dashed",
-)
-
-plt.plot(
-    T_path_magma_full.mean(axis=1) - T_path_magma_full.std(axis=1) - 273.15,
-    P_path_magma_full.mean(axis=1) / 1e9,
-    color="k",
-    alpha=1,
-    linestyle="dashed",
-)
-
-sns.kdeplot(
-    x=T_Xenolith_start - 273.15,
-    y=P_Xenolith_start / 1e9,
-    fill=True,
-    levels=5,
-)
-sns.kdeplot(
-    x=np.random.normal(925, 5, num_samples),
-    y=P_Xenolith_start / 1e9,
-    fill=True,
-    levels=5,
-    cmap="Greens",
-)
-
-# mamga_red = sns.color_palette("Reds", light = 0.4, as_cmap=True)
-sns.kdeplot(
-    x=T_Magma_start - 273.15, y=P_Magma_start / 1e9, fill=True, levels=5, cmap="Reds"
-)
-
-
-T_mi = np.array(
-    [
-        1218,
-        1228,
-        1148,
-        1163,
-        1168,
-        1122,
-        1198,
-        1183,
-        1197,
-        1193,
-        1086,
-        1078,
-        1142,
-        1161,
-        1141,
-        1168,
-    ]
-)
-T_mi_1sigma = np.array(
-    [
-        31.8,
-        34.4,
-        27.8,
-        30.7,
-        21.6,
-        19.1,
-        23.2,
-        27.7,
-        23.1,
-        26.5,
-        21.4,
-        16.0,
-        23.1,
-        29.3,
-        22.6,
-        21.7,
-    ]
-)
-
-P_mi = (
-    np.array(
-        [401, 452, 574, 432, 271, 160, 510, 453, 235, 420, 137, 304, 199, 276, 379, 408]
-    )
-    / 1000
-)
-P_mi_1sigma = (
-    np.array(
-        [
-            209.50,
-            192.17,
-            224.93,
-            118.29,
-            72.25,
-            39.65,
-            156.40,
-            200.94,
-            117.36,
-            188.98,
-            42.92,
-            130.98,
-            55.38,
-            58.49,
-            69.25,
-            62.90,
-        ]
-    )
-    / 1000
-)
-
-ax.errorbar(
-    x=T_mi,
-    y=P_mi,
-    xerr=T_mi_1sigma,
-    yerr=P_mi_1sigma,
-    marker="o",
-    ls="none",
-    label=" Melt Inclusions MIMiC",
-)
-
-ax.errorbar(
-    x=T_mi[0:2],
-    y=P_mi[0:2],
-    xerr=T_mi_1sigma[0:2],
-    yerr=P_mi_1sigma[0:2],
-    marker="o",
-    ls="none",
-    label=" Whole Rock Putirka",
-)
-
-plt.plot([1330, 1280, 1245], [2.2, 1.2, 0.5])
-Geotherm_T = np.array(
-    [
-        905,
-        950,
-        996,
-        1041,
-        1086,
-        1132,
-        1177,
-        1222,
-        1267,
-        1310,
-        1319,
-        1323,
-        1326,
-        1326,
-        1327,
-        1328,
-        1329,
-        1330,
-        1330,
-        1331,
-        1332,
-        1333,
-        1334,
-        1334,
-        1335,
-        1336,
-        1337,
-        1338,
-        1338,
-        1339,
-        1340,
-        1341,
-        1342,
-        1342,
-        1343,
-        1344,
-        1345,
-        1346,
-        1346,
-        1347,
-        1348,
-        1349,
-        1350,
-        1350,
-        1351,
-        1352,
-        1353,
-        1354,
-        1354,
-        1355,
-        1356,
-    ]
-)
-Geotherm_P = np.array(
-    [
-        1.12,
-        1.18,
-        1.24,
-        1.31,
-        1.37,
-        1.44,
-        1.50,
-        1.56,
-        1.63,
-        1.69,
-        1.76,
-        1.82,
-        1.88,
-        1.95,
-        2.01,
-        2.07,
-        2.14,
-        2.20,
-        2.27,
-        2.33,
-        2.39,
-        2.46,
-        2.52,
-        2.58,
-        2.65,
-        2.71,
-        2.78,
-        2.84,
-        2.90,
-        2.97,
-        3.03,
-        3.10,
-        3.16,
-        3.22,
-        3.29,
-        3.35,
-        3.41,
-        3.48,
-        3.54,
-        3.61,
-        3.67,
-        3.73,
-        3.80,
-        3.86,
-        3.92,
-        3.99,
-        4.05,
-        4.12,
-        4.18,
-        4.24,
-        4.31,
-    ]
-)
-ax.plot(Geotherm_T, Geotherm_P, label="Geotherm")
-
-T_Solidous = np.array(
-    [1100, 1227.336264, 1337.226374, 1447.116484, 1557.006593, 1666.896703, 1776.786813]
-)
-Depth_Km_Solidous = np.array(
-    [0, 36.38178964, 67.77896389, 99.17613815, 130.5733124, 161.9704867, 193.3676609]
-)
-
-
-ax.plot(
-    T_Solidous, km_to_gpa(Depth_Km_Solidous), color="g", label="Dry Peridotite Solidous"
-)
-
-
-# ax.errorbar(
-#     x=[1184.349136, 1206.367069, 1232.707056],
-#     y=[0.1, 0.5, 1.0],
-#     xerr=[18.9929899, 19.05559075, 17.72716284],
-#     label="Melt Inclusions Putirka",
-#     linewidth=3,
-#     marker="o",
-# )
-
-
-ax.set_xlabel("˚C", weight="bold")
-ax.set_ylabel("GPa", weight="bold")
-plt.legend()
-
-ax.set_xlim(900, 1400)
-ax.set_ylim(3, 0)
-
-ax.xaxis.set_minor_locator(MultipleLocator(25))
-
-# ax.yaxis.set_minor_locator(AutoMinorLocator())
-
-ax.tick_params(which="both", width=2)
-ax.tick_params(which="major", length=7)
-ax.tick_params(which="minor", length=4)
-
-secax.yaxis.set_minor_locator(MultipleLocator(10))
-secax.tick_params(which="both", width=2)
-secax.tick_params(which="major", length=7)
-secax.tick_params(which="minor", length=4)
-plt.savefig("Xenlith+Magma_ascent_path_Draft_version.svg")
-# %%
-
 
 # %%
 
 # %%
-
+# Plot Histogram Plots
 categories_to_model = times_DB.Category.unique()
 fig, axs = plt.subplots(
     nrows=len(categories_to_model), figsize=(8.2, 10.5), sharex=True, squeeze=True
@@ -1309,7 +1049,7 @@ axs[-1].tick_params(which="minor", length=4)
 
 
 # %%%
-
+# Make Table of timesscales with corrected for diffusivity uncertainties. 
 Data_Dict = {}
 
 categories_to_model = times_DB.Category.unique()
