@@ -536,8 +536,8 @@ def Best_fit_R2(results, data_interp, dt):
     time_days = time / (60 * 60 * 24)
     return time, idx_min, sum_r2
 
-
-def Best_fit_Chi2(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error=False):
+# This was the code prior to 3/19/26. I think it is too narrow 
+def Best_fit_Chi2_old(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error=False):
     # This minimizes for sum of residuals^2/sigma
     # includes sigma_min to ensure that uncertainties are never zero
     # Andrae 2010 has a good description of the pitfalls of chi^2 error estimation. I need to dive in a bit more to that paper
@@ -580,6 +580,49 @@ def Best_fit_Chi2(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error=F
     return time, (idx_min, Chi2_error_idx_low, Chi2_error_idx_high), sum_Chi2
 
 
+
+def Best_fit_Chi2(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error = False):
+    # This minimizes for sum of residuals^2/sigma
+    # includes sigma_min to ensure that uncertainties are never zero
+    # Andrae 2010 has a good description of the pitfalls of chi^2 error estimation. I need to dive in a bit more to that paper
+    # Also look up Andrae et al. 2010 which is just focused on Chi2 
+
+    residual = results - data_interp
+    sum_Chi2 = np.sum((residual**2) / (sigma + sigma_min) ** 2, axis=1)
+    idx_min = np.argmin(sum_Chi2)
+
+    min_Chi2 = sum_Chi2.min()
+    # Chi2_Bound = (2 * (len(data_interp) - 1)) ** (1 / 2) # This calculates the uncertainty boundary based in the units of Chi^2 but I need to find reference fro where I found this vs normal reduced chi^2 fit
+    # reduced_chi2 = 1
+    
+    reduced_chi2 = sum_Chi2 / (len(data_interp) - 1)
+    min_reduced_chi2 = reduced_chi2.min()
+    # Chi2_Bound = (
+    #     Chi2_Bound / reduced_chi2
+    # )  # Scale Chi_Squared Boundary based on reduced Chi2 scaled to 1
+
+    Chi2_error = np.where(
+        (np.round( reduced_chi2, 1) < np.round(min_reduced_chi2 + 1, 1))
+        # & (np.round(sum_Chi2, 1) > np.round(min_Chi2 + 1, 1) - 1)
+    )
+
+    # Trying to reduce errors by taking out rounding.
+    # Chi2_error = np.where(
+    #     (sum_Chi2 < (min_Chi2 + Chi2_Bound)) & (sum_Chi2 > (min_Chi2 + Chi2_Bound - 1))
+    # )
+
+    Chi2_error_idx_low = Chi2_error[0].min()
+    Chi2_error_idx_high = Chi2_error[0].max()
+    fit_idx = np.array(
+        [idx_min, Chi2_error_idx_low - idx_min, Chi2_error_idx_high - idx_min]
+    )
+
+    # time = (fit_idx + 1) * dt  # seconds #I am not sure why this uses index + 1. The time should just be the index number
+    time = (fit_idx ) * dt  # seconds
+   
+
+    return time, (idx_min, Chi2_error_idx_low, Chi2_error_idx_high), sum_Chi2
+
 # np.where((Z[2]< 155)) Use to find where minimization intersects (2(n-m))^(1/2)
 # n= number of points; m = number of parameters being fit
 # %%
@@ -597,8 +640,8 @@ def Krige_Interpolate(
     X, Y, new_X, variogram_model="linear", variogram_parameters={"slope": 1e-4, "nugget": 1e-5},
 ):
 
-    uk = OrdinaryKriging(
-    # uk = UniversalKriging(
+    # uk = OrdinaryKriging(
+    uk = UniversalKriging(
         X,
         np.zeros(X.shape),
         Y,
@@ -760,114 +803,3 @@ def D_Fo_For_PT_Sampling(T, P, fO2, EFo=201000):
 #  #Delta QFM between -2 and +1
 # P T Paths Maybe give 1 pt path and provide one offset number
 
-
-
-
-#%%
-
-# def model_diffusion(
-#     profile_name, data_db=Ol_Data, parameter_db=ol_param_db, Total_time_days=200
-# ):
-#     # This function works for a single step, change how edge_x params are input to accept tuples to change for multiple steps
-#     parameters = parameter_db.loc[(ol_param_db.File_Name == profile_name)]
-
-#     # load parameters from database
-#     theta = parameters.prof_angle.item()
-#     phi1 = parameters.phi1.item()
-#     Phi = parameters.Phi.item()
-#     phi2 = parameters.phi2.item()
-
-#     dx_micron = parameters.dx.item()
-#     dt = parameters.dt.item()
-#     T_Celsius = parameters["T"].item()
-#     T = T_Celsius + 273.15  # T in kelvin
-#     P = parameters.P.item()
-#     fO2_dQFM = parameters.FO2_dQFM.item()
-
-#     # "Category"
-
-#     # This section interprets the string in the database row and converts it to segments to make the initial step function
-#     inflection_x = parameters.inflection_x.item()
-#     if isinstance(inflection_x, str):
-#         inflection_x = ast.literal_eval(inflection_x)
-
-#     inflection_c = parameters.inflection_c.item()
-#     if isinstance(inflection_c, str): # If several numbers are given as strings in list form.
-#         inflection_c = ast.literal_eval(inflection_c)
-#         inflection_c = [x / 100 for x in inflection_c]
-
-#     if isinstance(inflection_c, (int, float)): # If only one number is given
-#         inflection_c = inflection_c / 100 # Converts Fo scaled to max of 100 to fractional units
-
-#     edge_x1, edge_x2 = parameters.edge_x1.item(), parameters.edge_x2.item()
-#     edge_c, center_c = parameters.edge_c.item(), parameters.center_c.item()
-
-#     alpha, beta, gamma = g.vector_direction(theta, phi1, Phi, phi2)
-
-
-#     x, y = get_C_prof(profile_name, data_db)
-#     edge_c, center_c = edge_c / 100, center_c / 100        # Concentrations measured in units scaled to max of 100
-#     y = y / 100         # Concentrations measured in units scaled to max of 100
-
-#     fO2 = Ol_Diff.fo2buffer(T, P, delta=fO2_dQFM, buff="FMQ")
-
-#     # generate step function
-#     length = abs(x.max() - x.min())
-#     num_x = int(round(length / dx_micron, 0))
-#     step_x, dx_micron = np.linspace(0, x.max(), num_x, endpoint=True, retstep=True)
-
-#     # interpolate data and uncertainty to step spacing.
-#     X_interp, Y_interp, Y_interp_std = Ol_Diff.Krige_Interpolate(
-#         x,
-#         y,
-#         step_x,
-#         variogram_parameters={"slope": 1e-4, "nugget": 2e-4},
-#     )
-
-#     low_x_idx = (np.abs(step_x - edge_x1)).argmin()
-#     high_x_idx = (np.abs(step_x - edge_x2)).argmin()
-
-#     model_x = step_x[low_x_idx : high_x_idx + 1]
-#     data_interp = Y_interp[low_x_idx : high_x_idx + 1]
-#     std_interp = Y_interp_std[low_x_idx : high_x_idx + 1]
-
-#     Total_time = Total_time_days * 24 * 60 * 60  # seconds
-#     timesteps = int(Total_time / dt)
-
-#     EFo = 201000
-
-#     p = (T, P, fO2, inflection_x, low_x_idx, high_x_idx, edge_c, center_c, inflection_c)
-
-#     time, idx_min, sum_r2, Fo_diffusion_results = Ol_Diff.Diffusion_call(
-#         # Fo_diffusion_results = Ol_Diff.Diffusion_call(
-#         p,
-#         alpha,
-#         beta,
-#         gamma,
-#         EFo,
-#         timesteps,  # I should calculate the max timesteps based on the slowest diffusivity I expect.
-#         model_x,
-#         data_interp,
-#         std_interp,
-#         dx_micron,
-#         dt=dt,
-#         output_full=True,
-#     )
-#     # return Fo_diffusion_results
-#     return {
-#         "time": time,
-#         "idx_min": idx_min,
-#         "sum_r2": sum_r2,
-#         "model_x": model_x,
-#         "Fo_diffusion_results": Fo_diffusion_results,
-#         "x": x,
-#         "y": y,
-#         "X_interp": X_interp,
-#         "Y_interp": Y_interp,
-#         "Y_interp_std": Y_interp_std,
-#         "T_Celsius": T_Celsius,
-#         "P": P,
-#         "fO2": fO2,
-#         "profile_name": profile_name,
-#         "Category": parameters.Category.item(),
-#     }

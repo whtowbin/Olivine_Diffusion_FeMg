@@ -35,7 +35,7 @@ from scipy.interpolate import splrep, splev
 
 
 # from pykrige import OrdinaryKriging
-
+from great_tables import GT, from_column, style, loc,  md, html
 from matplotlib import rc
 
 rc("axes", linewidth=2)
@@ -282,13 +282,11 @@ def model_diffusion(
     kriging_nlags=None,
     activation_EFo=201000,
     Total_time_days=200,
-    uniform_uncert = 0.00001, # Fractional Fo units
+    uniform_uncert=0.00001,  # Fractional Fo units
 ):
     # This function works for a single step, change how edge_x params are input to accept tuples to change for multiple steps
 
-
     parameters = parameter_db.loc[(ol_param_db.Sample == profile_condition_name)]
-     
 
     # load parameters from database
     # theta = parameters.prof_angle.item()
@@ -308,8 +306,6 @@ def model_diffusion(
     P = parameters.P_Pa.item()
     # fO2_dQFM = parameters.FO2_dQFM.item()
     fO2 = parameters.fO2_Pa.item()
-    Uncert_Category = parameters.Uncert_Category.item()
-    # "Category"
 
     # This function
     inflection_x = parameters.inflection_x.item()
@@ -327,7 +323,6 @@ def model_diffusion(
     edge_x1, edge_x2 = parameters.edge_x1.item(), parameters.edge_x2.item()
     edge_c, center_c = parameters.edge_c.item(), parameters.center_c.item()
 
-    
     # alpha, beta, gamma = g.vector_direction(theta, phi1, Phi, phi2)
 
     x, y = get_C_prof(profile_name, data_db)
@@ -384,8 +379,9 @@ def model_diffusion(
     return {
         "time": time,
         "idx_min": idx_min,
+        "dt": dt,
         "sum_chi2": sum_chi2,
-        "reduced_chi2": sum_chi2/(len(data_interp)-1),
+        "reduced_chi2": sum_chi2 / (len(data_interp) - 1),
         "model_x": model_x,
         "Fo_diffusion_results": Fo_diffusion_results,
         "x": x,
@@ -398,7 +394,8 @@ def model_diffusion(
         "fO2_MPa": fO2,
         "profile_name": profile_name,
         "model_run_name": profile_condition_name,
-        "Uncert_Category": Uncert_Category,
+        "descriptive_title": parameters.Descriptive_Name.item(),
+        "Uncert_Category": parameters.Uncert_Category.item(),
         "Category": parameters.Category.item(),
         "edge_x_micron": [edge_x1, edge_x2],
         "edge_c": [edge_c, center_c],
@@ -434,7 +431,7 @@ def plot_diffusion_results(
 
     ax.plot(
         Model_dict["X_interp"],
-        (Model_dict["Y_interp"] + Model_dict["Y_interp_std"] * 2) * 100,
+        (Model_dict["Y_interp"] + Model_dict["Y_interp_std"]) * 100,
         linestyle="dashed",
         linewidth=1,
         color="k",
@@ -442,7 +439,7 @@ def plot_diffusion_results(
     )
     ax.plot(
         Model_dict["X_interp"],
-        (Model_dict["Y_interp"] - Model_dict["Y_interp_std"] * 2) * 100,
+        (Model_dict["Y_interp"] - Model_dict["Y_interp_std"]) * 100,
         linestyle="dashed",
         linewidth=1,
         color="k",
@@ -467,6 +464,26 @@ def plot_diffusion_results(
         color="#1FBECF",
     )
 
+    idx_min = Model_dict["idx_min"][1]
+    ax.plot(
+        Model_dict["model_x"],
+        Model_dict["Fo_diffusion_results"][idx_min] * 100,
+        linewidth=2,
+        alpha=0.4,
+        label="1 sigma fit",
+        color="#1F4ECF",
+    )
+
+    idx_min = Model_dict["idx_min"][2]
+    ax.plot(
+        Model_dict["model_x"],
+        Model_dict["Fo_diffusion_results"][idx_min] * 100,
+        linewidth=2,
+        alpha=0.4,
+        # label="1σ fit",
+        color="#073ED5",
+    )
+
     ax.set_xlabel("Distance from Rim µm", weight="bold", fontsize=20)
     ax.set_ylabel("Fo#", weight="bold", fontsize=20)
 
@@ -479,9 +496,7 @@ def plot_diffusion_results(
         weight="bold",
     )
 
-    
-
-    parameter_annotation = f"Best fit time: {time_days[0]:.1f} ({time_days[1:None].min():.1f}/+{time_days[1:None].max():.1f}) Temperature: {Model_dict['T_Celsius']:.1f} ˚C, Pressure: {Model_dict['P_MPa']:.2e} MPa, fO2:{Model_dict['fO2_MPa']:.2e} MPa, Minimum Chi2: {Model_dict['sum_chi2'].min():.2f}, Reduced_Chi2 {Model_dict['reduced_chi2'].min():.2f} \n bounds_edge_positions: {Model_dict["edge_x_micron"]} µm, bounds_edge_concentration: {Model_dict["edge_c"]} Fo, Inflection_point_positions: {Model_dict["inflection_x_µm"]} µm, Central Interval Concentrations: {Model_dict["inflection_c"]} Fo "
+    parameter_annotation = f"Best fit time: {time_days[0]:.1f} ({time_days[1:None].min():.1f}/+{time_days[1:None].max():.1f}) Temperature: {Model_dict['T_Celsius']:.1f} ˚C, Pressure: {Model_dict['P_MPa']:.2e} MPa, fO2:{Model_dict['fO2_MPa']:.2e} MPa, Minimum Chi2: {Model_dict['sum_chi2'].min():.2f}, Reduced_Chi2 {Model_dict['reduced_chi2'].min():.2f} \n bounds_edge_positions: {Model_dict['edge_x_micron']} µm, bounds_edge_concentration: {Model_dict['edge_c']} Fo, Inflection_point_positions: {Model_dict['inflection_x_µm']} µm, Central Interval Concentrations: {Model_dict['inflection_c']} Fo "
     wrapped_text = textwrap.fill(parameter_annotation, width=150)
     # Place the text using annotate
     # xy=(0.5, 0) specifies the reference point at the bottom-center of the axes (axes fraction coords)
@@ -489,7 +504,7 @@ def plot_diffusion_results(
     ax.annotate(
         wrapped_text,
         xy=(0.5, 0),
-        xytext=(0, -120),
+        xytext=(0, -90),
         xycoords="axes fraction",
         textcoords="offset points",
         size=12,
@@ -527,7 +542,37 @@ def plot_diffusion_results(
 
 
 # %%
+# Scratch pad code for determining uncertainty of noisy profiles
+from scipy.signal import savgol_filter
 
+window_size = round(len(Model_dict["y"]) / 5) + 1
+poly_order = 3
+if window_size < 3:
+    window_size = 3
+    poly_order = 2
+filtered = savgol_filter(Model_dict["y"], window_size, 3)
+
+fig, ax = plt.subplots()
+
+ax.plot(Model_dict["x"], Model_dict["y"] * 100, linewidth=1)
+
+ax.plot(Model_dict["x"], filtered * 100, linewidth=3)
+residual_std = np.std(100 * (Model_dict["y"] - filtered)[window_size:-window_size])
+print(residual_std)
+
+residual2 = 100 * (
+    np.sum(((Model_dict["y"] - filtered) ** 2)) / (len(filtered) - 2)
+) ** (1 / 2)
+print(residual2)
+
+ig, ax = plt.subplots()
+
+ax.plot(Model_dict["x"], 100 * (Model_dict["y"] - filtered), linewidth=1)
+ax.plot([0, 100], [residual_std, residual_std])
+ax.plot([0, 100], [2 * residual_std, 2 * residual_std])
+ax.plot([0, 100], [-residual_std, -residual_std])
+ax.plot([0, 100], [-2 * residual_std, -2 * residual_std])
+ax.plot([0, 100], [0, 0])
 # %%
 ol_param_db = pd.read_excel(
     excel_db_path,
@@ -536,32 +581,39 @@ ol_param_db = pd.read_excel(
     engine="openpyxl",
 )
 
-# sample_name = "KS20-527_2-transect"  #
-# sample_name = "KS20-527_5-transect-2"
-sample_name = "KS20-527-8_transect-3"
+# sample_name = "KS20-527_2-transect-4"  #0.0013
+sample_name = "KS20-527_5-transect-2"  # 0.0008
+sample_name = "KS20-527-8_transect-1"  # 0.0005
 
-# sample_name = "SH63olv066"
+sample_name = "SH63olv066-1"
 # sample_name = "SH63olv084"
 
-# sample_name = "AZ18 WHT06_ol43_prof 1"
 
 Model_dict = model_diffusion(
     sample_name,
     data_db=Ol_Data,
     parameter_db=ol_param_db,
-    Total_time_days=365*2,
-    # kriging_variogram_model="gaussian",
+    Total_time_days=365 * 2,
+    kriging_variogram_model="gaussian",
     # kriging_variogram_parameters=None,
-    kriging_variogram_model="linear",
-    kriging_variogram_parameters= {"slope": ((5/100)**2)/10, "nugget":  (.2/100)**2},
-    uniform_uncert = 0.0005,
- ) 
-#kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
+    kriging_variogram_parameters={
+        "sill": (10 / 100) ** 2,
+        "range": 25,
+        "nugget": (0.2 / 100) ** 2,
+    },
+    # kriging_variogram_parameters={'sill': (2/100)**2, 'range': 20, 'nugget': (.2/100)**2},
+    # kriging_variogram_model="linear",
+    # kriging_variogram_parameters= {"slope": ((6/100)**2)/20, "nugget":  (0.02/100)**2},
+    uniform_uncert=0.002,
+)
+# kriging_variogram_parameters={"slope": 1e-4, "nugget": 5e-4}
 
 # I think a slope of 5% within 10 µm  should be (5/100)**2/10
 # and a Nugget of .2 Fo is (.2/100)**2} since units are likely in variance so squared.
 # Model_dict = model_diffusion(sample_name, Total_time_days=365, kriging_variogram_model="linear", kriging_variogram_parameters=None, kriging_nlags = 2)
 # %%
+
+
 element_2 = "NiO"  #
 fig, ax = plt.subplots(figsize=(12, 9))
 plot_diffusion_results(
@@ -577,12 +629,17 @@ ax2.set_ylabel(element_2, color=color)
 x_2, y_2 = get_C_prof(sample_name, Ol_profiles, Element=element_2)
 ax2.plot(x_2, y_2, color=color, marker="s", linestyle="dashed", label=element_2)
 ax2.tick_params(axis="y", labelcolor=color)
+
+
+# ax.plot( Model_dict['model_x'] , 100* Model_dict['Fo_diffusion_results'][Model_dict['idx_min'][1]])
+# ax.plot( Model_dict['model_x'] , 100* Model_dict['Fo_diffusion_results'][Model_dict['idx_min'][2]])
 # ax.set_xticks(np.arange(0,350,50))
 plt.legend()
 
 
 # ax.xaxis.set_major_locator(MultipleLocator(20))
 plt.savefig(f"{sample_name}_diffusion_plus_{element_2}.svg")
+# %%
 
 # %%
 
@@ -602,14 +659,21 @@ for idx, sample in enumerate(files_to_model):
             sample,
             data_db=Ol_Data,
             parameter_db=ol_param_db,
-            Total_time_days=2*365,
-            kriging_variogram_model="linear",
+            Total_time_days=2 * 365,
+            # kriging_variogram_model="linear",
+            # kriging_variogram_parameters={
+            #     "slope": ((5 / 100) ** 2 )/ 10,
+            #     "nugget": (0.2 / 100) ** 2,
+            # },
+            kriging_variogram_model="gaussian",
             kriging_variogram_parameters={
-                "slope": ((5 / 100) ** 2 )/ 10,
+                "sill": (10 / 100) ** 2,
+                "range": 25,
                 "nugget": (0.2 / 100) ** 2,
             },
-            uniform_uncert = 0.0005,
-        )  
+            # kriging_variogram_parameters={'sill': (2/100)**2, 'range': 50, 'nugget': (.2/100)**2},
+            uniform_uncert=0.001,
+        )
         sample_models[sample] = Model_dict
 
         fig, ax = plt.subplots(figsize=(12, 8))
@@ -637,7 +701,7 @@ def D_Fo_For_PT_Uncert_Sampling(T, P, fO2_Pa, EFo=201000):
     If Temperature, Pressure, or Oxygen fugacity change significantly
     during the diffusion period consider inputting all terms in main function.
 
-    This function should only be used to scale diffusivity in monte carlo samples relative to values used in main model fits. 
+    This function should only be used to scale diffusivity in monte carlo samples relative to values used in main model fits.
 
     Parameters:
         fO2, - Oxygen Fugacity in Pa
@@ -658,11 +722,21 @@ def D_Fo_For_PT_Uncert_Sampling(T, P, fO2_Pa, EFo=201000):
 
     return D  # units of m2/s
 
-#%%
-# Monte Carlo Modeling of Diffusivites for error propagation 
+
+# %%
+# Monte Carlo Modeling of Diffusivites for error propagation
 
 
-def sample_PT_fO2(T_C, T_C_uncert, P_Pa, P_Pa_uncert, fO2_LogPa, fO2_LogPa_uncert, return_fO2_in_Pa = True, n_samples = 1000000):
+def sample_PT_fO2(
+    T_C,
+    T_C_uncert,
+    P_Pa,
+    P_Pa_uncert,
+    fO2_LogPa,
+    fO2_LogPa_uncert,
+    return_fO2_in_Pa=True,
+    n_samples=1000000,
+):
     T_C_rand = np.random.normal(T_C, T_C_uncert, n_samples)
     P_Pa_rand = np.random.normal(P_Pa, P_Pa_uncert, n_samples)
     fO2_LogPa_rand = np.random.normal(fO2_LogPa, fO2_LogPa_uncert, n_samples)
@@ -672,33 +746,67 @@ def sample_PT_fO2(T_C, T_C_uncert, P_Pa, P_Pa_uncert, fO2_LogPa, fO2_LogPa_uncer
     else:
         fO2_Pa_rand = None
 
-
-    return {"T_C_rand": T_C_rand, "P_Pa_rand": P_Pa_rand, "fO2_LogPa_rand":fO2_LogPa_rand, "fO2_Pa_rand":fO2_Pa_rand}
-#%%
-
-# Samples 1 - 3 
-Sample_1to3 = sample_PT_fO2(T_C=1200,T_C_uncert=30, P_Pa=42*10**6, P_Pa_uncert=10 * 10**6, fO2_LogPa=(-7.86+5), fO2_LogPa_uncert=0.2)
-
-Default_D_FO_1to3 = D_Fo_For_PT_Uncert_Sampling(T= 1200, P = 42*10**6, fO2_Pa= 10**(-7.86+5))
-Sample_1to3_Diffusivity_array =D_Fo_For_PT_Uncert_Sampling(T= Sample_1to3['T_C_rand'], P = Sample_1to3['P_Pa_rand'] , fO2_Pa = Sample_1to3['fO2_Pa_rand'])
-
-Sample_1to3_Diffusivity_array_scale = Sample_1to3_Diffusivity_array/ Default_D_FO_1to3
+    return {
+        "T_C_rand": T_C_rand,
+        "P_Pa_rand": P_Pa_rand,
+        "fO2_LogPa_rand": fO2_LogPa_rand,
+        "fO2_Pa_rand": fO2_Pa_rand,
+    }
 
 
+# %%
 
-#%%
+# Samples 1 - 3
+Sample_1to3 = sample_PT_fO2(
+    T_C=1200,
+    T_C_uncert=30,
+    P_Pa=42 * 10**6,
+    P_Pa_uncert=10 * 10**6,
+    fO2_LogPa=(-7.86 + 5),
+    fO2_LogPa_uncert=0.2,
+)
+
+Default_D_FO_1to3 = D_Fo_For_PT_Uncert_Sampling(
+    T=1200, P=42 * 10**6, fO2_Pa=10 ** (-7.86 + 5)
+)
+Sample_1to3_Diffusivity_array = D_Fo_For_PT_Uncert_Sampling(
+    T=Sample_1to3["T_C_rand"],
+    P=Sample_1to3["P_Pa_rand"],
+    fO2_Pa=Sample_1to3["fO2_Pa_rand"],
+)
+
+Sample_1to3_Diffusivity_array_scale = Sample_1to3_Diffusivity_array / Default_D_FO_1to3
+
+
+# %%
 
 # Samples 4 - 5
-Sample_4to5 = sample_PT_fO2(T_C=1102,T_C_uncert=30, P_Pa=70*10**6, P_Pa_uncert=10 * 10**6, fO2_LogPa=(-8.74+5), fO2_LogPa_uncert=0.2)
+Sample_4to5 = sample_PT_fO2(
+    T_C=1102,
+    T_C_uncert=30,
+    P_Pa=70 * 10**6,
+    P_Pa_uncert=10 * 10**6,
+    fO2_LogPa=(-8.74 + 5),
+    fO2_LogPa_uncert=0.2,
+)
 
-Default_D_FO_4to5 = D_Fo_For_PT_Uncert_Sampling(T= 1102, P = 70*10**6, fO2_Pa= 10**(-8.74+5))
+Default_D_FO_4to5 = D_Fo_For_PT_Uncert_Sampling(
+    T=1102, P=70 * 10**6, fO2_Pa=10 ** (-8.74 + 5)
+)
 
-Sample_4to5_Diffusivity_array =D_Fo_For_PT_Uncert_Sampling(T= Sample_4to5['T_C_rand'], P = Sample_4to5['P_Pa_rand'] , fO2_Pa = Sample_4to5['fO2_Pa_rand'])
+Sample_4to5_Diffusivity_array = D_Fo_For_PT_Uncert_Sampling(
+    T=Sample_4to5["T_C_rand"],
+    P=Sample_4to5["P_Pa_rand"],
+    fO2_Pa=Sample_4to5["fO2_Pa_rand"],
+)
 
 Sample_4to5_Diffusivity_array_scale = Sample_4to5_Diffusivity_array / Default_D_FO_4to5
 
 
-Diffusivity_Scale_Dict = {"Sample_1to3": Sample_1to3_Diffusivity_array_scale, "Sample_4to5": Sample_4to5_Diffusivity_array_scale }
+Diffusivity_Scale_Dict = {
+    "Sample_1to3": Sample_1to3_Diffusivity_array_scale,
+    "Sample_4to5": Sample_4to5_Diffusivity_array_scale,
+}
 # %%
 
 
@@ -728,108 +836,297 @@ dt_i*dx_i = dt_n * dx_n
 """
 model_times = {}
 model_category = []
-model_title = []
+sample_title = []
+descriptive_title = []
+model_fit_idx = []
+model_dt = []
 PT_corrected_times = []
+reduced_chi_list = []
 
 for sample in sample_models.keys():
     model_times[sample] = sample_models[sample]["time"]
-    model_category.append(sample_models[sample]['model_run_name'])
-    model_title.append(sample_models[sample]['model_run_name'])
-    match sample_models[sample]['Uncert_Category']:
+    model_category.append(sample_models[sample]["model_run_name"])
+    sample_title.append(sample_models[sample]["profile_name"])
+    descriptive_title.append(sample_models[sample]["descriptive_title"])
+    model_fit_idx.append(sample_models[sample]["idx_min"])
+    model_dt.append(sample_models[sample]["dt"])
+    reduced_chi_list.append(sample_models[sample]["reduced_chi2"].min())
+
+    match sample_models[sample]["Uncert_Category"]:
         case "Diffusion_Uncert1":
             Diffusivity_Scale = Sample_1to3_Diffusivity_array_scale
         case "Diffusion_Uncert2":
             Diffusivity_Scale = Sample_1to3_Diffusivity_array_scale
 
     PT_corrected_times.append(
-        np.array(
-            sample_models[sample]["time"][0]
-            / Diffusivity_Scale
-            / (60 * 60 * 24)
-        )
+        np.array(sample_models[sample]["time"][0] / Diffusivity_Scale / (60 * 60 * 24))
     )
-
+model_fit_times = np.array(model_fit_idx).T * np.array(model_dt) / 60 / 60 / 24
+# %%
 
 DB_of_all_time = pd.DataFrame(PT_corrected_times)
-DB_of_all_time['Category'] = model_category
-DB_of_all_time.set_index('Category', inplace=True)
+DB_of_all_time["Category"] = model_category
+DB_of_all_time.set_index("Category", inplace=True)
 
-Timescales = pd.DataFrame(np.quantile(DB_of_all_time,[0.5, 0.025, 0.3333, 0.6666, 0.975], axis = 1))
-Timescales['Quantiles'] = ['50% Quantile', '2.5% Quantile', '33.33% Quantile', '66.66% Quantile', '97.5% Quantile']
-Timescales.set_index('Quantiles', inplace=True)
+Timescales = pd.DataFrame(
+    np.quantile(DB_of_all_time, [0.5, 0.025, 0.3333, 0.6666, 0.975], axis=1)
+)
+Timescales["Quantiles"] = [
+    "50% Quantile",
+    "2.5% Quantile",
+    "33.33% Quantile",
+    "66.66% Quantile",
+    "97.5% Quantile",
+]
+Timescales.set_index("Quantiles", inplace=True)
+Timescales = Timescales.T
+Timescales["Model Name"] = model_category
+Timescales["Sample Name"] = sample_title
+Timescales["Descriptive Title"] = descriptive_title
+Timescales["Reduced Chi2"] = reduced_chi_list
+Timescales["Best_model_fit_times"] = model_fit_times[0, :]
+Timescales["Best_model_fit_times -1 sigma"] = model_fit_times[1, :]
+Timescales["Best_model_fit_times +1 sigma"] = model_fit_times[2, :]
+Timescales["Best_model_fit_times -1 sigma_diff"] = (
+    Timescales["Best_model_fit_times -1 sigma"] - Timescales["Best_model_fit_times"]
+)
+Timescales["Best_model_fit_times +1 sigma_diff"] = (
+    Timescales["Best_model_fit_times +1 sigma"] - Timescales["Best_model_fit_times"]
+)
+Timescales["33.33% Quantile_diff"] = (
+    Timescales["33.33% Quantile"] - Timescales["50% Quantile"]
+)
+Timescales["66.66% Quantile_diff"] = (
+    Timescales["66.66% Quantile"] - Timescales["50% Quantile"]
+)
+Timescales["Combined -1 Sigma"] = -np.sqrt(
+    Timescales["Best_model_fit_times -1 sigma_diff"] ** 2
+    + Timescales["33.33% Quantile_diff"] ** 2
+)
+Timescales["Combined +1 Sigma"] = np.sqrt(
+    Timescales["Best_model_fit_times +1 sigma_diff"] ** 2
+    + Timescales["66.66% Quantile_diff"] ** 2
+)
 
-Timescales.columns =model_category
+# %%
+# Second Version of Table with timescales simplified
+# First Version of Table with timescales in quantiles
+selected_cols = [
+    "Sample Name",
+    "Descriptive Title",
+    "Reduced Chi2",
+    "Best_model_fit_times",
+    "Best_model_fit_times -1 sigma_diff",
+    "Best_model_fit_times +1 sigma_diff",
+    "33.33% Quantile_diff",
+    "66.66% Quantile_diff",
+    "Combined -1 Sigma",
+    "Combined +1 Sigma",
+]
 
+spanner_PT_uncert = ["33.33% Quantile_diff", "66.66% Quantile_diff"]
+spanner_fit_times = [
+    "Best_model_fit_times",
+    "Best_model_fit_times -1 sigma_diff",
+    "Best_model_fit_times +1 sigma_diff",
+]
 
+spanner_combined_uncert = [
+    "Combined -1 Sigma",
+    "Combined +1 Sigma",
+]
+(
+    GT(
+        Timescales[selected_cols],
+        rowname_col="Descriptive Title",
+        groupname_col="Sample Name",
+    )
+    .fmt_number(decimals=1)
+    .tab_spanner(label="\u03c7\u00b2 Min. Time (Days)", columns=spanner_fit_times)
+    .tab_spanner(label=html("Diffusivity <br /> Uncertainty (Days)"), columns=spanner_PT_uncert)
+    .tab_spanner(label = html('Aprox. Combined <br /> Uncertainty (Days)'), columns = spanner_combined_uncert)
 
-#%%
+    # .cols_move_to_end(columns = spanner_PT_uncert)
+    .cols_label(
+        {
+            "Reduced Chi2": f"Red. \u03c7\u00b2",
+            "Best_model_fit_times": f"Best Fit",
+            "Best_model_fit_times -1 sigma_diff": "-1 σ",
+            "Best_model_fit_times +1 sigma_diff": "+1 σ",
+            "33.33% Quantile_diff": "-1 σ",
+            "66.66% Quantile_diff": "+1 σ",
+            "Combined -1 Sigma": "-1 σ",
+            "Combined +1 Sigma": "+1 σ",
+        }
+    )
+    .tab_options(
+        row_group_border_top_style="dashed",
+        row_group_border_top_width="1.5px",
+        row_group_border_top_color="black",
+        row_group_padding="8px",
+        row_group_font_size=None,
+        row_group_font_weight="bold",
+        table_body_hlines_style=None,
+        table_body_hlines_width=None,
+        table_body_hlines_color=None,
+        table_body_vlines_style="solid",
+        table_body_vlines_width="1px",
+        table_body_vlines_color=None,
+    )
+    .tab_style(
+        style=style.borders(sides="right", color="black", style="solid", weight="1px"),
+        locations=loc.body(columns=[2,5,7]),
+    )
+    # .show("browser")
+    .save("Round Robin_Sample Times version 2.png", scale=2)
+)
+
+# %%
+
+# %%
+# First Version of Table with timescales in quantiles
+
+selected_cols = [
+    # "50% Quantile",
+    "2.5% Quantile",
+    "33.33% Quantile",
+    "66.66% Quantile",
+    "97.5% Quantile",
+    "Sample Name",
+    "Descriptive Title",
+    "Reduced Chi2",
+    "Best_model_fit_times",
+    "Best_model_fit_times -1 sigma",
+    "Best_model_fit_times +1 sigma",
+]
+
+spanner_PT_uncert = [
+    "50% Quantile",
+    "2.5% Quantile",
+    "33.33% Quantile",
+    "66.66% Quantile",
+    "97.5% Quantile",
+]
+spanner_fit_times = [
+    "Best_model_fit_times",
+    "Best_model_fit_times -1 sigma",
+    "Best_model_fit_times +1 sigma",
+]
+
+(
+    GT(
+        Timescales[selected_cols],
+        rowname_col="Descriptive Title",
+        groupname_col="Sample Name",
+    )
+    .fmt_number(decimals=1)
+    .tab_spanner(label="Best Fit Time (Days)", columns=spanner_fit_times)
+    .tab_spanner(
+        label="Diffusivity Uncertainty Quantile (Days)", columns=spanner_PT_uncert
+    )
+    .cols_move_to_end(columns=spanner_PT_uncert)
+    .cols_label(
+        {
+            "Reduced Chi2": f"Red. \u03c7\u00b2",
+            "Best_model_fit_times": f"Best Fit",
+            "Best_model_fit_times -1 sigma": "-1 σ",
+            "Best_model_fit_times +1 sigma": "+1 σ",
+            "2.5% Quantile": "2.5%",
+            "33.33% Quantile": "33.33%",
+            "66.66% Quantile": "66.66%",
+            "97.5% Quantile": "97.5%",
+        }
+    )
+    .tab_options(
+        row_group_border_top_style="dashed",
+        row_group_border_top_width="1.5px",
+        row_group_border_top_color="black",
+        row_group_padding="8px",
+        row_group_font_size=None,
+        row_group_font_weight="bold",
+        table_body_hlines_style=None,
+        table_body_hlines_width=None,
+        table_body_hlines_color=None,
+        table_body_vlines_style="solid",
+        table_body_vlines_width="1px",
+        table_body_vlines_color=None,
+    )
+    .tab_style(
+        style=style.borders(sides="right", color="black", style="solid", weight="1px"),
+        locations=loc.body(columns=[9]),
+    )
+    # .show("browser")
+    .save("Round Robin_Sample Times.png", scale=2)
+)
+# %%
 from matplotlib.ticker import ScalarFormatter
+
 formatter = ScalarFormatter()
 formatter.set_scientific(False)
 
 
-#%%
+# %%
 fig, ax = plt.subplots()
-sns.boxenplot(DB_of_all_time.T, log_scale=True, ax = ax, showfliers=False)
-ax.tick_params(axis='x', labelrotation=90)
+sns.boxenplot(DB_of_all_time.T, log_scale=True, ax=ax, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
 ax.set_ylabel("Days")
 ax.yaxis.set_major_formatter(formatter)
 
 
-#%%
+# %%
 fig, ax = plt.subplots()
-sns.boxenplot(DB_of_all_time.T.iloc[:, 0:3], ax = ax, log_scale=True, showfliers=False)
-ax.tick_params(axis='x', labelrotation=90)
+sns.boxenplot(DB_of_all_time.T.iloc[:, 0:3], ax=ax, log_scale=True, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
 ax.set_ylabel("Days")
 
 ax.yaxis.set_major_formatter(formatter)
 
-#%%
+# %%
 fig, ax = plt.subplots()
-sns.boxenplot(DB_of_all_time.T.iloc[:, 3:6], ax = ax, log_scale=True, showfliers=False)
-ax.tick_params(axis='x', labelrotation=90)
+sns.boxenplot(DB_of_all_time.T.iloc[:, 3:6], ax=ax, log_scale=True, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
 ax.set_ylabel("Days")
 
 ax.yaxis.set_major_formatter(formatter)
 
-#%%
+# %%
 fig, ax = plt.subplots()
-sns.boxenplot(DB_of_all_time.T.iloc[:, 6:8], ax = ax, log_scale=True, showfliers=False)
-ax.tick_params(axis='x', labelrotation=90)
+sns.boxenplot(DB_of_all_time.T.iloc[:, 6:8], ax=ax, log_scale=True, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
 ax.set_ylabel("Days")
 
 ax.yaxis.set_major_formatter(formatter)
-#%%
+# %%
 fig, ax = plt.subplots()
-sns.boxenplot(DB_of_all_time.T.iloc[:, 6:11], ax = ax, log_scale=True, showfliers=False)
-ax.tick_params(axis='x', labelrotation=90)
+sns.boxenplot(DB_of_all_time.T.iloc[:, 6:11], ax=ax, log_scale=True, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
 ax.set_ylabel("Days")
 ax.yaxis.set_major_formatter(formatter)
-#%%
+# %%
 
 fig, ax = plt.subplots()
-sns.boxenplot(DB_of_all_time.T.iloc[:, 11:13], ax = ax, log_scale=True, showfliers=False)
-ax.tick_params(axis='x', labelrotation=90)
-ax.set_ylabel("Days")
-
-ax.yaxis.set_major_formatter(formatter)
-#%%
-
-fig, ax = plt.subplots()
-sns.boxenplot(DB_of_all_time.T.iloc[:, 13], ax = ax, log_scale=True, showfliers=False)
-ax.tick_params(axis='x', labelrotation=90)
+sns.boxenplot(DB_of_all_time.T.iloc[:, 11:13], ax=ax, log_scale=True, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
 ax.set_ylabel("Days")
 
 ax.yaxis.set_major_formatter(formatter)
+# %%
 
-#%%
+fig, ax = plt.subplots()
+sns.boxenplot(DB_of_all_time.T.iloc[:, 13], ax=ax, log_scale=True, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
+ax.set_ylabel("Days")
+
+ax.yaxis.set_major_formatter(formatter)
+
+# %%
+# %%
 
 # times_DB = pd.DataFrame(model_times, index=("Bestfit Time", "Uncert-", "Uncert+")).T / (
 #     60 * 60 * 24
 # )
 
 # times_DB["Diffusivity_adjusted_time"] = times_DB["Bestfit Time"] / Diffusivity_Scale
-
 
 
 # times_DB["Category"] = model_category
@@ -1049,7 +1346,7 @@ axs[-1].tick_params(which="minor", length=4)
 
 
 # %%%
-# Make Table of timesscales with corrected for diffusivity uncertainties. 
+# Make Table of timesscales with corrected for diffusivity uncertainties.
 Data_Dict = {}
 
 categories_to_model = times_DB.Category.unique()
@@ -1090,6 +1387,9 @@ for idx, category in enumerate(categories_to_model):
 
 Timescale_Summary_DF = pd.DataFrame(Data_Dict).T
 Timescale_Summary_DF.to_excel("Diffusion_Timescales_Summary.xlsx")
+
+
+# %%
 
 
 # %%
