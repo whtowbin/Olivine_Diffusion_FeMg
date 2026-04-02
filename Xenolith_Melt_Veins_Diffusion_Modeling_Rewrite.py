@@ -489,10 +489,11 @@ def plot_diffusion_results(
 
     time_days = Model_dict["time"] / (24 * 60 * 60)
     ax.set_title(
-        Model_dict["profile_name"]
+         Model_dict["profile_name"]
+        + "\n" 
+        + Model_dict["descriptive_title"]
         + "\n"
-        + f"Best fit time: {round(time_days[0], 1)}±{round(np.abs(time_days[1:None]).max(), 1)} days"
-        + f" Temperature: {Model_dict['T_Celsius']} ˚C",
+        + f"Best fit time: {round(time_days[0], 1)} days",
         weight="bold",
     )
 
@@ -543,36 +544,36 @@ def plot_diffusion_results(
 
 # %%
 # Scratch pad code for determining uncertainty of noisy profiles
-from scipy.signal import savgol_filter
+# from scipy.signal import savgol_filter
 
-window_size = round(len(Model_dict["y"]) / 5) + 1
-poly_order = 3
-if window_size < 3:
-    window_size = 3
-    poly_order = 2
-filtered = savgol_filter(Model_dict["y"], window_size, 3)
+# window_size = round(len(Model_dict["y"]) / 5) + 1
+# poly_order = 3
+# if window_size < 3:
+#     window_size = 3
+#     poly_order = 2
+# filtered = savgol_filter(Model_dict["y"], window_size, 3)
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-ax.plot(Model_dict["x"], Model_dict["y"] * 100, linewidth=1)
+# ax.plot(Model_dict["x"], Model_dict["y"] * 100, linewidth=1)
 
-ax.plot(Model_dict["x"], filtered * 100, linewidth=3)
-residual_std = np.std(100 * (Model_dict["y"] - filtered)[window_size:-window_size])
-print(residual_std)
+# ax.plot(Model_dict["x"], filtered * 100, linewidth=3)
+# residual_std = np.std(100 * (Model_dict["y"] - filtered)[window_size:-window_size])
+# print(residual_std)
 
-residual2 = 100 * (
-    np.sum(((Model_dict["y"] - filtered) ** 2)) / (len(filtered) - 2)
-) ** (1 / 2)
-print(residual2)
+# residual2 = 100 * (
+#     np.sum(((Model_dict["y"] - filtered) ** 2)) / (len(filtered) - 2)
+# ) ** (1 / 2)
+# print(residual2)
 
-ig, ax = plt.subplots()
+# ig, ax = plt.subplots()
 
-ax.plot(Model_dict["x"], 100 * (Model_dict["y"] - filtered), linewidth=1)
-ax.plot([0, 100], [residual_std, residual_std])
-ax.plot([0, 100], [2 * residual_std, 2 * residual_std])
-ax.plot([0, 100], [-residual_std, -residual_std])
-ax.plot([0, 100], [-2 * residual_std, -2 * residual_std])
-ax.plot([0, 100], [0, 0])
+# ax.plot(Model_dict["x"], 100 * (Model_dict["y"] - filtered), linewidth=1)
+# ax.plot([0, 100], [residual_std, residual_std])
+# ax.plot([0, 100], [2 * residual_std, 2 * residual_std])
+# ax.plot([0, 100], [-residual_std, -residual_std])
+# ax.plot([0, 100], [-2 * residual_std, -2 * residual_std])
+# ax.plot([0, 100], [0, 0])
 # %%
 ol_param_db = pd.read_excel(
     excel_db_path,
@@ -978,8 +979,11 @@ spanner_combined_uncert = [
         locations=loc.body(columns=[2,5,7]),
     )
     # .show("browser")
-    .save("Round Robin_Sample Times version 2.png", scale=2)
+    # .save("Round Robin_Sample Times version 2.png", scale=2)
+    # .save("Round Robin_Sample Times version 2.pdf", scale=2)
+    # .write_raw_html("Round Robin_Sample Times version 2")
 )
+
 
 # %%
 
@@ -1119,277 +1123,3 @@ ax.set_ylabel("Days")
 
 ax.yaxis.set_major_formatter(formatter)
 
-# %%
-# %%
-
-# times_DB = pd.DataFrame(model_times, index=("Bestfit Time", "Uncert-", "Uncert+")).T / (
-#     60 * 60 * 24
-# )
-
-# times_DB["Diffusivity_adjusted_time"] = times_DB["Bestfit Time"] / Diffusivity_Scale
-
-
-# times_DB["Category"] = model_category
-# times_DB["PT_corrected_times"] = PT_corrected_times
-
-# DB_of_all_time = pd.DataFrame(PT_corrected_times)
-# DB_of_all_time["Category"] = model_category
-
-
-# times_DB.to_excel("Times_database_Diffusivities.xlsx")
-
-# %%
-
-# plt.figure(figsize=(12, 8))
-# sns.boxenplot(
-#     x="Category",
-#     y="Bestfit Time",
-#     data=times_DB,
-# )
-
-# %%
-# Code for producing time uncertainty for diffusion models.
-
-
-# categories_to_model = times_DB.Category.unique()
-# # Plot each xenolith as a plot
-# for category in categories_to_model:
-#     fig, axs = plt.subplots(figsize=(12, 8))
-#     profs = times_DB.loc[times_DB["Category"] == category].index.unique()
-#     for idx, prof in enumerate(profs):
-#         sns.kdeplot(
-#             times_DB.loc[prof]["PT_corrected_times"], ax=ax, palette="crest"
-#         )  # log_scale= True
-
-#     plt.title(category)
-#     plt.show()
-# %%
-# Plot all categories on different subplots
-# fig, axs = plt.subplots(
-#     nrows=len(categories_to_model), figsize=(8.2, 10.5), sharex=True, squeeze=True
-# )
-
-# for idx, category in enumerate(categories_to_model):
-#     profs = times_DB.loc[times_DB["Category"] == category].index.unique()
-#     for prof in profs:
-#         sns.kdeplot(
-#             times_DB.loc[prof]["PT_corrected_times"],
-#             ax=axs[idx],
-#             palette="colorblind",
-#             log_scale=True,
-#             common_norm=False,
-#         )  # log_scale= True
-#         axs[idx].set_title(category, pad=-15)
-
-# plt.xlable = "Days for Diffusion Profile to Form"
-
-
-# %%
-
-# fig, axs = plt.subplots(
-#     nrows=len(categories_to_model), figsize=(8.2, 10.5), sharex=True, squeeze=True
-# )
-
-# for idx, category in enumerate(categories_to_model):
-#     profs = times_DB.loc[times_DB["Category"] == category].index.unique()
-#     for prof in profs:
-#         sns.kdeplot(
-#             times_DB.loc[prof]["PT_corrected_times"],
-#             ax=axs[idx],
-#             palette="colorblind",
-#             log_scale=True,
-#             common_norm=False,
-#         )  # log_scale= True
-#         axs[idx].set_title(category, pad=-15)
-
-# plt.xlable = "Days for Diffusion Profile to Form"
-
-# %%
-
-categories_to_model = times_DB.Category.unique()
-fig, axs = plt.subplots(
-    nrows=len(categories_to_model), figsize=(8.2, 10.5), sharex=True, squeeze=True
-)
-
-for idx, category in enumerate(categories_to_model):
-    profs = times_DB.loc[times_DB["Category"] == category].index.unique()
-    Dict = {}
-    for prof in profs:
-        Dict[prof] = times_DB.loc[times_DB.index == prof][
-            "PT_corrected_times"
-        ].to_numpy()[0]
-
-    DB = pd.DataFrame(Dict)
-
-    sns.histplot(
-        data=DB,
-        ax=axs[idx],
-        palette="rocket",
-        legend=False,
-        stat="probability",
-        bins=50,
-        log_scale=True,
-    )
-    axs[idx].set_title(category, pad=-15, loc="left")
-
-    axs[idx].tick_params(axis="y", which="both", width=2)
-    axs[idx].tick_params(axis="y", which="major", length=7)
-    axs[idx].tick_params(axis="y", which="minor", length=4)
-plt.xlabel("Days for Diffusion Profile to Develop")
-
-axs[-1].xaxis.set_major_formatter(ScalarFormatter())
-axs[-1].tick_params(which="both", width=2)
-axs[-1].tick_params(which="major", length=7)
-axs[-1].tick_params(which="minor", length=4)
-# plt.savefig("Melt_Vein_Olivine_Mg-Fe_Diffusion_Timescales.svg")
-
-
-# %%
-
-categories_to_model = times_DB.Category.unique()
-fig, axs = plt.subplots(
-    nrows=len(categories_to_model), figsize=(8.2, 10.5), sharex=True, squeeze=True
-)
-
-for idx, category in enumerate(categories_to_model):
-    profs = times_DB.loc[times_DB["Category"] == category].index.unique()
-    axs2 = axs[idx].twinx()
-
-    Dict = {}
-    Timescales = []
-    for prof in profs:
-        Timescales.append(
-            times_DB.loc[times_DB.index == prof]["PT_corrected_times"].to_numpy()[0]
-        )
-
-        Dict[prof] = times_DB.loc[times_DB.index == prof][
-            "PT_corrected_times"
-        ].to_numpy()[0]
-
-    Timescales = np.concatenate(Timescales)
-    sns.kdeplot(
-        data=Timescales,
-        ax=axs2,
-        palette="rocket",
-        legend=False,
-        # common_norm = "False",
-        log_scale=True,
-        linewidth=3.0,
-        linestyle="dashed",
-    )
-
-    DB = pd.DataFrame(Dict)
-
-    sns.histplot(
-        data=DB,
-        ax=axs[idx],
-        palette="rocket",
-        legend=False,
-        stat="density",  # "probability",
-        bins=50,
-        log_scale=True,
-    )
-    axs[idx].set_title(category, pad=-15, loc="left")
-
-    axs[idx].tick_params(axis="y", which="both", width=2)
-    axs[idx].tick_params(axis="y", which="major", length=7)
-    axs[idx].tick_params(axis="y", which="minor", length=4)
-axs[-1].set_xlabel("Days for Diffusion Profile to Develop")
-
-axs[-1].xaxis.set_major_formatter(ScalarFormatter())
-axs[-1].tick_params(which="both", width=2)
-axs[-1].tick_params(which="major", length=7)
-axs[-1].tick_params(which="minor", length=4)
-
-plt.savefig("Melt_Vein_Olivine_Mg-Fe_Diffusion_Timescales_sum.svg")
-# %%
-
-# %%
-
-# %%
-# Plot Histogram Plots
-categories_to_model = times_DB.Category.unique()
-fig, axs = plt.subplots(
-    nrows=len(categories_to_model), figsize=(8.2, 10.5), sharex=True, squeeze=True
-)
-
-for idx, category in enumerate(categories_to_model):
-    profs = times_DB.loc[times_DB["Category"] == category].index.unique()
-    Dict = {}
-    for prof in profs:
-        Dict[prof] = times_DB.loc[times_DB.index == prof][
-            "PT_corrected_times"
-        ].to_numpy()[0]
-
-    DB = pd.DataFrame(Dict)
-
-    sns.histplot(
-        data=DB,
-        ax=axs[idx],
-        palette="rocket",
-        legend=False,
-        stat="probability",
-        bins=50,
-        log_scale=True,
-    )
-    axs[idx].set_title(category, pad=-15, loc="left")
-
-    axs[idx].tick_params(axis="y", which="both", width=2)
-    axs[idx].tick_params(axis="y", which="major", length=7)
-    axs[idx].tick_params(axis="y", which="minor", length=4)
-plt.xlabel("Days for Diffusion Profile to Develop")
-
-axs[-1].xaxis.set_major_formatter(ScalarFormatter())
-axs[-1].tick_params(which="both", width=2)
-axs[-1].tick_params(which="major", length=7)
-axs[-1].tick_params(which="minor", length=4)
-
-
-# %%%
-# Make Table of timesscales with corrected for diffusivity uncertainties.
-Data_Dict = {}
-
-categories_to_model = times_DB.Category.unique()
-
-
-for idx, category in enumerate(categories_to_model):
-    profs = times_DB.loc[times_DB["Category"] == category].index.unique()
-
-    Category_times = []
-    for prof in profs:
-        Times = times_DB.loc[times_DB.index == prof]["PT_corrected_times"].to_numpy()[0]
-        Category_times.append(Times)
-
-        BestTime = np.percentile(Times, 50)
-        MaxTime95CI = np.percentile(Times, 95)
-        MinTime5CI = np.percentile(Times, 5)
-
-        Timescales = {
-            "BestTime": BestTime,
-            "MinTime5Percentile": MinTime5CI,
-            "MaxTime95Percentile": MaxTime95CI,
-            "Category": category,
-        }
-
-        Data_Dict[prof] = Timescales
-
-    Category_times = np.concatenate(Category_times)
-    BestTime = np.percentile(Category_times, 50)
-    MaxTime95CI = np.percentile(Category_times, 95)
-    MinTime5CI = np.percentile(Category_times, 5)
-    Timescales = {
-        "BestTime": BestTime,
-        "MinTime5Percentile": MinTime5CI,
-        "MaxTime95Percentile": MaxTime95CI,
-        "Category": category,
-    }
-    Data_Dict[category] = Timescales
-
-Timescale_Summary_DF = pd.DataFrame(Data_Dict).T
-Timescale_Summary_DF.to_excel("Diffusion_Timescales_Summary.xlsx")
-
-
-# %%
-
-
-# %%
