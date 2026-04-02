@@ -736,11 +736,14 @@ def sample_PT_fO2(
     fO2_LogPa,
     fO2_LogPa_uncert,
     return_fO2_in_Pa=True,
+    EFo_J_per_mol =201000 , #J/mol
+    EFo_J_per_mol_uncert = 8000, #J/Mol
     n_samples=1000000,
 ):
     T_C_rand = np.random.normal(T_C, T_C_uncert, n_samples)
     P_Pa_rand = np.random.normal(P_Pa, P_Pa_uncert, n_samples)
     fO2_LogPa_rand = np.random.normal(fO2_LogPa, fO2_LogPa_uncert, n_samples)
+    EFo_J_per_mol_rand = np.random.normal(EFo_J_per_mol,EFo_J_per_mol_uncert,n_samples)
 
     if return_fO2_in_Pa is True:
         fO2_Pa_rand = 10**fO2_LogPa_rand
@@ -752,6 +755,7 @@ def sample_PT_fO2(
         "P_Pa_rand": P_Pa_rand,
         "fO2_LogPa_rand": fO2_LogPa_rand,
         "fO2_Pa_rand": fO2_Pa_rand,
+        "EFo_J_per_mol_rand":EFo_J_per_mol_rand,
     }
 
 
@@ -774,6 +778,7 @@ Sample_1to3_Diffusivity_array = D_Fo_For_PT_Uncert_Sampling(
     T=Sample_1to3["T_C_rand"],
     P=Sample_1to3["P_Pa_rand"],
     fO2_Pa=Sample_1to3["fO2_Pa_rand"],
+    EFo = Sample_1to3["EFo_J_per_mol_rand"],
 )
 
 Sample_1to3_Diffusivity_array_scale = Sample_1to3_Diffusivity_array / Default_D_FO_1to3
@@ -799,6 +804,7 @@ Sample_4to5_Diffusivity_array = D_Fo_For_PT_Uncert_Sampling(
     T=Sample_4to5["T_C_rand"],
     P=Sample_4to5["P_Pa_rand"],
     fO2_Pa=Sample_4to5["fO2_Pa_rand"],
+    EFo = Sample_1to3["EFo_J_per_mol_rand"],
 )
 
 Sample_4to5_Diffusivity_array_scale = Sample_4to5_Diffusivity_array / Default_D_FO_4to5
@@ -980,7 +986,7 @@ spanner_combined_uncert = [
     )
     # .show("browser")
     # .save("Round Robin_Sample Times version 2.png", scale=2)
-    # .save("Round Robin_Sample Times version 2.pdf", scale=2)
+    .save("Round Robin_Sample Times version 2.pdf", scale=2)
     # .write_raw_html("Round Robin_Sample Times version 2")
 )
 
@@ -1123,3 +1129,5 @@ ax.set_ylabel("Days")
 
 ax.yaxis.set_major_formatter(formatter)
 
+
+# %%
