@@ -736,8 +736,8 @@ def sample_PT_fO2(
     fO2_LogPa,
     fO2_LogPa_uncert,
     return_fO2_in_Pa=True,
-    EFo_J_per_mol =201000 , #J/mol
-    EFo_J_per_mol_uncert = 8000, #J/Mol
+    EFo_J_per_mol =201000 , #J/mol 
+    EFo_J_per_mol_uncert = 8000, #J/Mol Dohmen et al. 2007
     n_samples=1000000,
 ):
     T_C_rand = np.random.normal(T_C, T_C_uncert, n_samples)
