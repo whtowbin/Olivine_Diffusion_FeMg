@@ -1,10 +1,19 @@
 # Restructure Olivine_Diffusion_FeMg so others can run the models
 
-Status: draft for review (2026-10-11). Nothing below is built yet.
+Status (2026-10-12): phase 1 done and committed locally (999a40f engine fix, 9108a99 move, de3bfd3 package, d3ce564 rename to `forster`). Phase 2 built and verified, not committed (waiting for Henry's review; see "Phase 2 tasks"). Phases 3-4 not started. `master` is 4 commits ahead of GitHub (not pushed).
+
+## Next session: start here
+
+- Start Claude Code in this repo (`~/Projects/Olivine_Diffusion_FeMg`) so `.claude/settings.json` (ruff format hook) applies. Run `prek install` once if it has not been run.
+- Built so far: `src/forster/` with `model.py` (`fit_profile` and dataclasses), `io.py` (`read_profiles`, `read_runs`, `fit_run`; round robin and paper table layouts), `dipra.py` (DIPRA scheme, `scheme="dipra"`), `engine.py` and `orientation.py` (research code moved, cross-term fix applied). 51 tests pass on Python 3.11 and 3.13 (`uv run pytest -n 8`, about 45 s). The real API is in `src/forster/model.py`; the "Python API" sketch below is the earlier proposal and differs in detail (for example `Orientation` is separate from `Conditions`, and `InitialCondition` takes `domain_um`, `steps_um`, `step_fo`).
+- Next: commit the fit-uncertainty work (session github-drafts-68), then phase 2 on top of it. Then phase 3 (tkinter GUI, including the Monte Carlo sampling options) and phase 4 (move the round robin and archive scripts under `analyses/`).
+- Open questions for Henry: the citations marked [confirm] in "Science and citations" (DIPRA Table 1 resolved several), and the source of the ±1σ rule (reduced chi-squared within 1 of its minimum).
+- Known follow-ups: NumPy deprecation warning in `orientation.py` (float of a 1-element array; will become an error in a future NumPy); `engine.timestepper` keeps every time step in memory (about 250 MB for a 2-year round robin run), which the GUI will want to avoid; the "Before release" items in `CHANGELOG.md` (cross-term fix notes, round robin refits, paper addendum).
+- Untracked and not mine: the Quarto render of this doc (`.html`, `_files/`).
 
 ## Goal
 
-A user with their own olivine profile can install one package and fit it three ways: from Python, from the command line with two filled-in CSV templates, or in a desktop GUI where they set the initial condition, edit the physical and numerical parameters, run the fit and export the results. The fits must stay identical to the current code.
+A user with their own olivine profile can install one package and fit it three ways: from Python, from the command line with two filled-in CSV templates, or in a desktop GUI where they set the initial condition, edit the physical and numerical parameters, run the fit and export the results. The fits must stay identical to the current code, apart from the documented cross-term fix (see "Engine fix").
 
 ## Where the code is now
 
@@ -205,6 +214,31 @@ Most times get 13-43% longer. SH63olv084 gets 28% shorter: its Fo falls from the
 2. CLI, templates, example data, README with install and the three ways to run.
 3. GUI.
 4. Move the round robin and archive scripts under `analyses/` and point them at the package (checked by rerunning them).
+
+### Phase 2 tasks (written 2026-10-12)
+
+Builds on the uncommitted fit-uncertainty work from session github-drafts-68 (`forster/uncertainty.py`, `uncertainty=` in `fit_profile`, default "correlated"). That work should be committed first, on its own; phase 2 then commits on top.
+
+Decisions made while planning (Henry to confirm at the phase commit):
+
+- **A third parameter-table layout, "template", using the Python API's names and units** (`run`, `profile`, `T_C`, `P_Pa`, `domain_start_um`, `steps_um`, `edge_fo`, ...). Fo is a fraction everywhere, as in the API. Orientation is given either as `alpha_deg`, `beta_deg`, `gamma_deg` or as EBSD Euler angles `phi1_deg`, `Phi_deg`, `phi2_deg` with `profile_angle_deg`; fO2 either as `fO2_Pa` or as `fO2_buffer` (QFM, NNO) with `fO2_delta_log`. A row that gives both forms, or neither completely, is an error. The round robin and paper layouts keep working unchanged. Profile tables: `profile`, `distance_um`, `fo` (fraction), detected from the columns; the lab layout (`Profile_Name`, `Distance µm`, `Fo#` in percent) stays the fallback.
+- **The example is AZ18 WHT01_Ol_63_prof_1** (Towbin and Plank 2026; 30 points, one step, a melt-vein olivine): one step keeps the first example simple. It ships inside the package (`src/forster/data/`), so `forster template DIR` writes it after a pip install and the template is a working example. `max_time_days` is 40 (best fit about 5 days), so it fits in under a second. No separate `examples/` folder or marimo notebook in phase 2.
+- `summary.csv` uses the template column names, so it can be fed back to `forster fit` as a parameter table (every run in it reruns as it was fitted, with fO2 in Pa and the orientation as angles).
+- `forster gui` is added in phase 3, not stubbed now.
+- The P-T-fO2 Monte Carlo cannot be `forster/uncertainty.py` as the layout above planned: that name now holds the fit uncertainty. Use `forster/rescale.py` in phase 3.
+- `InitialCondition` now rejects two steps without `step_fo` and more than two steps (the engine crashed with an IndexError). Every row of the round robin and paper tables already satisfies this.
+
+All five tasks done 2026-10-12: 87 tests pass on Python 3.13 and 3.11; ruff, ty and complexipy clean; the wheel holds the example CSVs and the `forster` script. Also found and fixed while testing: pandas' default CSV float parser reads some values 1 ulp off, so `read_table` now uses `float_precision="round_trip"` (without it a summary did not refit identically).
+
+Tasks:
+
+1. `io.py`: template layout in `read_runs` (`_template_run`, `_pick_form`), layout detection by column set with an error naming all three layouts; `read_profiles` detects the template profile columns; a clear error for unparsable `steps_um`; `summary_row(result)`, `fit_tables(result)` (curves, kriged data, measured points with residuals). `model.py`: the step-count check. Tests (`tests/test_template.py`): Euler and angle forms give the same `Orientation` as `Orientation.from_euler`; buffer and Pa forms; both forms and neither form are errors; the packaged example matches the paper row and profile it was taken from (same `Run` inputs and the same fit); a summary row read back as a parameter table gives the same runs; two steps without `step_fo` is an error.
+2. `plotting.py`: `plot_fit(result, ax=None)`: measured points, initial condition, best fit and the 1σ band, time in the title; kriged curve only for the legacy method (the only one that fits to it). Checked with figcheck and by looking at the example's PNG.
+3. `template.py` and `src/forster/data/`: `write_template(out_dir, overwrite=False)` writes `profiles.csv`, `parameters.csv` and `COLUMNS.md` (the column guide, generated from one table in code); refuses to overwrite.
+4. `cli.py`, `__main__.py`, `[project.scripts] forster`: `forster template DIR [--force]`, `forster fit PROFILES PARAMETERS [--out DIR] [--run NAME ...] [--profiles-sheet] [--parameters-sheet]`, `forster --version`. `fit` writes `<run>_fit.png`, `<run>_curves.csv`, `<run>_kriged.csv`, `<run>_points.csv` and `summary.csv`, keeps going past a run that fails and exits 1 if any did; fit warnings go to the summary's `warnings` column. Tests (`tests/test_cli.py`, real subprocesses on the installed `forster` script): template then fit on the example, outputs present and the summary time equal to `fit_run` in-process; template refuses to overwrite; a run with a missing profile fails alone with exit code 1; `--run` selects and an unknown name is an error.
+5. `README.md` (install, the three ways to run, the column guide, citing, the tkinter note held for phase 3) and `readme` in `pyproject.toml`; a test that every template column is documented in the README. CHANGELOG "Added" entries.
+
+Verify once at the end: `uv run pytest -n 8`, `uv run ruff check`, `uv run ruff format --check`, `uv run ty check`, complexipy, and `uv build` with the example CSVs inside the wheel.
 
 **Before the first release (flagged 2026-10-11):** come back to the cross-term fix (see "Engine fix" above and `CHANGELOG.md`). The release notes must say that results from versions before the fix are biased where D varies along the profile, and by how much; the round robin results must be refitted (including the SH63olv066 initial conditions) and any submitted round robin results corrected; and the Xenolith_Melt_Vein_Modeling README needs its note on the size of the effect on the paper.
 

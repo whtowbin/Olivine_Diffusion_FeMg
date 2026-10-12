@@ -1,7 +1,8 @@
 [project]
 name = "forster"
 version = "0.1.0.dev0"
-description = "Fe-Mg diffusion modeling of zoned olivine profiles, with kriging interpolation and Monte Carlo uncertainty"
+description = "FORSTER olivine diffusion: fit Fe-Mg diffusion times to zoned olivine profiles"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Henry Towbin" }]
@@ -14,6 +15,9 @@ dependencies = [
     "pykrige>=1.7.2",
     "scipy>=1.16.1",
 ]
+
+[project.scripts]
+forster = "forster.cli:main"
 
 [dependency-groups]
 dev = [

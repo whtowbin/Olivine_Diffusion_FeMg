@@ -4,6 +4,11 @@
 
 ### Added
 
+- `forster` command (2026-10-12). `forster template DIR` writes `profiles.csv` and `parameters.csv` to fill in, holding one published profile as a worked example (AZ18 WHT01_Ol_63_prof_1, Towbin and Plank 2026), and `COLUMNS.md`. `forster fit PROFILES PARAMETERS --out DIR` fits every run and writes, per run, a figure (`_fit.png`), the model curves, the fitted points with residuals and the kriged profile, plus `summary.csv` (time, 1σ range and every input; it reads back as a parameter table). A failing run is reported and skipped (exit status 1). `--run` picks runs; `--profiles-sheet` and `--parameters-sheet` read Excel.
+- Template parameter layout: the Python API's names with units, Fo as a fraction, orientation as angles to the crystal axes or as EBSD Euler angles with the profile direction, fO2 in Pa or relative to a buffer. The round robin and paper layouts are still read. Profile tables in the template layout (`profile`, `distance_um`, `fo`) are detected from their columns.
+- `forster.plot_fit(result, ax=None)`, `forster.summary_row(result)`, `forster.fit_tables(result)`, `forster.write_template(dir)`.
+- README with installation and the three ways to run (the desktop app follows in the next phase).
+
 - DIPRA's finite-difference scheme (Girona and Costa 2013, eq. 5) as an alternative to the engine's: `fit_profile(..., scheme="dipra")`, `RunDefaults(scheme="dipra")`, or a `scheme` column in a parameter table. Both schemes solve the same equation and differ only in how the cross term is differenced (DIPRA: forward differences and the analytic dD/dX_Fo; engine: central differences of C and D), so fitting a profile with both is a check on the discretization. Default stays "central".
 
 ### Changed
@@ -16,6 +21,9 @@
   - Details, coverage tests and the version comparison: `docs/references/fit-uncertainty.md`, `docs/plans/2026-10-12-fit-uncertainty/`.
 
 ### Fixed
+
+- CSV tables are read with exact float parsing (`float_precision="round_trip"`). pandas' default parser returned some values 1 ulp off, so a table written by FORSTER did not refit identically.
+- Two step positions without `step_fo` (or three or more steps) are now an error naming the problem; the engine used to fail with an IndexError.
 
 - Cross term of the diffusion equation was doubled (`diffusion_step`, found 2026-10-11). The engine solves dC/dt = D d²C/dx² + (dD/dx)(dC/dx). The cross term was built from two central differences, each spanning two grid spacings, so their product needs dividing by 4Δx²; the code divided by 2Δx². The fix changes `/ 2` to `/ 4`. It affects every Fe-Mg, Mn and Ni model where D varies along the profile, and only those (D depends on Fo). Checked against an independent flux-form solver and against DIPRA's published scheme (Girona and Costa 2013, eq. 5), which converge to the same answer as the fixed engine while the old engine does not (`tests/test_physics.py`; details in `docs/plans/2026-10-11-restructure.md`, "Engine fix").
   - Effect on fitted times: idealised single steps came out 1.3% too short for Fo 0.92 to 0.895 and 8-11% too short for Fo 0.82 to 0.885 and 0.67 to 0.745. The 17 round robin fits move by -28% to +43% (most become 13-43% longer). For Towbin and Plank (2026) the melt-vein medians move by 2-5% (1-3 weeks unchanged) and the exterior contact-overgrowth median by +28% (5.9 to 7.5 days).

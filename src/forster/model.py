@@ -129,6 +129,11 @@ class InitialCondition:
                 raise ValueError(f"Fo values must be fractions (0-1); got {fo}")
         if self.step_fo is not None and len(self.steps_um) != 2:
             raise ValueError("step_fo needs exactly two step positions (one on each side of it)")
+        if self.step_fo is None and len(self.steps_um) != 1:
+            raise ValueError(
+                f"{len(self.steps_um)} step positions given: use one step, or two with "
+                "step_fo for the plateau between them"
+            )
 
 
 @dataclass(frozen=True)
