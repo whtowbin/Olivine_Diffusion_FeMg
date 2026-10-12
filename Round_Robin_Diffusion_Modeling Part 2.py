@@ -359,7 +359,16 @@ def model_diffusion(
     EFo = activation_EFo
 
     p = (T, P, fO2, inflection_x, low_x_idx, high_x_idx, edge_c, center_c, inflection_c)
-
+   
+    # Ol_Diff.D_FO_Func = D_Fo(
+    #     T=T,
+    #     P=P,
+    #     fO2=fO2,
+    #     alpha=alpha,
+    #     beta=beta,
+    #     gamma=gamma,
+    #     EFo=EFo,
+    # )
     time, idx_min, sum_chi2, Fo_diffusion_results = Ol_Diff.Diffusion_call(
         # Fo_diffusion_results = Ol_Diff.Diffusion_call(
         p,
@@ -403,6 +412,31 @@ def model_diffusion(
         "inflection_c": inflection_c,
     }
 
+def save_model_results(Model_dict, save_name_override = None):
+    try:
+        model_fits = {'position_µm_interp': Model_dict['model_x'],
+            'initial':Model_dict["Fo_diffusion_results"][0,:],
+                'best_fit':Model_dict["Fo_diffusion_results"][Model_dict["idx_min"][0],:],
+                'neg_1_sigma':Model_dict["Fo_diffusion_results"][Model_dict["idx_min"][1],:],
+                'pos_1_sigma':Model_dict["Fo_diffusion_results"][Model_dict["idx_min"][2],:],
+                }
+        
+        interpolated_data = {"X_interp_µm":Model_dict["X_interp"],
+                             "Y_interp_Fo":Model_dict["Y_interp"],
+                             "Y_interp_Fo_std":Model_dict["Y_interp_std"],
+                             }
+        
+        df_results = pd.DataFrame(model_fits)
+        df_interp_data = pd.DataFrame(interpolated_data)
+
+        if save_name_override is None:
+            df_results.to_csv(f'{Model_dict["model_run_name"]}_model_bestfits.csv')
+            df_interp_data.to_csv(f'{Model_dict["model_run_name"]}_data_interp.csv')
+        else:
+            df_results.to_csv(f'{save_name_override}_model_bestfits.csv')
+            df_interp_data.to_csv(f'{save_name_override}_data_interp.csv')
+    except Exception as e:
+        print(e)
 
 # %%
 def plot_diffusion_results(
@@ -684,6 +718,7 @@ for idx, sample in enumerate(files_to_model):
         # Calculate_Gradient(sample, ax = ax)
         plt.savefig(f"Xenolith_Ol_Diffusion_Models/{sample}_model.svg")
         plt.savefig(f"{sample}_model.png")
+        save_model_results(Model_dict)
         print(f"{idx + 1} of {len(files_to_model)} completed")
     except:
         print(f"An Exception Occcured and {sample} Could not be calculated")
@@ -816,7 +851,11 @@ Diffusivity_Scale_Dict = {
 }
 # %%
 
-
+fig, ax = plt.subplots()
+sns.boxenplot(Sample_1to3_Diffusivity_array_scale, log_scale=True, ax=ax, showfliers=False)
+ax.tick_params(axis="x", labelrotation=90)
+ax.set_ylabel("Days")
+ax.yaxis.set_major_formatter(formatter)
 # %%
 
 

@@ -378,5 +378,5 @@ def plot_olivine_stereonet(theta, phi1, Phi, phi2):
 
 
 # %%
-plot_olivine_stereonet(40, 60, 20, 10)
+# plot_olivine_stereonet(40, 60, 20, 10)
 # %%
