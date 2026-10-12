@@ -179,8 +179,8 @@ def diffusion_step(
     # Cross term dD/dx * dC/dx from central differences (not forward differences as in Girona and Costa 2013).
     # Diff_C and Diff_D are each f[i+1] - f[i-1], spanning 2*dx, so their product is divided by 4
     # (delta already carries 1/dx**2). Before 2026-10-11 this divided by 2, which doubled the cross
-    # term and made fitted times too short where D varies with Fo (about 1% for Fo 0.92-0.895,
-    # 8-11% for Fo 0.82-0.885 and 0.67-0.745 steps; see tests/test_physics.py).
+    # term and biased fitted times wherever D varies with Fo, in either direction depending on the
+    # gradient (round robin fits moved -28% to +43%; see CHANGELOG.md and tests/test_physics.py).
     vector_out = vector_c_in + delta * (Diffusion + (Diff_C * Diff_D) / 4)
 
     # vector_c_in + delta*(Diffusion + (Diff_C* Diff_D))

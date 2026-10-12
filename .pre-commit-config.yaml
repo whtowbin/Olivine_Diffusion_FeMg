@@ -1,0 +1,50 @@
+# Hooks for `prek` (`uv tool install prek`, then `prek install` once per clone).
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types: [python]
+      - id: complexipy
+        name: complexipy (cognitive complexity <= 25)
+        # engine.py and orientation.py are the unchanged research code; see [tool.ruff] in pyproject.toml.
+        entry: uv run complexipy src/olivine_diffusion --max-complexity-allowed 25 --quiet --exclude src/olivine_diffusion/engine.py --exclude src/olivine_diffusion/orientation.py
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: ty
+        name: ty (type check)
+        entry: uv run ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: no-test-deletions
+        name: no test deletions
+        entry: >-
+          bash -c 'd=$(git diff --cached -U0 -- tests "*test_*.py");
+          r=$(grep -cE "^-[[:space:]]*(async[[:space:]]+)?def test_" <<<"$d");
+          a=$(grep -cE "^\+[[:space:]]*(async[[:space:]]+)?def test_" <<<"$d");
+          [ "$r" -le "$a" ] || { echo "commit removes $r tests and adds $a"; exit 1; }'
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: trivy-secrets
+        name: trivy (secret scan)
+        # Secrets only: the other scanners fetch vulnerability DBs over the network.
+        entry: trivy fs --scanners secret --skip-dirs .venv --exit-code 1 -q .
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: tests
+        name: tests
+        entry: uv run pytest -n auto -q
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

@@ -1,0 +1,6 @@
+# Spelling exceptions for the typos checker: Fo is forsterite.
+[default.extend-words]
+Fo = "Fo"
+fo = "fo"
+FO = "FO"
+Tennant = "Tennant"
