@@ -21,7 +21,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from olivine_diffusion import engine
+from forster import engine
 
 # D_Fo is proportional to 10**(3 * (0.9 - X_Fo)) (Dohmen and Chakraborty 2007;
 # DIPRA Table 1), so dD/dX_Fo = -3 ln(10) D.

@@ -15,7 +15,7 @@ repos:
       - id: complexipy
         name: complexipy (cognitive complexity <= 25)
         # engine.py and orientation.py are the unchanged research code; see [tool.ruff] in pyproject.toml.
-        entry: uv run complexipy src/olivine_diffusion --max-complexity-allowed 25 --quiet --exclude src/olivine_diffusion/engine.py --exclude src/olivine_diffusion/orientation.py
+        entry: uv run complexipy src/forster --max-complexity-allowed 25 --quiet --exclude src/forster/engine.py --exclude src/forster/orientation.py
         language: system
         types: [python]
         pass_filenames: false

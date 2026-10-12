@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 
-from olivine_diffusion import dipra, engine, orientation
+from forster import dipra, engine, orientation
 
 SECONDS_PER_DAY = 24 * 60 * 60
 FE_MG_ACTIVATION_ENERGY_J_MOL = 201_000.0  # Dohmen and Chakraborty (2007)

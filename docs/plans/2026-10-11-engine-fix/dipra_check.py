@@ -2,7 +2,7 @@
 import sys, numpy as np
 sys.path.insert(0, sys.argv[1])
 import engine_old as OLD
-from olivine_diffusion import engine as NEW
+from forster import engine as NEW
 
 T, P, fO2 = 1200 + 273.15, 4.2e7, 0.00138          # round robin conditions, profile along [001]
 D = NEW.D_Fo(T, P, fO2, 90, 90, 0)

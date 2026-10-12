@@ -28,7 +28,7 @@ from typing import Any
 
 import pandas as pd
 
-from olivine_diffusion.model import (
+from forster.model import (
     FE_MG_ACTIVATION_ENERGY_J_MOL,
     SCHEMES,
     Conditions,

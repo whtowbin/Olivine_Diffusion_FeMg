@@ -15,7 +15,7 @@ import pytest
 from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
 from reference import round_robin_model_diffusion as ref
 
-from olivine_diffusion import KrigingSettings, RunDefaults, fit_run, read_profiles, read_runs
+from forster import KrigingSettings, RunDefaults, fit_run, read_profiles, read_runs
 
 # The settings the round robin batch loop passed to model_diffusion.
 BATCH_KWARGS = {

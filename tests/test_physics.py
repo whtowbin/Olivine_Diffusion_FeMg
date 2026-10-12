@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from scipy.special import erf
 
-from olivine_diffusion import (
+from forster import (
     Conditions,
     Grid,
     InitialCondition,

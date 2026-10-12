@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 
-from olivine_diffusion import engine as Ol_Diff
+from forster import engine as Ol_Diff
 
 Ol_Data: Any = None
 ol_param_db: Any = None

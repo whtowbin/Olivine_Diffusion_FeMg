@@ -1,6 +1,5 @@
 [project]
-# Working name; the final package and command name is still to be chosen.
-name = "olivine-diffusion"
+name = "forster"
 version = "0.1.0.dev0"
 description = "Fe-Mg diffusion modeling of zoned olivine profiles, with kriging interpolation and Monte Carlo uncertainty"
 requires-python = ">=3.11"
@@ -43,7 +42,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/olivine_diffusion"]
+packages = ["src/forster"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -57,8 +56,8 @@ include = ["src/**/*.py", "tests/**/*.py"]
 # 2026-10-11 cross-term fix); tests/reference holds a verbatim copy of the old model_diffusion.
 # They are kept as they are so their diffs stay reviewable; clean them up in a separate change.
 extend-exclude = [
-    "src/olivine_diffusion/engine.py",
-    "src/olivine_diffusion/orientation.py",
+    "src/forster/engine.py",
+    "src/forster/orientation.py",
     "tests/reference",
 ]
 force-exclude = true
@@ -69,8 +68,8 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 [tool.ty.src]
 include = ["src", "tests"]
 exclude = [
-    "src/olivine_diffusion/engine.py",
-    "src/olivine_diffusion/orientation.py",
+    "src/forster/engine.py",
+    "src/forster/orientation.py",
     "tests/reference",
 ]
 

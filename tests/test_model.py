@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from olivine_diffusion import (
+from forster import (
     Conditions,
     Grid,
     InitialCondition,

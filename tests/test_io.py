@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
 
-from olivine_diffusion import RunDefaults, engine, fit_run, orientation, read_profiles, read_runs
-from olivine_diffusion.io import Run
+from forster import RunDefaults, engine, fit_run, orientation, read_profiles, read_runs
+from forster.io import Run
 
 
 @pytest.fixture(scope="module")

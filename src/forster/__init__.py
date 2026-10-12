@@ -1,8 +1,11 @@
-"""Fe-Mg diffusion modeling of zoned olivine profiles."""
+"""FORSTER: Fitting Olivine Residence & Storage Timescales from Elemental Relaxation.
 
-from olivine_diffusion import dipra
-from olivine_diffusion.io import RunDefaults, fit_run, read_profiles, read_runs
-from olivine_diffusion.model import (
+Fe-Mg diffusion modeling of zoned olivine profiles.
+"""
+
+from forster import dipra
+from forster.io import RunDefaults, fit_run, read_profiles, read_runs
+from forster.model import (
     SCHEMES,
     Conditions,
     FitResult,
