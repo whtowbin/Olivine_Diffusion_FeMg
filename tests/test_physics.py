@@ -101,6 +101,11 @@ def test_fit_recovers_the_time_of_a_known_profile(scheme):
         Grid(dx_um=DX_UM, dt_s=dt, max_time_days=2 * true_steps * dt / 86400),
         KrigingSettings(variogram_parameters={"slope": 1e-4, "nugget": 1e-7}),
         scheme=scheme,
+        # The profile is noiseless, so the default (correlated) range only reflects the
+        # ~1e-4 Fo grid error and is +-0.6%: it rightly excludes the 1.5% discretization
+        # bias. This test is about the solver; the uncertainty method is tested for
+        # coverage in test_uncertainty.py.
+        uncertainty="legacy",
     )
     # Measured at dx = 1 um: central 1.017, dipra 1.022 (dipra's forward-difference cross
     # term is first order); at dx = 0.5 um both are within 0.7%. The bound allows that grid

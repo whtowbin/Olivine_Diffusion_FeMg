@@ -19,11 +19,14 @@ from typing import Any
 import numpy as np
 
 from forster import dipra, engine, orientation
+from forster.uncertainty import NoiseModel, fit_correlated
 
 SECONDS_PER_DAY = 24 * 60 * 60
 FE_MG_ACTIVATION_ENERGY_J_MOL = 201_000.0  # Dohmen and Chakraborty (2007)
 FO2_BUFFERS = ("QFM", "FMQ", "NNO")
 SCHEMES = ("central", "dipra")  # finite-difference schemes, see fit_profile
+# How the time uncertainty is estimated, see fit_profile and docs/references/fit-uncertainty.md
+UNCERTAINTY_METHODS = ("correlated", "legacy")
 
 
 @dataclass(frozen=True)
@@ -146,8 +149,11 @@ class Grid:
 class KrigingSettings:
     """How the measured profile is interpolated onto the model grid.
 
-    The kriging variance, plus ``uniform_uncertainty`` (Fo fraction), is used as the
-    data uncertainty in the chi-squared fit. Parameters are passed to PyKrige.
+    The kriged profile is always computed for plotting. Only the legacy
+    uncertainty method fits to it: there the kriging variance, plus
+    ``uniform_uncertainty`` (Fo fraction), is used as the data uncertainty. (It is
+    used as a standard deviation although PyKrige returns a variance; kept that way
+    so legacy results reproduce.) Parameters are passed to PyKrige.
     """
 
     variogram_model: str = "linear"
@@ -164,6 +170,13 @@ class FitResult:
     ``curves`` holds the model profile at every time step (row ``i`` is at
     ``i * dt_s``); ``indices`` are the rows of the best fit and of the low and high
     ends of the uncertainty range.
+
+    ``uncertainty`` names the method. "correlated": ``sum_chi2`` is the generalised
+    chi-squared of the measured points (``fit_x_um``, ``fit_fo``) under the fitted
+    ``noise`` model, and the range ends are where it crosses its minimum + 1,
+    interpolated between time steps. "legacy": ``sum_chi2`` is the chi-squared of
+    the kriged grid (``fit_x_um`` is the model grid) and the range is the old
+    reduced chi-squared rule; ``noise`` is None.
     """
 
     name: str
@@ -181,6 +194,10 @@ class FitResult:
     interp_fo_sigma: np.ndarray
     dt_s: float
     inputs: dict[str, Any]
+    uncertainty: str = "legacy"
+    fit_x_um: np.ndarray | None = None
+    fit_fo: np.ndarray | None = None
+    noise: NoiseModel | None = None
 
     @property
     def time_days(self) -> float:
@@ -197,7 +214,11 @@ class FitResult:
 
     @property
     def reduced_chi2(self) -> np.ndarray:
-        return self.sum_chi2 / (len(self.model_x_um) - 1)
+        """``sum_chi2`` over (points fitted - 1). A rough guide only: for a nonlinear model
+        the degrees of freedom are not known (Andrae et al. 2010). Under the
+        correlated method it is close to 1 at the best fit by construction."""
+        n = len(self.fit_x_um) if self.fit_x_um is not None else len(self.model_x_um)
+        return self.sum_chi2 / (n - 1)
 
     @property
     def best_fit(self) -> np.ndarray:
@@ -271,6 +292,7 @@ def fit_profile(
     kriging: KrigingSettings | None = None,
     activation_energy_J_mol: float = FE_MG_ACTIVATION_ENERGY_J_MOL,
     scheme: str = "central",
+    uncertainty: str = "correlated",
 ) -> FitResult:
     """Fit Fe-Mg diffusion from a step-function start to a measured Fo profile.
 
@@ -283,9 +305,27 @@ def fit_profile(
     eq. 5: forward differences and the analytic dD/dX_Fo). Both solve the same
     equation and converge to the same answer as ``grid.dx_um`` shrinks; running
     both is a check on the discretization.
+
+    ``uncertainty`` picks how the best fit and its 1-sigma range are found:
+
+    - "correlated" (default since 2026-10-12): each model curve is interpolated to
+      the measured points, whose errors are modelled as white noise plus a smooth
+      correlated misfit fitted by maximum likelihood; the range is where that
+      chi-squared rises by 1. See `forster.uncertainty`.
+    - "legacy": the round robin and paper-era rule, ``engine.Best_fit_Chi2`` on
+      the kriged grid (reduced chi-squared within 1 of its minimum, which is
+      chi-squared within N - 1 for N grid points). Gives results identical to the
+      old scripts.
+
+    ``docs/references/fit-uncertainty.md`` explains the change and its effect.
     """
     if scheme not in SCHEMES:
         raise ValueError(f"unknown scheme {scheme!r}; use one of {', '.join(SCHEMES)}")
+    if uncertainty not in UNCERTAINTY_METHODS:
+        raise ValueError(
+            f"unknown uncertainty method {uncertainty!r}; use one of "
+            f"{', '.join(UNCERTAINTY_METHODS)}"
+        )
     kriging = kriging or KrigingSettings()
     x, y = profile.distance_um, profile.fo
 
@@ -309,9 +349,22 @@ def fit_profile(
     curves = _run_diffusion(
         scheme, conditions, orientation, initial, grid, activation_energy_J_mol, model_x, dx_um
     )
-    time, indices, sum_chi2 = engine.Best_fit_Chi2(
-        curves, data_interp, sigma_interp, grid.dt_s, scale_error=False
-    )
+    noise = None
+    if uncertainty == "legacy":
+        time, indices, sum_chi2 = engine.Best_fit_Chi2(
+            curves, data_interp, sigma_interp, grid.dt_s, scale_error=False
+        )
+        fit_x, fit_fo = model_x, data_interp
+    else:
+        fit = fit_correlated(curves, model_x, x, y)
+        span = fit.interval
+        time = (
+            span.best * grid.dt_s,
+            (span.low - span.best) * grid.dt_s,
+            (span.high - span.best) * grid.dt_s,
+        )
+        indices = (span.best, span.low_row, span.high_row)
+        sum_chi2, noise, fit_x, fit_fo = fit.chi2, fit.noise, fit.x_um, fit.fo
     return FitResult(
         name=profile.name,
         time_s=float(time[0]),
@@ -335,5 +388,10 @@ def fit_profile(
             "kriging": kriging,
             "activation_energy_J_mol": activation_energy_J_mol,
             "scheme": scheme,
+            "uncertainty": uncertainty,
         },
+        uncertainty=uncertainty,
+        fit_x_um=fit_x,
+        fit_fo=fit_fo,
+        noise=noise,
     )

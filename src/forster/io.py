@@ -13,7 +13,8 @@ Both give the initial condition as ``edge_x1``, ``edge_x2`` (model domain, um),
 ``inflection_x`` (step positions, um; one number or text such as ``"0, 31"``),
 ``edge_c``, ``center_c`` and ``inflection_c`` (Fo in percent). An optional
 ``scheme`` column picks the finite-difference scheme per run ("central" or
-"dipra"; see `fit_profile`).
+"dipra"), and an optional ``uncertainty`` column the uncertainty method
+("correlated" or "legacy"); see `fit_profile`.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ import pandas as pd
 from forster.model import (
     FE_MG_ACTIVATION_ENERGY_J_MOL,
     SCHEMES,
+    UNCERTAINTY_METHODS,
     Conditions,
     FitResult,
     Grid,
@@ -67,6 +69,7 @@ class RunDefaults:
     kriging: KrigingSettings = field(default_factory=KrigingSettings)
     activation_energy_J_mol: float = FE_MG_ACTIVATION_ENERGY_J_MOL
     scheme: str = "central"
+    uncertainty: str = "correlated"
 
 
 @dataclass(frozen=True)
@@ -82,6 +85,7 @@ class Run:
     kriging: KrigingSettings
     activation_energy_J_mol: float
     scheme: str = "central"
+    uncertainty: str = "correlated"
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
@@ -198,6 +202,20 @@ def _scheme(row: pd.Series, defaults: RunDefaults) -> str:
     return value
 
 
+def _uncertainty(row: pd.Series, defaults: RunDefaults) -> str:
+    """Optional ``uncertainty`` column ("correlated" or "legacy"); the default otherwise."""
+    value = row.get("uncertainty")
+    if value is None or pd.isna(value):
+        return defaults.uncertainty
+    value = str(value).strip().lower()
+    if value not in UNCERTAINTY_METHODS:
+        raise ValueError(
+            f"uncertainty {value!r} in the parameter table; use one of "
+            f"{', '.join(UNCERTAINTY_METHODS)}"
+        )
+    return value
+
+
 def _round_robin_run(row: pd.Series, defaults: RunDefaults) -> Run:
     return Run(
         name=str(row["Sample"]),
@@ -209,6 +227,7 @@ def _round_robin_run(row: pd.Series, defaults: RunDefaults) -> Run:
         kriging=defaults.kriging,
         activation_energy_J_mol=defaults.activation_energy_J_mol,
         scheme=_scheme(row, defaults),
+        uncertainty=_uncertainty(row, defaults),
         metadata={c: row[c] for c in METADATA_COLUMNS if c in row.index and not pd.isna(row[c])},
     )
 
@@ -225,6 +244,7 @@ def _paper_run(row: pd.Series, defaults: RunDefaults) -> Run:
         kriging=defaults.kriging,
         activation_energy_J_mol=defaults.activation_energy_J_mol,
         scheme=_scheme(row, defaults),
+        uncertainty=_uncertainty(row, defaults),
         metadata={c: row[c] for c in METADATA_COLUMNS if c in row.index and not pd.isna(row[c])},
     )
 
@@ -272,4 +292,5 @@ def fit_run(run: Run, profiles: Mapping[str, Profile]) -> FitResult:
         run.kriging,
         run.activation_energy_J_mol,
         run.scheme,
+        run.uncertainty,
     )

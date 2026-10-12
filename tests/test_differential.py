@@ -35,6 +35,7 @@ BATCH_DEFAULTS = RunDefaults(
         variogram_parameters=BATCH_KWARGS["kriging_variogram_parameters"],
         uniform_uncertainty=BATCH_KWARGS["uniform_uncert"],
     ),
+    uncertainty="legacy",  # the reference is the old kriged-grid chi-squared rule
 )
 
 PARAMS = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
