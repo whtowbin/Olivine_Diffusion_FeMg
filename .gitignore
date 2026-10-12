@@ -8,3 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+
+# macOS and Office temp files
+.DS_Store
+~$*
+
+# Archives and generated fit tables
+*.zip
+*_data_interp.csv
+*_model_bestfits.csv
+/*_model.png

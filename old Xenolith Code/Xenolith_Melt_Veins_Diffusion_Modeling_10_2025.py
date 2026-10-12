@@ -336,7 +336,7 @@ def model_diffusion(
     edge_x1, edge_x2 = parameters.edge_x1.item(), parameters.edge_x2.item()
     edge_c, center_c = parameters.edge_c.item(), parameters.center_c.item()
 
-    alpha, beta, gamma = g.vector_direction(theta, phi1, Phi, phi2)
+    alpha, beta, gamma = EBSD.vector_direction(theta, phi1, Phi, phi2)
 
     x, y = get_C_prof(profile_name, data_db)
     edge_c, center_c = edge_c / 100, center_c / 100

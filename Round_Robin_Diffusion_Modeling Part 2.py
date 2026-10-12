@@ -41,6 +41,10 @@ from matplotlib import rc
 rc("axes", linewidth=2)
 rc("font", weight="bold", stretch="condensed", size=14, family="Avenir")
 
+# Plain-number tick labels for log-scaled axes (used by the boxen plots below)
+formatter = ScalarFormatter()
+formatter.set_scientific(False)
+
 # %%
 
 excel_db_path = "Diffusion Round Robin/Round_Robin_Olivine_Profile_Diffusion_Modeling_Parameters_DB.xlsx"

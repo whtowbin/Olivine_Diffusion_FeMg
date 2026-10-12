@@ -6,6 +6,7 @@ app = marimo.App()
 
 @app.cell
 def _():
+    import marimo as mo
     import numpy as np
     from matplotlib import pyplot as plt
     import pandas as pd
@@ -42,7 +43,7 @@ def _():
 
     rc("axes", linewidth=2)
     rc("font", weight="bold", stretch="condensed", size=14, family="Avenir")
-    return Ol_Diff, np
+    return Ol_Diff, mo, np
 
 
 @app.cell
