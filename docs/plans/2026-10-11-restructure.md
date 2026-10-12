@@ -1,12 +1,12 @@
 # Restructure Olivine_Diffusion_FeMg so others can run the models
 
-Status (2026-10-12): phase 1 done and committed locally (999a40f engine fix, 9108a99 move, de3bfd3 package, d3ce564 rename to `forster`). Phase 2 built and verified, not committed (waiting for Henry's review; see "Phase 2 tasks"). Phases 3-4 not started. `master` is 4 commits ahead of GitHub (not pushed).
+Status (2026-10-12): phase 1 done and committed locally (999a40f engine fix, 9108a99 move, de3bfd3 package, d3ce564 rename to `forster`). Fit-uncertainty work committed as 8a46492 (session github-drafts-68), phase 2 as dec3f59 (see "Phase 2 tasks"). Phases 3-4 not started. `master` is 8 commits ahead of GitHub (not pushed).
 
 ## Next session: start here
 
 - Start Claude Code in this repo (`~/Projects/Olivine_Diffusion_FeMg`) so `.claude/settings.json` (ruff format hook) applies. Run `prek install` once if it has not been run.
 - Built so far: `src/forster/` with `model.py` (`fit_profile` and dataclasses), `io.py` (`read_profiles`, `read_runs`, `fit_run`; round robin and paper table layouts), `dipra.py` (DIPRA scheme, `scheme="dipra"`), `engine.py` and `orientation.py` (research code moved, cross-term fix applied). 51 tests pass on Python 3.11 and 3.13 (`uv run pytest -n 8`, about 45 s). The real API is in `src/forster/model.py`; the "Python API" sketch below is the earlier proposal and differs in detail (for example `Orientation` is separate from `Conditions`, and `InitialCondition` takes `domain_um`, `steps_um`, `step_fo`).
-- Next: commit the fit-uncertainty work (session github-drafts-68), then phase 2 on top of it. Then phase 3 (tkinter GUI, including the Monte Carlo sampling options) and phase 4 (move the round robin and archive scripts under `analyses/`).
+- Next: phase 3 (tkinter GUI, including the Monte Carlo sampling options) and phase 4 (move the round robin and archive scripts under `analyses/`).
 - Open questions for Henry: the citations marked [confirm] in "Science and citations" (DIPRA Table 1 resolved several), and the source of the ±1σ rule (reduced chi-squared within 1 of its minimum).
 - Known follow-ups: NumPy deprecation warning in `orientation.py` (float of a 1-element array; will become an error in a future NumPy); `engine.timestepper` keeps every time step in memory (about 250 MB for a 2-year round robin run), which the GUI will want to avoid; the "Before release" items in `CHANGELOG.md` (cross-term fix notes, round robin refits, paper addendum).
 - Untracked and not mine: the Quarto render of this doc (`.html`, `_files/`).
