@@ -33,6 +33,7 @@ from scipy import stats
 from forster import dipra, engine
 from forster.diffusivity import DEFAULT_DIFFUSIVITY as DEFAULT_FO_DIFFUSIVITY
 from forster.diffusivity import Diffusivity, resolve
+from forster.grid import STABILITY_RATIO, UNSTABLE_RATIO, stability_ratio, stable_dt
 from forster.model import (
     SCHEMES,
     SECONDS_PER_DAY,
@@ -63,7 +64,6 @@ DEFAULT_DIFFUSIVITY = {
     "Mn": "girona_costa2013_mn",
     "Ca": "girona_costa2013_ca",
 }
-STABILITY_LIMIT = 0.5  # the explicit schemes need D dt / dx^2 at or below this
 
 Advance = Callable[[np.ndarray, int], np.ndarray]
 Step = Callable[..., np.ndarray]
@@ -152,6 +152,7 @@ class _Species:
     bounds: tuple[float, float]
     D: Callable[[np.ndarray], np.ndarray]
     dD: Callable[[np.ndarray], np.ndarray]
+    diffusivity: Diffusivity
 
 
 def _depends_on_fo(D: Callable[[np.ndarray], np.ndarray]) -> bool:
@@ -159,19 +160,25 @@ def _depends_on_fo(D: Callable[[np.ndarray], np.ndarray]) -> bool:
     return bool(values[0] != values[1])
 
 
-def _check_stable(species: _Species, fo_values: Sequence[float], dt_s: float, dx_m: float):
-    """D dt / dx^2 at or below `STABILITY_LIMIT` over the Fo values the run passes through.
-
-    D is monotonic in Fo for every equation here, so the extremes of the initial Fo
-    values (between which Fo stays) bound it.
-    """
-    d_max = float(np.max(species.D(np.asarray(fo_values, dtype=float))))
-    ratio = d_max * dt_s / dx_m**2
-    if ratio > STABILITY_LIMIT:
+def _check_stable(
+    species: _Species,
+    fo_range: tuple[float, float],
+    conditions: Conditions,
+    orientation: Orientation,
+    dt_s: float,
+    dx_um: float,
+) -> None:
+    """D dt / dx^2 (`forster.grid.stability_ratio`) at or below `UNSTABLE_RATIO` over the
+    Fo range the run passes through (Fo stays between its initial extremes)."""
+    pair = [(species.diffusivity, fo_range)]
+    ratio = stability_ratio(dx_um, dt_s, pair, conditions, orientation)
+    if ratio > UNSTABLE_RATIO:
+        limit = stable_dt(dx_um, pair, conditions, orientation, ratio=UNSTABLE_RATIO)
+        chosen = stable_dt(dx_um, pair, conditions, orientation)
         raise ValueError(
-            f"{species.name}: D dt / dx^2 = {ratio:.2f} exceeds {STABILITY_LIMIT}, so the "
-            f"explicit scheme is unstable; use dt_s <= {STABILITY_LIMIT * dx_m**2 / d_max:.4g} "
-            "or a larger dx_um"
+            f"{species.name}: D dt / dx^2 = {ratio:.2f} exceeds {UNSTABLE_RATIO}, so the "
+            f"explicit scheme is unstable; use dt_s <= {limit:.4g} or a larger dx_um "
+            f"(forster.grid.stable_dt gives {chosen:.4g} s at ratio {STABILITY_RATIO})"
         )
 
 
@@ -225,6 +232,7 @@ def coupled_model(
         engine.step_condition(model_x_um, list(fo_initial.steps_um), fo_intervals),
         (fo_initial.edge_fo, fo_initial.core_fo),
         *fo_d.functions(conditions, orientation),
+        fo_d,
     )
     species = [fo]
     for element, initial, diffusivity in elements:
@@ -232,14 +240,19 @@ def coupled_model(
         start = initial.start(model_x_um, fo_initial)
         species.append(
             _Species(
-                element, start, (initial.edge, initial.core), *d.functions(conditions, orientation)
+                element,
+                start,
+                (initial.edge, initial.core),
+                *d.functions(conditions, orientation),
+                d,
             )
         )
     move_fo = advance_fo
     if move_fo is None:
         move_fo = not elements or any(_depends_on_fo(s.D) for s in species[1:])
+    fo_range = (min(fo_intervals), max(fo_intervals))
     for s in species if move_fo else species[1:]:
-        _check_stable(s, fo_intervals, grid.dt_s, dx_m)
+        _check_stable(s, fo_range, conditions, orientation, grid.dt_s, dx_um)
     return np.concatenate([s.start for s in species]), _advance(
         species, move_fo, _stepper(scheme, grid.dt_s, dx_m)
     )
