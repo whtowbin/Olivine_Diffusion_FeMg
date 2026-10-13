@@ -1,0 +1,37 @@
+set,run,n_points,method,best_days,low_days,high_days,best_steps_um,nominal_steps_um
+round robin,KS20-527_2-transect-1,29,legacy,44.06,35.99,52.6,,
+round robin,KS20-527_2-transect-1,29,delta chi2 = 1,42.23,34.69,50.09,,
+round robin,KS20-527_2-transect-1,29,small-sample (default),42.23,34.42,50.38,,
+round robin,KS20-527_2-transect-1,29,Bayesian posterior,42.23,34.85,50.77,,
+round robin,KS20-527_2-transect-1,29,"step scan, profile",23.67,20.58,26.81,,
+round robin,KS20-527_2-transect-1,29,"step scan, marginal",23.67,21.42,27.78,46,41
+round robin,KS20-527_2-transect-3,29,legacy,28.88,22.15,36.92,,
+round robin,KS20-527_2-transect-3,29,delta chi2 = 1,23.67,21.03,26.67,,
+round robin,KS20-527_2-transect-3,29,small-sample (default),23.67,20.94,26.78,,
+round robin,KS20-527_2-transect-3,29,Bayesian posterior,23.67,21.34,27.14,,
+round robin,KS20-527_2-transect-3,29,"step scan, profile",23.67,20.58,26.81,,
+round robin,KS20-527_2-transect-3,29,"step scan, marginal",23.67,21.21,27.5,46,46
+round robin,SH63olv066-1,298,legacy,9.81,9.424,10.21,,
+round robin,SH63olv066-1,298,delta chi2 = 1,10.44,9.233,11.76,,
+round robin,SH63olv066-1,298,small-sample (default),10.44,9.229,11.76,,
+round robin,SH63olv066-1,298,Bayesian posterior,10.44,9.325,11.88,,
+round robin,SH63olv066-1,298,"step scan, profile",10.44,9.228,11.76,,
+round robin,SH63olv066-1,298,"step scan, marginal",10.44,9.326,11.88,"0, 21","0, 21"
+Towbin and Plank 2026,AZ18 WHT01_Ol_63_prof_1,27,legacy,5.328,3.387,8.286,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_63_prof_1,27,delta chi2 = 1,5.097,4.232,6.143,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_63_prof_1,27,small-sample (default),5.097,4.201,6.188,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_63_prof_1,27,Bayesian posterior,5.097,4.368,6.418,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_63_prof_1,27,"step scan, profile",5.549,4.214,6.874,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_63_prof_1,27,"step scan, marginal",5.549,4.669,7.964,23,24
+Towbin and Plank 2026,AZ18 WHT01_Ol_192_prof_1,18,legacy,16.65,10.99,24.73,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_192_prof_1,18,delta chi2 = 1,12.22,10.56,14.15,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_192_prof_1,18,small-sample (default),12.22,10.47,14.28,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_192_prof_1,18,Bayesian posterior,12.22,10.81,14.5,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_192_prof_1,18,"step scan, profile",12.06,9.962,14.97,,
+Towbin and Plank 2026,AZ18 WHT01_Ol_192_prof_1,18,"step scan, marginal",12.06,10.72,15.49,33,34
+Towbin and Plank 2026,Xenocryst_ol6_prof_1,15,legacy,0.208,0.1865,0.2319,,
+Towbin and Plank 2026,Xenocryst_ol6_prof_1,15,delta chi2 = 1,0.1424,0.0851,0.2248,,
+Towbin and Plank 2026,Xenocryst_ol6_prof_1,15,small-sample (default),0.1424,0.08187,0.2319,,
+Towbin and Plank 2026,Xenocryst_ol6_prof_1,15,Bayesian posterior,0.1424,0.1071,0.298,,
+Towbin and Plank 2026,Xenocryst_ol6_prof_1,15,"step scan, profile",0.1295,0.08509,0.1939,,
+Towbin and Plank 2026,Xenocryst_ol6_prof_1,15,"step scan, marginal",0.1295,0.1094,0.2553,"2, 20.5","1, 19.5"
