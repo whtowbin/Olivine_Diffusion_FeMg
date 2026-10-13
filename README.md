@@ -109,6 +109,44 @@ a preset name (`forster.DIFFUSIVITY_PRESETS`), a row of a table read with
 `forster.read_diffusivities`, or an `ArrheniusDiffusivity` built in Python. `forster.summary_row(result)` and
 `forster.fit_tables(result)` give the tables that `forster fit` writes.
 
+#### Ni, Mn and Ca
+
+`forster.fit_element` fits a Ni, Mn or Ca profile for its own time (a check against
+the Fo time), and `forster.fit_joint` fits one time to Fo and elements together and
+says whether they agree (`consistency_p`). Ni and Mn diffuse with the Fo profile
+alongside them, since their diffusivity depends on Fo; Ca does not need it. The
+element's edge, core and plateau concentrations are fitted unless given:
+
+```python
+from forster import ElementProfile, fit_element, fit_joint
+
+ni = ElementProfile(distance_um, nio_wt_pct, "Ni", name="my profile")   # any unit
+result = fit_element(ni, conditions, orientation, fo_initial, None, grid)
+joint = fit_joint(fo_profile, [ni], conditions, orientation, fo_initial, None, grid)
+print(result.time_days, joint.time_days, joint.consistency_p, joint.species_days)
+```
+
+Python only for now (explicit schemes); `docs/plans/2026-10-13-minor-elements.md`.
+
+#### Growth stages
+
+A zone that grew partway through can be given as a stage: at its start the rim moves
+outward and the new zone appears, then diffuses with the older crystal.
+`initial` is the crystal before the first stage.
+
+```python
+from forster import Stage, fit_profile
+
+overgrowth = Stage(start_s=6 * 86400, rim_um=0.0, zone_value=0.82)
+result = fit_profile(profile, conditions, orientation, initial, grid, stages=[overgrowth])
+print(result.time_days, result.time_since_last_stage_days)
+```
+
+With `scheme="implicit"` stages start at their exact times and the rim value can
+change in time (see "How the fit works"). A staged and a single-stage history can
+fit a profile equally well with different times, so the history has to come from
+other evidence; `docs/plans/2026-10-13-growth-stages.md`.
+
 ### 3. Desktop app
 
 A desktop app (`forster gui`) is planned for the next version: load a profile,
@@ -292,6 +330,11 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   answer. From Python, `fit_profile(..., scheme="implicit", rim_fo=...)` also takes a
   rim value that changes in time (`forster.boundary.RimPath`, or any function of time),
   and growth stages start at their exact times.
+
+The diffusivity law matters as much as the fit: `analyses/femg_refit/` refits the
+Fe-Mg law to the published experiments, and at the round robin and paper fO2 the
+refits differ from the default by up to 0.85 log units in D, mostly through the fO2
+exponent (`docs/plans/2026-10-13-femg-refit.md`).
 
 ## Citing
 
