@@ -397,35 +397,52 @@ def _template_orientation(row: pd.Series) -> Orientation:
     )
 
 
+def _uncertainty_source(row: pd.Series, sd_col: str, range_col: str) -> tuple[str, str] | None:
+    """The column a row gives for one parameter's uncertainty and its kind, or None."""
+    given = [c for c in (sd_col, range_col) if _given(row, c)]
+    if not given:
+        return None
+    if len(given) == 2:
+        raise ValueError(f"run {row['run']!r}: give {sd_col} or {range_col}, not both")
+    column = given[0]
+    return column, "normal" if column == sd_col else "uniform"
+
+
+def _step_uncertainties(
+    row: pd.Series, column: str, kind: str, initial: InitialCondition
+) -> dict[str, Uncertainty]:
+    """One spread for every step, or one per step; 0 leaves a step fixed."""
+    spreads = [float(v) for v in _steps(row[column])]
+    n = len(initial.steps_um)
+    if len(spreads) == 1:
+        spreads *= n
+    if len(spreads) != n:
+        raise ValueError(f"run {row['run']!r}: {column} has {len(spreads)} values for {n} steps")
+    return {f"step{i + 1}_um": Uncertainty(s, kind) for i, s in enumerate(spreads) if s}
+
+
+def _value_uncertainty(
+    row: pd.Series, what: str, column: str, kind: str, initial: InitialCondition
+) -> dict[str, Uncertainty]:
+    """A concentration's uncertainty (edge, core or plateau Fo); 0 leaves it fixed."""
+    if what == "step_fo" and initial.step_fo is None:
+        raise ValueError(f"run {row['run']!r}: {column} needs a plateau (step_fo)")
+    spread = float(row[column])
+    return {what: Uncertainty(spread, kind)} if spread else {}
+
+
 def _template_uncertainties(row: pd.Series, initial: InitialCondition) -> dict[str, Uncertainty]:
     """The ``_sd`` / ``_range`` columns of a template row, by `forster.scan` parameter name."""
     out: dict[str, Uncertainty] = {}
     for what, sd_col, range_col in UNCERTAINTY_COLUMNS:
-        given = [c for c in (sd_col, range_col) if _given(row, c)]
-        if not given:
+        source = _uncertainty_source(row, sd_col, range_col)
+        if source is None:
             continue
-        if len(given) == 2:
-            raise ValueError(f"run {row['run']!r}: give {sd_col} or {range_col}, not both")
-        column = given[0]
-        kind = "normal" if column == sd_col else "uniform"
+        column, kind = source
         if what == "steps":
-            spreads = [float(v) for v in _steps(row[column])]
-            n = len(initial.steps_um)
-            if len(spreads) == 1:
-                spreads *= n
-            if len(spreads) != n:
-                raise ValueError(
-                    f"run {row['run']!r}: {column} has {len(spreads)} values for {n} steps"
-                )
-            for i, spread in enumerate(spreads):
-                if spread:
-                    out[f"step{i + 1}_um"] = Uncertainty(spread, kind)
-            continue
-        if what == "step_fo" and initial.step_fo is None:
-            raise ValueError(f"run {row['run']!r}: {column} needs a plateau (step_fo)")
-        spread = float(row[column])
-        if spread:
-            out[what] = Uncertainty(spread, kind)
+            out.update(_step_uncertainties(row, column, kind, initial))
+        else:
+            out.update(_value_uncertainty(row, what, column, kind, initial))
     return out
 
 
@@ -608,19 +625,23 @@ def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = Tru
     )
 
 
-def uncertainty_columns(run: Run) -> dict[str, Any]:
-    """A run's uncertainty columns, as `read_runs` reads them (for summary.csv to refit)."""
-    out: dict[str, Any] = {}
+def _steps_column(run: Run) -> dict[str, Any]:
+    """The steps' uncertainty column: all steps must share one kind."""
     steps = [run.uncertainties.get(f"step{i + 1}_um") for i in range(len(run.initial.steps_um))]
     kinds = {u.kind for u in steps if u is not None}
     if len(kinds) > 1:
         raise ValueError(f"run {run.name!r}: steps mix Gaussian and uniform uncertainties")
-    for what, sd_col, range_col in UNCERTAINTY_COLUMNS:
-        if what == "steps":
-            if kinds:
-                column = sd_col if kinds == {"normal"} else range_col
-                out[column] = _steps_text(tuple(u.spread if u else 0.0 for u in steps))
-            continue
+    if not kinds:
+        return {}
+    _, sd_col, range_col = UNCERTAINTY_COLUMNS[0]
+    column = sd_col if kinds == {"normal"} else range_col
+    return {column: _steps_text(tuple(u.spread if u else 0.0 for u in steps))}
+
+
+def uncertainty_columns(run: Run) -> dict[str, Any]:
+    """A run's uncertainty columns, as `read_runs` reads them (for summary.csv to refit)."""
+    out = _steps_column(run)
+    for what, sd_col, range_col in UNCERTAINTY_COLUMNS[1:]:
         u = run.uncertainties.get(what)
         if u is not None:
             out[sd_col if u.kind == "normal" else range_col] = u.spread
