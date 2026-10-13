@@ -174,11 +174,11 @@ def test_changing_rims_need_the_implicit_scheme_and_delay_early_stopping():
     profile = Profile(m.distance_um, m.fo)
     args = (profile, run.conditions, run.orientation, run.initial)
     rim = RimPath((0.0, 150.0), (0.82, 0.80))
-    with pytest.raises(ValueError, match="implicit"):
-        fit_profile(*args, run.grid, rim_fo=rim)
-    with pytest.raises(ValueError, match="correlated"):
-        fit_profile(*args, run.grid, scheme="implicit", uncertainty="legacy")
     grid = Grid(2.0, 0.05 * DAY, 200)  # early stopping advances in blocks of 500 rows
+    with pytest.raises(ValueError, match="implicit"):
+        fit_profile(*args, grid, rim_fo=rim)
+    with pytest.raises(ValueError, match="correlated"):
+        fit_profile(*args, grid, scheme="implicit", uncertainty="legacy")
     late = fit_profile(*args, grid, scheme="implicit", rim_fo=rim)
     assert late.modelled_days >= 150.0  # no early stop while the rim still changes
     fixed = fit_profile(*args, grid, scheme="implicit", rim_fo=0.82)
