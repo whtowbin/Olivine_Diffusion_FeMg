@@ -13,6 +13,7 @@ pascals (``_Pa``), degrees Celsius (``_C``). Fo is a fraction (0.88, not 88).
 
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -20,8 +21,8 @@ from typing import Any
 
 import numpy as np
 
-from forster import dipra, engine, orientation
-from forster.boundary import BoundaryHistory, Stage
+from forster import dipra, engine, implicit, orientation
+from forster.boundary import BoundaryHistory, Rim, Stage, is_fixed, rim_at, settles_at_s
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
 from forster.uncertainty import (
     NoiseModel,
@@ -33,7 +34,8 @@ from forster.uncertainty import (
 
 SECONDS_PER_DAY = 24 * 60 * 60
 FO2_BUFFERS = ("QFM", "FMQ", "NNO")
-SCHEMES = ("central", "dipra")  # finite-difference schemes, see fit_profile
+SCHEMES = ("central", "dipra", "implicit")  # finite-difference schemes, see fit_profile
+EXPLICIT_SCHEMES = ("central", "dipra")
 # How the time uncertainty is estimated, see fit_profile and docs/references/fit-uncertainty.md
 UNCERTAINTY_METHODS = ("correlated", "legacy")
 # Early stopping (correlated method): stop once the run is STOP_TIME_FACTOR times past the
@@ -265,7 +267,8 @@ class FitResult:
         return self.curves[0]
 
 
-Advance = Callable[[np.ndarray, int], np.ndarray]
+# advance(c, n, first_row=0): rows first_row .. first_row + n, the first being c.
+Advance = Callable[..., np.ndarray]
 
 
 def fe_mg_diffusivity(diffusivity: Diffusivity | str) -> Diffusivity:
@@ -291,6 +294,31 @@ def model_grid(
     return step_x, float(dx_um), (low_idx, high_idx)
 
 
+def scheme_grid(
+    scheme: str,
+    x_um: np.ndarray,
+    grid: Grid,
+    domain_um: tuple[float, float],
+    rims_um: Sequence[float] = (),
+) -> tuple[np.ndarray, float, tuple[int, int]]:
+    """`model_grid` for the explicit schemes. For "implicit", a grid with nodes on the
+    domain's rim, on its core end (or the last measured point, if nearer) and on every
+    stage rim in ``rims_um``, even in between with spacing at most ``grid.dx_um``
+    (`forster.implicit.node_grid`); the spacing returned is the largest."""
+    if scheme != "implicit":
+        return model_grid(x_um, grid, domain_um)
+    end = min(domain_um[1], float(x_um.max()))
+    x = implicit.node_grid([domain_um[0], *rims_um, end], grid.dx_um)
+    return x, float(np.diff(x).max()), (0, len(x) - 1)
+
+
+def _intervals(initial: InitialCondition) -> list[float]:
+    intervals = [initial.edge_fo, initial.core_fo]
+    if initial.step_fo is not None:
+        intervals[1:1] = [initial.step_fo]
+    return intervals
+
+
 def _diffusion_model(
     scheme: str,
     conditions: Conditions,
@@ -300,21 +328,28 @@ def _diffusion_model(
     diffusivity: Diffusivity,
     model_x: np.ndarray,
     dx_um: float,
+    rim: Rim | None = None,
 ) -> tuple[np.ndarray, Advance]:
     """The step-function start and a function advancing a profile by n time steps.
 
-    ``advance(c, n)`` returns n + 1 rows, the first being ``c``. The time steppers
-    restart exactly where they stopped, so running in blocks gives the same numbers
-    as one run. The calls are those of ``engine.Diffusion_call``, with the stepper
-    chosen by ``scheme``: "central" is the engine's, "dipra" is Girona and Costa
-    (2013) eq. 5.
+    ``advance(c, n, first_row=0)`` returns n + 1 rows, the first being ``c`` (row
+    ``first_row`` of the run). The time steppers restart exactly where they stopped,
+    so running in blocks gives the same numbers as one run. The calls are those of
+    ``engine.Diffusion_call``, with the stepper chosen by ``scheme``: "central" is the
+    engine's, "dipra" is Girona and Costa (2013) eq. 5, "implicit" is
+    `forster.implicit` (cell-averaged start, values held on the end nodes). ``rim`` is
+    the value held at the rim (default ``initial.edge_fo``); a function of time needs
+    "implicit".
     """
     D, dD_dfo = diffusivity.functions(conditions, orientation)
-    intervals = [initial.edge_fo, initial.core_fo]
-    if initial.step_fo is not None:
-        intervals[1:1] = [initial.step_fo]
-    start = engine.step_condition(model_x, list(initial.steps_um), intervals)
-    bounds = (initial.edge_fo, initial.core_fo)
+    rim = initial.edge_fo if rim is None else rim
+    if scheme == "implicit":
+        start = implicit.cell_average(model_x, initial.steps_um, _intervals(initial))
+        return start, implicit.stepper(D, rim, initial.core_fo, grid.dt_s, model_x)
+    if not isinstance(rim, int | float):
+        raise ValueError('a rim value that changes in time needs scheme="implicit"')
+    start = engine.step_condition(model_x, list(initial.steps_um), _intervals(initial))
+    bounds = (float(rim), initial.core_fo)
     return start, _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_um * 1e-6)
 
 
@@ -326,9 +361,10 @@ def _stepper(
     dt_s: float,
     dx_m: float,
 ) -> Advance:
-    """``advance(c, n)``: n time steps with Fo held at ``bounds`` beyond both ends."""
+    """``advance(c, n, first_row=0)``: n time steps with Fo held at ``bounds`` beyond
+    both ends (``first_row`` is not needed: the bounds are fixed)."""
 
-    def advance(c: np.ndarray, n: int) -> np.ndarray:
+    def advance(c: np.ndarray, n: int, first_row: int = 0) -> np.ndarray:
         if scheme == "central":
             return engine.timestepper(
                 vector_c_in=c,
@@ -383,13 +419,82 @@ def _staged_prefix(
         bounds = (stages[k].held_value, initial.core_fo)
         advance = _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_m)
         rows = np.full((starts[k + 1] - starts[k] + 1, len(model_x)), np.nan)
-        rows[:, firsts[k] :] = advance(state[firsts[k] :], starts[k + 1] - starts[k])
+        rows[:, firsts[k] :] = advance(
+            state[firsts[k] :], starts[k + 1] - starts[k], first_row=starts[k]
+        )
         chunks.append(rows[:-1])
         state = rows[-1].copy()
         if firsts[k + 1] < firsts[k]:
             state[firsts[k + 1] : firsts[k]] = stages[k + 1].zone_value
     last = _stepper(scheme, D, dD_dfo, (stages[-1].held_value, initial.core_fo), grid.dt_s, dx_m)
     return np.concatenate(chunks), state, last, starts[-1]
+
+
+def _grow(state: np.ndarray, model_x: np.ndarray, old: int, new: int, zone_value: float) -> None:
+    """Fill the new zone, nodes ``new`` .. ``old``; the node on the old rim takes the
+    average over its cell (outer part new zone, inner part old crystal)."""
+    if new == old:
+        return
+    state[new:old] = zone_value
+    if old < len(model_x) - 1:
+        outer, inner = model_x[old] - model_x[old - 1], model_x[old + 1] - model_x[old]
+        state[old] = (outer * zone_value + inner * state[old]) / (outer + inner)
+
+
+def _implicit_staged_prefix(
+    conditions: Conditions,
+    orientation: Orientation,
+    initial: InitialCondition,
+    grid: Grid,
+    diffusivity: Diffusivity,
+    model_x: np.ndarray,
+    history: BoundaryHistory,
+) -> tuple[np.ndarray, np.ndarray, Advance, int]:
+    """`_staged_prefix` for the implicit scheme, with every stage starting at its exact
+    time: a time step that crosses a stage start is split there. ``model_x`` has a node
+    on every stage rim (`scheme_grid`). The last stage starts from the first row at or
+    after its start time."""
+    D, _ = diffusivity.functions(conditions, orientation)
+    stages, dt = history.stages, grid.dt_s
+    firsts = history.first_nodes(model_x)
+    offset = math.ceil(stages[-1].start_s / dt - 1e-9)
+    if offset >= grid.timesteps:
+        raise ValueError(
+            f"max_time_days ({grid.max_time_days}) must extend past the last stage "
+            f"({stages[-1].start_s / SECONDS_PER_DAY:.4g} days)"
+        )
+    if firsts[-1] != 0:
+        raise ValueError("the model grid must start at the outermost rim")
+    state = np.full(len(model_x), np.nan)
+    state[firsts[0] :] = implicit.cell_average(
+        model_x[firsts[0] :], initial.steps_um, _intervals(initial)
+    )
+    state[firsts[0]] = rim_at(stages[0].rim, 0.0)
+    state[-1] = initial.core_fo
+    rows = np.full((offset, len(model_x)), np.nan)
+    t, k = 0.0, 0
+
+    def advance_to(t_end: float) -> None:
+        nonlocal t
+        if t_end > t:
+            rim, active = stages[k].rim, slice(firsts[k], None)
+            geometry = implicit.grid_geometry(model_x[active])
+            mid = (rim_at(rim, t + implicit.GAMMA * (t_end - t)), initial.core_fo)
+            end = (rim_at(rim, t_end), initial.core_fo)
+            state[active] = implicit.tr_bdf2_step(state[active], D, t_end - t, geometry, mid, end)
+            t = t_end
+
+    for j in range(offset + 1):
+        while k + 1 < len(stages) and stages[k + 1].start_s <= j * dt:
+            advance_to(stages[k + 1].start_s)
+            k += 1
+            _grow(state, model_x, firsts[k - 1], firsts[k], stages[k].zone_value or 0.0)
+            state[firsts[k]] = rim_at(stages[k].rim, t)
+        advance_to(j * dt)
+        if j < offset:
+            rows[j] = state
+    last = implicit.stepper(D, stages[-1].rim, initial.core_fo, dt, model_x, t0_s=offset * dt)
+    return rows, state.copy(), last, offset
 
 
 def _run_past_best_fit(
@@ -400,6 +505,7 @@ def _run_past_best_fit(
     y: np.ndarray | None,
     *,
     rss: Callable[[np.ndarray], np.ndarray] | None = None,
+    min_steps: int = 0,
 ) -> np.ndarray:
     """Profiles from time zero until the fit is well behind (or ``total_steps``).
 
@@ -407,6 +513,8 @@ def _run_past_best_fit(
     lowest sum of squared residuals so far, the sum is ``STOP_RSS_RATIO`` times that
     lowest value, and it is still rising. The sum is that of ``y - W @ row``, or
     ``rss(rows)`` when given (`forster.elements`, where concentrations are fitted).
+    It never stops before ``min_steps`` (a rim value still changing could bring a
+    second, better minimum).
     """
     if rss is None:
         if W is None or y is None:
@@ -422,7 +530,7 @@ def _run_past_best_fit(
     k_min = done = 0
     c = start
     while done < total_steps:
-        rows = advance(c, min(block, total_steps - done))[1:]
+        rows = advance(c, min(block, total_steps - done), first_row=done)[1:]
         chunks.append(rows)
         c = rows[-1]
         sums = rss(rows)
@@ -430,7 +538,7 @@ def _run_past_best_fit(
         if sums[i] < rss_min:
             rss_min, k_min = float(sums[i]), done + 1 + i
         done += len(rows)
-        past = done >= STOP_TIME_FACTOR * max(k_min, 1)
+        past = done >= max(STOP_TIME_FACTOR * max(k_min, 1), min_steps)
         if past and sums[-1] >= STOP_RSS_RATIO * rss_min and sums[-1] >= sums[0]:
             break
     return np.concatenate(chunks)
@@ -455,7 +563,7 @@ def _fit_correlated_extending(
                 warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
             return curves, fit
         extra = min(len(curves) - 1, total_steps - (len(curves) - 1))
-        curves = np.concatenate([curves, advance(curves[-1], extra)[1:]])
+        curves = np.concatenate([curves, advance(curves[-1], extra, first_row=len(curves) - 1)[1:]])
 
 
 def _correlated_run(
@@ -466,15 +574,34 @@ def _correlated_run(
     x: np.ndarray,
     y: np.ndarray,
     stop_early: bool,
+    min_steps: int = 0,
 ):
     """Model rows from ``start`` and their correlated fit (`fit_correlated`)."""
     if stop_early:
         px, py = points_in_domain(model_x, x, y)
         W = interpolation_matrix(model_x, px)
-        curves = _run_past_best_fit(start, advance, total_steps, W, py)
+        curves = _run_past_best_fit(start, advance, total_steps, W, py, min_steps=min_steps)
     else:
         curves = advance(start, total_steps)
     return _fit_correlated_extending(curves, advance, total_steps, model_x, x, y)
+
+
+def _check_options(
+    scheme: str, uncertainty: str, stages: Sequence[Stage], rim_fo: Rim | None
+) -> None:
+    if scheme not in SCHEMES:
+        raise ValueError(f"unknown scheme {scheme!r}; use one of {', '.join(SCHEMES)}")
+    if uncertainty not in UNCERTAINTY_METHODS:
+        raise ValueError(
+            f"unknown uncertainty method {uncertainty!r}; use one of "
+            f"{', '.join(UNCERTAINTY_METHODS)}"
+        )
+    if uncertainty == "legacy" and stages:
+        raise ValueError("growth stages need the correlated uncertainty method")
+    if uncertainty == "legacy" and scheme == "implicit":
+        raise ValueError("the implicit scheme needs the correlated uncertainty method")
+    if rim_fo is not None and not is_fixed(rim_fo) and scheme != "implicit":
+        raise ValueError('a rim value that changes in time needs scheme="implicit"')
 
 
 def fit_profile(
@@ -489,6 +616,7 @@ def fit_profile(
     uncertainty: str = "correlated",
     stop_early: bool = True,
     stages: Sequence[Stage] = (),
+    rim_fo: Rim | None = None,
 ) -> FitResult:
     """Fit Fe-Mg diffusion from a step-function start to a measured Fo profile.
 
@@ -500,7 +628,17 @@ def fit_profile(
     central differences in the cross term) or "dipra" (Girona and Costa 2013,
     eq. 5: forward differences and the analytic dD/dX_Fo). Both solve the same
     equation and converge to the same answer as ``grid.dx_um`` shrinks; running
-    both is a check on the discretization.
+    both is a check on the discretization. Both hold the rim and core values one
+    node outside the profile and move each step of ``initial`` to the nearest node,
+    which makes the fitted time first order in dx (``docs/references/grid-choice.md``).
+    "implicit" (`forster.implicit`, since 2026-10-13) holds them on the end nodes
+    (the rim exactly at ``domain_um[0]``), averages the start over each node's cell
+    instead of moving its steps, and steps in time with TR-BDF2. On 35 real profiles
+    its chosen grid (dx = l / 8, l = sqrt(D t); 400 steps up to the fit) gave times
+    within 0.3% of a converged reference, where the explicit chosen grid (dx = l / 65)
+    was off by up to 3.6%. The same inputs put the rim one node apart in the two kinds
+    of scheme, so at coarse grids they give slightly different fits; both converge to
+    the same answer. Correlated uncertainty only.
 
     ``diffusivity`` is the Fe-Mg diffusivity equation: a preset name from
     `forster.diffusivity.DIFFUSIVITY_PRESETS` or an equation object (an
@@ -533,28 +671,30 @@ def fit_profile(
     diffuses with the older crystal. ``initial`` is the crystal before the first of
     them. Only times after the last stage are fitted (the measured profile includes
     every zone); ``time_days`` counts from the start, ``time_since_last_stage_days``
-    from the last stage. Correlated uncertainty only.
+    from the last stage. Correlated uncertainty only. With "implicit" each stage starts
+    at its exact time and the grid has a node on every stage rim.
+
+    ``rim_fo`` is the Fo held at the rim (default ``initial.edge_fo``, which also
+    remains the start profile's edge value): a number for a fixed rim, or for a rim
+    that changes in time (needs "implicit") a `forster.boundary.RimPath` or any
+    function of the time in seconds since the start. Early stopping waits until a
+    `RimPath` has stopped changing; with any other function the model runs to
+    ``max_time_days``. With ``stages``, each stage's own ``rim_value`` may change in
+    time the same way.
 
     ``docs/references/likelihood-method.md`` explains the method and its validation,
     ``docs/references/fit-uncertainty.md`` the change from earlier versions.
     """
-    if scheme not in SCHEMES:
-        raise ValueError(f"unknown scheme {scheme!r}; use one of {', '.join(SCHEMES)}")
-    if uncertainty not in UNCERTAINTY_METHODS:
-        raise ValueError(
-            f"unknown uncertainty method {uncertainty!r}; use one of "
-            f"{', '.join(UNCERTAINTY_METHODS)}"
-        )
+    _check_options(scheme, uncertainty, stages, rim_fo)
     diffusivity = fe_mg_diffusivity(diffusivity)
     kriging = kriging or KrigingSettings()
-    history = BoundaryHistory.from_initial(initial, stages) if stages else None
-    if history is not None and uncertainty == "legacy":
-        raise ValueError("growth stages need the correlated uncertainty method")
-    domain = initial.domain_um
+    history = BoundaryHistory.from_initial(initial, stages, rim_fo) if stages else None
+    domain, rims = initial.domain_um, ()
     if history is not None:
         domain = (history.outer_rim_um, initial.domain_um[1])
+        rims = tuple(s.rim_um for s in history.stages)
     x, y = profile.distance_um, profile.fo
-    step_x, dx_um, (low_idx, high_idx) = model_grid(x, grid, domain)
+    step_x, dx_um, (low_idx, high_idx) = scheme_grid(scheme, x, grid, domain, rims)
     interp_x, interp_fo, interp_sigma = engine.Krige_Interpolate(
         x,
         y,
@@ -568,13 +708,28 @@ def fit_profile(
     sigma_interp = interp_sigma[low_idx : high_idx + 1] + kriging.uniform_uncertainty
 
     start, advance = _diffusion_model(
-        scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um
+        scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um, rim_fo
     )
-    prefix, offset = None, 0
-    if history is not None:
+    prefix, offset, last_stage_s = None, 0, 0.0
+    if history is not None and scheme == "implicit":
+        prefix, start, advance, offset = _implicit_staged_prefix(
+            conditions, orientation, initial, grid, diffusivity, model_x, history
+        )
+        last_stage_s = history.stages[-1].start_s
+    elif history is not None:
         prefix, start, advance, offset = _staged_prefix(
             scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um, history
         )
+        last_stage_s = offset * grid.dt_s
+    last_rim = (
+        history.stages[-1].rim
+        if history is not None
+        else initial.edge_fo
+        if rim_fo is None
+        else rim_fo
+    )
+    settle_s = settles_at_s(last_rim)
+    min_steps = 0 if settle_s is None else max(0, math.ceil(settle_s / grid.dt_s) - offset)
     noise = None
     if uncertainty == "legacy":
         curves = advance(start, grid.timesteps)
@@ -584,7 +739,14 @@ def fit_profile(
         fit_x, fit_fo = model_x, data_interp
     else:
         curves, fit = _correlated_run(
-            start, advance, grid.timesteps - offset, model_x, x, y, stop_early
+            start,
+            advance,
+            grid.timesteps - offset,
+            model_x,
+            x,
+            y,
+            stop_early and settle_s is not None,
+            min_steps,
         )
         span = fit.interval
         time = (
@@ -623,10 +785,11 @@ def fit_profile(
             "uncertainty": uncertainty,
             "stop_early": stop_early,
             "stages": tuple(stages),
+            "rim_fo": rim_fo,
         },
         uncertainty=uncertainty,
         fit_x_um=fit_x,
         fit_fo=fit_fo,
         noise=noise,
-        last_stage_s=offset * grid.dt_s,
+        last_stage_s=last_stage_s,
     )

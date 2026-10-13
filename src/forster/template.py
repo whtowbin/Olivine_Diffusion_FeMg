@@ -95,7 +95,13 @@ PARAMETER_COLUMNS = (
         "Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate "
         "of the time).",
     ),
-    Column("scheme", "", "optional", "central (default) or dipra (Girona and Costa 2013)."),
+    Column(
+        "scheme",
+        "",
+        "optional",
+        "central (default), dipra (Girona and Costa 2013) or implicit (rim on the end node, "
+        "steps not snapped to nodes; about 1% at a far coarser grid).",
+    ),
     Column(
         "diffusivity",
         "",

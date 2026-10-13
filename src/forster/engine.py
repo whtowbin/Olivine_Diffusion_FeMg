@@ -640,21 +640,40 @@ def Best_fit_Chi2(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error =
 # %%
 
 
+# Fitted kriging models by (points, variogram). Building one is most of the cost (pykrige
+# computes leave-one-out statistics there, ~0.45 s for 300 points); evaluating it on a
+# grid is cheap. A fit with a chosen grid krigs the same profile on several grids.
+_KRIGING_MODELS = {}
+_KRIGING_CACHE_SIZE = 64
+
+
+def _kriging_model(X, Y, variogram_model, variogram_parameters):
+    X, Y = np.asarray(X, dtype=float), np.asarray(Y, dtype=float)
+    key = (X.tobytes(), Y.tobytes(), variogram_model, repr(variogram_parameters))
+    uk = _KRIGING_MODELS.get(key)
+    if uk is None:
+        # uk = OrdinaryKriging(
+        uk = UniversalKriging(
+            X,
+            np.zeros(X.shape),
+            Y,
+            pseudo_inv=True,
+            variogram_model=variogram_model,
+            variogram_parameters=variogram_parameters,
+            exact_values = False
+            # nlags = nlags
+        )
+        if len(_KRIGING_MODELS) >= _KRIGING_CACHE_SIZE:
+            _KRIGING_MODELS.pop(next(iter(_KRIGING_MODELS)))
+        _KRIGING_MODELS[key] = uk
+    return uk
+
+
 def Krige_Interpolate(
     X, Y, new_X, variogram_model="linear", variogram_parameters={"slope": 1e-4, "nugget": 1e-5},
 ):
 
-    # uk = OrdinaryKriging(
-    uk = UniversalKriging(
-        X,
-        np.zeros(X.shape),
-        Y,
-        pseudo_inv=True,
-        variogram_model=variogram_model,
-        variogram_parameters=variogram_parameters,
-        exact_values = False
-        # nlags = nlags
-    )
+    uk = _kriging_model(X, Y, variogram_model, variogram_parameters)
 
     y_pred, y_std = uk.execute("grid", new_X, np.array([0.0]))
     y_pred = np.squeeze(y_pred)

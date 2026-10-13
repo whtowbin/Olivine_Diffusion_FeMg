@@ -647,7 +647,7 @@ def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = Tru
         given = False
     else:
         grid = run.grid
-        check_grid(grid, *args, run.diffusivity)  # raises if unstable
+        check_grid(grid, *args, run.diffusivity, scheme=run.scheme)  # raises if unstable
         given = True
     result = fit_profile(
         *args,
@@ -659,7 +659,9 @@ def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = Tru
         stop_early=stop_early,
     )
     if given:
-        for message in check_grid(grid, *args, run.diffusivity, time_days=result.time_days):
+        for message in check_grid(
+            grid, *args, run.diffusivity, time_days=result.time_days, scheme=run.scheme
+        ):
             warnings.warn(f"run {run.name!r}: {message}", stacklevel=2)
     return result
 

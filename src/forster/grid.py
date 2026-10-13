@@ -17,6 +17,23 @@ and an end of the domain), so the initial condition is resolved:
 - ``purpose="scan"``: tolerance 5%, for parameter scans (k = 13);
 - ``purpose="final"``: tolerance 1%, for the final fit (k = 65).
 
+The implicit scheme (`forster.implicit`: values held on the end nodes, cell-averaged
+start, TR-BDF2 in time) is second order in dx on the same profiles: worst case about
+0.2 (dx / l)^2 (1.9% at k = 3, 0.7% at 5, 0.16% at 8). It is stable at any dt, so dt is
+set by how finely the fitted time is resolved: 4 / tolerance steps up to it (the best
+fit is a whole time step, so this alone is within tolerance / 8; with 1 / tolerance
+steps the fitted time was up to 1% off on three round robin profiles, 0.3% with 4).
+`choose_grid` gives it dx = l / 8 for "final" and l / 4 for "scan" (at least what the
+tolerance needs), with no limit from the gaps between steps: the cell average places
+them exactly. On all 35 real profiles the chosen final grid was within 0.3% of a
+converged reference.
+
+The explicit coefficient 0.65 is too small: it was measured against an explicit
+reference at k = 60, which shares the first-order bias. Against the implicit
+reference the explicit final grid (k = 65) was off by a median 1.1% and up to 3.6%
+(``docs/references/grid-choice.md``), a coefficient of about 2.4. It is kept until
+the default scheme is decided.
+
 l comes from a quick fit on a coarse grid, using the slowest species' diffusivity at
 the middle of its composition range (for several species, each one's own best time
 would be more exact; the slowest D with the Fo time is the default). `check_grid`
@@ -34,6 +51,7 @@ import numpy as np
 
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
 from forster.model import (
+    EXPLICIT_SCHEMES,
     SECONDS_PER_DAY,
     Conditions,
     FitResult,
@@ -43,7 +61,7 @@ from forster.model import (
     Profile,
     fe_mg_diffusivity,
     fit_profile,
-    model_grid,
+    scheme_grid,
 )
 
 STABILITY_RATIO = 0.4  # D_max dt / dx^2 used for chosen grids
@@ -56,6 +74,9 @@ COARSE_POINTS = 150  # nodes of the coarse grid that estimates the time
 COARSE_MAX_DAYS = 3650.0  # coarse fit horizon when none is given (early stopping ends it)
 COARSE_MIN_RESOLUTION = 8.0  # refine the coarse fit once if l / dx is below this
 COST_FACTOR = 4.0  # warn of wasted time when a grid is this much finer than needed
+IMPLICIT_ERROR_COEFFICIENT = 0.2  # implicit: error ~ this x (dx / l)^2 (worst case measured)
+IMPLICIT_MIN_RESOLUTION = {"scan": 4.0, "final": 8.0}  # implicit: l / dx at least
+IMPLICIT_STEPS_PER_TOLERANCE = 4.0  # implicit: this / tolerance time steps up to the fit
 
 Species = tuple[Diffusivity | str, tuple[float, float]]
 
@@ -124,30 +145,50 @@ def narrowest_gap_um(initial: InitialCondition) -> float:
     return min(gaps) if gaps else initial.domain_um[1] - initial.domain_um[0]
 
 
-def actual_dx_um(profile: Profile, dx_um: float, initial: InitialCondition) -> float:
-    """The spacing `fit_profile` will really use for a requested ``dx_um``."""
-    _, dx, _ = model_grid(profile.distance_um, Grid(dx_um, 1.0), initial.domain_um)
+def actual_dx_um(
+    profile: Profile, dx_um: float, initial: InitialCondition, scheme: str = "central"
+) -> float:
+    """The spacing `fit_profile` will really use for a requested ``dx_um`` (the largest,
+    for the implicit scheme's grid)."""
+    _, dx, _ = scheme_grid(scheme, profile.distance_um, Grid(dx_um, 1.0), initial.domain_um)
     return dx
 
 
 def dx_not_above(
-    profile: Profile, target_um: float, initial: InitialCondition
+    profile: Profile, target_um: float, initial: InitialCondition, scheme: str = "central"
 ) -> tuple[float, float]:
     """A ``dx_um`` to ask for, and the spacing `fit_profile` will then use, no coarser than
     ``target_um``. The grid's node count is rounded, so the two differ slightly; keep the
     requested value in the Grid so a refit builds the same grid."""
     request = target_um
     for _ in range(20):
-        actual = actual_dx_um(profile, request, initial)
+        actual = actual_dx_um(profile, request, initial, scheme)
         if actual <= target_um:
             return request, actual
         request *= 0.999 * target_um / actual
-    return request, actual_dx_um(profile, request, initial)
+    return request, actual_dx_um(profile, request, initial, scheme)
 
 
-def estimated_error(dx_um: float, length_um: float) -> float:
+def estimated_error(dx_um: float, length_um: float, scheme: str = "central") -> float:
     """Worst-case relative error of the fitted time from the grid spacing (fraction)."""
+    if scheme == "implicit":
+        return IMPLICIT_ERROR_COEFFICIENT * (dx_um / length_um) ** 2
     return ERROR_COEFFICIENT * dx_um / length_um
+
+
+def needed_dx_um(length_um: float, tolerance: float, scheme: str, purpose: str) -> float:
+    """Largest dx whose estimated error is within ``tolerance`` (implicit: also at least
+    `IMPLICIT_MIN_RESOLUTION` nodes per diffusion length)."""
+    if scheme == "implicit":
+        k = max(math.sqrt(IMPLICIT_ERROR_COEFFICIENT / tolerance), IMPLICIT_MIN_RESOLUTION[purpose])
+        return length_um / k
+    return length_um * tolerance / ERROR_COEFFICIENT
+
+
+def implicit_dt(time_days: float, tolerance: float) -> float:
+    """Implicit time step: `IMPLICIT_STEPS_PER_TOLERANCE` / tolerance steps up to
+    ``time_days``, so the fitted time (a whole step) is within tolerance / 8 from that."""
+    return time_days * SECONDS_PER_DAY * tolerance / IMPLICIT_STEPS_PER_TOLERANCE
 
 
 @dataclass(frozen=True)
@@ -161,7 +202,7 @@ class GridChoice:
     diffusion_length_um: float
     resolution: float  # l / dx
     estimated_error: float  # fraction of the fitted time
-    stability_ratio: float
+    stability_ratio: float  # D_max dt / dx^2 (limits the explicit schemes only)
 
 
 def _species_or_default(
@@ -180,7 +221,9 @@ def _coarse_time_days(
     max_time_days: float,
     scheme: str,
 ) -> float:
-    """Best-fit time from a quick fit on a coarse grid, refined once if too coarse."""
+    """Best-fit time from a quick fit on a coarse grid, refined once if too coarse.
+    Always an explicit scheme ("central" for "implicit"): it needs no time scale."""
+    scheme = scheme if scheme in EXPLICIT_SCHEMES else "central"
     span = initial.domain_um[1] - initial.domain_um[0]
     dx = min(span / COARSE_POINTS, narrowest_gap_um(initial) / MIN_NODES_PER_GAP)
     for _ in range(2):
@@ -224,7 +267,8 @@ def choose_grid(
     choosing a scan's grid); otherwise a coarse fit estimates it. ``species``: for
     coupled element runs, every (diffusivity, Fo range) modelled; dt satisfies the
     fastest, dx resolves the slowest. ``max_time_days``: kept if given, otherwise
-    3 x the estimated time.
+    3 x the estimated time. ``scheme``: the explicit schemes and "implicit" have
+    their own rules (module docstring).
     """
     if purpose not in TOLERANCES:
         raise ValueError(f"purpose {purpose!r}; use one of {', '.join(TOLERANCES)}")
@@ -242,11 +286,14 @@ def choose_grid(
             scheme,
         )
     length = diffusion_length_um(time_days, species, conditions, orientation)
-    target = min(
-        length * tolerance / ERROR_COEFFICIENT, narrowest_gap_um(initial) / MIN_NODES_PER_GAP
-    )
-    request, dx = dx_not_above(profile, target, initial)
-    dt = stable_dt(dx, species, conditions, orientation)
+    target = needed_dx_um(length, tolerance, scheme, purpose)
+    if scheme != "implicit":
+        target = min(target, narrowest_gap_um(initial) / MIN_NODES_PER_GAP)
+    request, dx = dx_not_above(profile, target, initial, scheme)
+    if scheme == "implicit":
+        dt = implicit_dt(time_days, tolerance)
+    else:
+        dt = stable_dt(dx, species, conditions, orientation)
     grid = Grid(request, dt, max_time_days or MAX_TIME_FACTOR * time_days)
     return GridChoice(
         grid,
@@ -255,7 +302,7 @@ def choose_grid(
         time_days,
         length,
         length / dx,
-        estimated_error(dx, length),
+        estimated_error(dx, length, scheme),
         stability_ratio(dx, dt, species, conditions, orientation),
     )
 
@@ -272,19 +319,42 @@ def check_grid(
     purpose: str = "final",
     tolerance: float | None = None,
     species: Sequence[Species] | None = None,
+    scheme: str = "central",
 ) -> list[str]:
     """Problems with a given grid, as messages; raises if it is unstable.
 
-    Stability is checked on the spacing actually used. With ``time_days`` (a fitted
-    time), also the accuracy: estimated error above ``tolerance``, a grid much finer
-    than needed (wasted time), and too few nodes across the initial condition.
+    Stability (explicit schemes only) is checked on the spacing actually used. With
+    ``time_days`` (a fitted time), also the accuracy: estimated error above
+    ``tolerance``, a grid much finer than needed (wasted time), and (explicit) too few
+    nodes across the initial condition or (implicit) too few time steps to the fit.
     """
     tolerance = tolerance or TOLERANCES[purpose]
     species = _species_or_default(species, diffusivity, initial)
-    dx = actual_dx_um(profile, grid.dx_um, initial)
+    dx = actual_dx_um(profile, grid.dx_um, initial, scheme)
+    if scheme == "implicit":
+        messages = []
+    else:
+        messages = _explicit_messages(grid, dx, initial, species, conditions, orientation)
+    if time_days is not None:
+        length = diffusion_length_um(time_days, species, conditions, orientation)
+        messages += _spacing_messages(dx, length, tolerance, scheme, purpose)
+        if scheme == "implicit":
+            messages += _implicit_dt_messages(grid.dt_s, time_days, tolerance)
+    return messages
+
+
+def _explicit_messages(
+    grid: Grid,
+    dx: float,
+    initial: InitialCondition,
+    species: Sequence[Species],
+    conditions: Conditions,
+    orientation: Orientation,
+) -> list[str]:
+    """Raise if unstable; warn of too few nodes across a gap or a needlessly small dt."""
     ratio = stability_ratio(dx, grid.dt_s, species, conditions, orientation)
+    good = stable_dt(dx, species, conditions, orientation)
     if ratio > UNSTABLE_RATIO:
-        good = stable_dt(dx, species, conditions, orientation)
         raise ValueError(
             f"unstable grid: D_max dt / dx^2 = {ratio:.2f} > {UNSTABLE_RATIO} (dx {dx:.4g} um, "
             f"dt {grid.dt_s:.4g} s); use dt <= {good:.4g} s or a larger dx"
@@ -296,29 +366,49 @@ def check_grid(
             f"dx {dx:.4g} um leaves {gap / dx:.1f} nodes across the narrowest part of the "
             f"initial condition ({gap:.4g} um); use dx <= {gap / MIN_NODES_PER_GAP:.4g} um"
         )
-    if time_days is not None:
-        length = diffusion_length_um(time_days, species, conditions, orientation)
-        error = estimated_error(dx, length)
-        needed = length * tolerance / ERROR_COEFFICIENT
-        if error > tolerance:
-            messages.append(
-                f"dx {dx:.4g} um is coarse for a diffusion length of {length:.3g} um: the "
-                f"fitted time may be off by up to {error:.0%} (aim for {tolerance:.0%}: "
-                f"dx <= {needed:.3g} um)"
-            )
-        elif dx * COST_FACTOR < needed:
-            messages.append(
-                f"dx {dx:.4g} um is much finer than needed for {tolerance:.0%} "
-                f"({needed:.3g} um would do); the fit is about "
-                f"{(needed / dx) ** 3:.0f}x slower than necessary"
-            )
-    good_dt = stable_dt(dx, species, conditions, orientation)
-    if grid.dt_s * COST_FACTOR < good_dt:
+    if grid.dt_s * COST_FACTOR < good:
         messages.append(
-            f"dt {grid.dt_s:.4g} s is {good_dt / grid.dt_s:.0f}x below the stable step "
-            f"({good_dt:.4g} s): slower, no more accurate"
+            f"dt {grid.dt_s:.4g} s is {good / grid.dt_s:.0f}x below the stable step "
+            f"({good:.4g} s): slower, no more accurate"
         )
     return messages
+
+
+def _spacing_messages(
+    dx: float, length: float, tolerance: float, scheme: str, purpose: str
+) -> list[str]:
+    error = estimated_error(dx, length, scheme)
+    needed = needed_dx_um(length, tolerance, scheme, purpose)
+    if error > tolerance:
+        return [
+            f"dx {dx:.4g} um is coarse for a diffusion length of {length:.3g} um: the "
+            f"fitted time may be off by up to {error:.0%} (aim for {tolerance:.0%}: "
+            f"dx <= {needed:.3g} um)"
+        ]
+    if dx * COST_FACTOR < needed:
+        slower = (needed / dx) ** (1 if scheme == "implicit" else 3)
+        return [
+            f"dx {dx:.4g} um is much finer than needed for {tolerance:.0%} "
+            f"({needed:.3g} um would do); the fit is about {slower:.0f}x slower than necessary"
+        ]
+    return []
+
+
+def _implicit_dt_messages(dt_s: float, time_days: float, tolerance: float) -> list[str]:
+    good = implicit_dt(time_days, tolerance)
+    steps = time_days * SECONDS_PER_DAY / dt_s
+    if dt_s > good:
+        return [
+            f"dt {dt_s:.4g} s leaves {steps:.0f} time steps up to the fit: the fitted time "
+            f"is resolved to about {0.5 / steps:.0%} (aim for {tolerance:.0%}: "
+            f"dt <= {good:.4g} s)"
+        ]
+    if dt_s * COST_FACTOR < good:
+        return [
+            f"dt {dt_s:.4g} s is {good / dt_s:.0f}x smaller than needed for {tolerance:.0%} "
+            f"({good:.4g} s would do): slower, no more accurate"
+        ]
+    return []
 
 
 @dataclass(frozen=True)
@@ -360,36 +450,50 @@ class GridRequest:
             scheme=scheme,
         )
         grid = choice.grid
+        sp = _species_or_default(species, diffusivity, initial)
         if self.dx_um is not None:
-            dx = actual_dx_um(profile, self.dx_um, initial)
-            sp = _species_or_default(species, diffusivity, initial)
-            grid = replace(grid, dx_um=self.dx_um, dt_s=stable_dt(dx, sp, conditions, orientation))
+            grid = replace(grid, dx_um=self.dx_um)
+            if scheme != "implicit":  # the implicit dt does not depend on dx
+                dx = actual_dx_um(profile, self.dx_um, initial, scheme)
+                grid = replace(grid, dt_s=stable_dt(dx, sp, conditions, orientation))
         if self.dt_s is not None:
             grid = replace(grid, dt_s=self.dt_s)
-        check_grid(grid, profile, conditions, orientation, initial, diffusivity, species=species)
+        check_grid(
+            grid,
+            profile,
+            conditions,
+            orientation,
+            initial,
+            diffusivity,
+            species=species,
+            scheme=scheme,
+        )
         length = choice.diffusion_length_um
-        dx = actual_dx_um(profile, grid.dx_um, initial)
-        sp = _species_or_default(species, diffusivity, initial)
+        dx = actual_dx_um(profile, grid.dx_um, initial, scheme)
         return replace(
             choice,
             grid=grid,
             resolution=length / dx,
-            estimated_error=estimated_error(dx, length),
+            estimated_error=estimated_error(dx, length, scheme),
             stability_ratio=stability_ratio(dx, grid.dt_s, sp, conditions, orientation),
         )
 
 
 def grid_diagnostics(result: FitResult) -> dict[str, float]:
     """How well a fit's grid resolved it: l / dx, the estimated error of the fitted time
-    (percent, worst case) and the stability ratio D_max dt / dx^2."""
+    (percent, worst case; for "implicit", from dx only) and the stability ratio
+    D_max dt / dx^2 (NaN for "implicit", which has no limit)."""
     inputs = result.inputs
-    dx = float(result.model_x_um[1] - result.model_x_um[0])
+    scheme = inputs.get("scheme", "central")
+    dx = float(np.diff(result.model_x_um).max())
     species = [(inputs["diffusivity"], fo_range(inputs["initial"]))]
     conditions, orientation = inputs["conditions"], inputs["orientation"]
     time = max(result.time_days, result.dt_s / SECONDS_PER_DAY)
     length = diffusion_length_um(time, species, conditions, orientation)
     return {
         "grid_resolution": length / dx,
-        "grid_error_pct": 100 * estimated_error(dx, length),
-        "grid_stability": stability_ratio(dx, result.dt_s, species, conditions, orientation),
+        "grid_error_pct": 100 * estimated_error(dx, length, scheme),
+        "grid_stability": math.nan
+        if scheme == "implicit"
+        else stability_ratio(dx, result.dt_s, species, conditions, orientation),
     }

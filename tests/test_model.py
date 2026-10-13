@@ -69,5 +69,5 @@ def test_unknown_scheme_is_an_error():
             Orientation(90, 90, 0),
             initial,
             Grid(dx_um=1, dt_s=600, max_time_days=1),
-            scheme="implicit",
+            scheme="crank_nicolson",
         )

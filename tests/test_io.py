@@ -148,10 +148,10 @@ def test_scheme_column_is_read_per_run(tmp_path):
 
 def test_bad_scheme_in_table_is_an_error(tmp_path):
     table = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
-    table["scheme"] = "implicit"
+    table["scheme"] = "crank_nicolson"
     path = tmp_path / "params.csv"
     table.to_csv(path, index=False)
-    with pytest.raises(ValueError, match="scheme 'implicit'"):
+    with pytest.raises(ValueError, match="scheme 'crank_nicolson'"):
         read_runs(path)
 
 

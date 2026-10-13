@@ -160,7 +160,7 @@ One row per model run. Fo is a fraction throughout.
 | `dx_um` | µm | optional | Grid spacing of the final fit. Leave empty to have it chosen for about 1% accuracy in the fitted time; a value you give is kept, with a warning if it is coarse, wastefully fine, or too coarse for the initial steps. |
 | `dt_s` | s | optional | Time step of the final fit. Leave empty for the stable step D dt / dx² = 0.4; a value giving D dt / dx² > 0.5 is unstable and refused. |
 | `max_time_days` | days | optional | Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate of the time). |
-| `scheme` |  | optional | central (default) or dipra (Girona and Costa 2013). |
+| `scheme` |  | optional | central (default), dipra (Girona and Costa 2013) or implicit (rim on the end node, steps not snapped to nodes; about 1% at a far coarser grid). |
 | `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or mutch2019_tamed, mutch2019_global) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
 | `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule; reproduces old results). |
 | `steps_sd_um` | µm | optional | Uncertainty (1 sigma, Gaussian) on the step position(s): one value, or one per step ("2, 5"); 0 keeps a step fixed. Or give steps_range_um. |
@@ -255,8 +255,10 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   model with a kriged interpolation of the data.
 - The grid can be left to FORSTER: with `dx_um` and `dt_s` empty, a quick coarse fit
   gives the diffusion length l = sqrt(D t), and the final fit uses dx = l / 65 (about
-  1% accuracy in the fitted time), scans dx = l / 13 (about 5%), and dt the stable step
-  D dt / dx² = 0.4. A grid you give is kept and checked: unstable grids are refused,
+  1% accuracy in the fitted time; measured later against a converged reference it is
+  1.1% median, up to 3.6%), scans dx = l / 13 (about 5%), and dt the stable step
+  D dt / dx² = 0.4. With `scheme = implicit`: dx = l / 8 and l / 4, and dt = 1/400 and
+  1/80 of the fitted time. A grid you give is kept and checked: unstable grids are refused,
   and coarse or wastefully fine ones get a warning. `grid_resolution`,
   `grid_error_pct` and `grid_stability` in summary.csv say how well each fit was
   resolved. [docs/references/grid-choice.md](docs/references/grid-choice.md) gives the
@@ -279,6 +281,17 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
 - `scheme = dipra` swaps in the finite-difference scheme of DIPRA (Girona and Costa
   2013, G³ 14, 422-431). Both schemes solve the same equation; fitting a profile with
   both is a check on the grid spacing.
+- `scheme = implicit` holds the rim and core values on the end nodes of the grid
+  (the explicit schemes hold them one node outside), averages the starting steps over
+  each node's cell instead of moving them to the nearest node, and steps in time with
+  TR-BDF2, which is stable at any time step. With its chosen grid (dx = l / 8, 400
+  time steps up to the fit) the fitted time was within 0.3% of a converged value on
+  all 35 real profiles; the explicit chosen grid (dx = l / 65) was off by a median
+  1.1% and up to 3.6%. A fit takes a median 0.13 s instead of 0.9 s. Because the rim sits one node apart in the two kinds of scheme, the
+  same inputs give slightly different fits at coarse grids; both converge to the same
+  answer. From Python, `fit_profile(..., scheme="implicit", rim_fo=...)` also takes a
+  rim value that changes in time (`forster.boundary.RimPath`, or any function of time),
+  and growth stages start at their exact times.
 
 ## Citing
 

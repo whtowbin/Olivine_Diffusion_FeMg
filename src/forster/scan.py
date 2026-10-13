@@ -56,7 +56,7 @@ from forster.model import (
     _diffusion_model,
     _run_past_best_fit,
     fe_mg_diffusivity,
-    model_grid,
+    scheme_grid,
 )
 from forster.uncertainty import (
     ONE_SIGMA,
@@ -339,7 +339,9 @@ def run_candidates(
     if len(domains) != 1:
         raise ValueError(f"candidates must share the model domain, got {sorted(domains)}")
     diffusivity = fe_mg_diffusivity(diffusivity)
-    step_x, dx_um, (low, high) = model_grid(profile.distance_um, grid, candidates[0].domain_um)
+    step_x, dx_um, (low, high) = scheme_grid(
+        scheme, profile.distance_um, grid, candidates[0].domain_um
+    )
     model_x = step_x[low : high + 1]
     x, y = points_in_domain(model_x, profile.distance_um, profile.fo)
     W = interpolation_matrix(model_x, x)
@@ -379,7 +381,7 @@ def _extend_tails(runs, advances, lasts, W, total_steps):
                 continue
             n_have = len(r) - 1
             extra = min(n_have, total_steps - n_have)
-            rows = advances[i](lasts[i], extra)[1:]
+            rows = advances[i](lasts[i], extra, first_row=n_have)[1:]
             runs.at_points[i] = np.concatenate([runs.at_points[i], rows @ W.T])
             lasts[i] = rows[-1]
             runs.complete[i] = n_have + extra >= total_steps
@@ -493,7 +495,8 @@ def scan_initial_conditions(
         scan = scan_initial_conditions(profile, conditions, orientation, candidates, grid)
         scan.time_days, scan.profile_days, scan.marginal_days, scan.best_values
 
-    The runs use `scan_grid` (dt raised to ``stability``; None keeps ``grid``). A plain
+    The runs use `scan_grid` (dt raised to ``stability``; None keeps ``grid``; the
+    implicit scheme always keeps ``grid``). A plain
     list should be evenly spaced. To plot the best fit, fit ``scan.best_initial`` with
     `fit_profile`.
     """
@@ -501,9 +504,10 @@ def scan_initial_conditions(
         prior, initials = candidates, candidates.candidates
     else:
         prior, initials = None, tuple(candidates)
-    if stability is not None:
+    explicit = scheme != "implicit"  # the implicit scheme is stable at any dt
+    if explicit and stability is not None:
         grid = scan_grid(grid, initials, conditions, orientation, diffusivity, stability, profile)
-    else:
+    elif explicit:
         from forster.grid import actual_dx_um, stability_ratio
 
         lo = min(min(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in initials)
