@@ -1,6 +1,6 @@
 # Ni, Mn and Ca diffusion: model and fits
 
-Status (2026-10-13): stage 1 (Python API) built and verified, uncommitted: `forster/elements.py`, `FitResult.element`, element plots, 14 tests in `tests/test_elements.py` (full suite passes with `pytest -n 8`; ruff and ty clean). Stage 2 (tables, CLI) waits for Henry's review.
+Status (2026-10-13): stage 1 committed (e28368e); stage 1b (fitted concentrations, consistency) below. Stage 1: `forster/elements.py`, `FitResult.element`, element plots, 14 tests in `tests/test_elements.py` (full suite passes with `pytest -n 8`; ruff and ty clean). Stage 2 (tables, CLI) waits for Henry's review.
 
 ## Goal
 
@@ -88,11 +88,66 @@ Days, 1-sigma ranges. Findings:
 - A profile without resolvable zoning (AZ18 Ni) fits at time zero. It should be
   reported as unconstrained, not as 0 days.
 
+## Stage 1b (2026-10-13): fitted concentrations, consistency, Ni source check
+
+Built:
+
+- `FittedInitial`: an element's edge, core and plateau concentrations fitted by
+  generalised least squares at every time step. For a given Fo history the element
+  equation is linear in them (tested to 1e-12: a run at any concentrations equals
+  the core value plus unit runs), so this needs one or two extra unit runs, not a
+  grid of candidates. They count as fitted parameters in the small-sample threshold.
+  It is the default when no initial condition is given. Only step positions would
+  still need a scan.
+- `JointFit` consistency: each species' own best time (`species_days`), its
+  chi-squared rise at the joint best fit (`delta_chi2`), and `consistency_p`, the
+  probability of the total rise if the species share one time (chi-squared, species
+  - 1 dof, asymptotic). Warns below 0.05.
+- A warning when the best fit is at time zero (the profile does not constrain a time).
+- Fix found on real data: Fo was not advanced when the only element was Ca (Fo-
+  independent D) even when Fo itself was fitted. `coupled_model(advance_fo=...)`.
+
+Real profiles with fitted concentrations (days, 1-sigma):
+
+| | AZ18 WHT01_Ol_63 (1250 C) | KS20-527_2-transect-1 (1200 C) |
+|---|---|---|
+| Fo | 5.10 (4.20-6.19) | 42.2 (34.4-50.4) |
+| Ni | unconstrained (best at 0; NiO contrast ~0.02 wt%) | 15.5 (10.7-22.2), fitted rim 0.216 |
+| Mn | 19.9 (5.4-200, range reaches the run end) | 18.2 (10.0-33.8) |
+| Ca | 3.8 (1.4-17.2) | 64.1 (31.5-126) |
+| Fo+Ni, p | 0.016 (Ni unconstrained, should not be joined) | 0.008: Ni disagrees |
+| Fo+Mn, p | 0.26 | 0.17 |
+| Fo+Ca, p | 0.81 | 0.53 |
+
+Fitting the Ni rim moved KS20's Ni time from 6.7 to 15.5 d, but it still disagrees
+with Fo (42 d). Ca agrees with Fo on both profiles; Mn is too weakly constrained to
+disagree.
+
+Sources (reviews by subagents, checked where it mattered):
+
+- Ni preset: DIPRA's `girona_costa2013_ni` pairs Petry et al. (2004)'s pre-factor
+  3.84e-9 m2/s from their constant-fO2 fit (E = 216 kJ/mol, p. 4184, checked) with
+  E = 220 kJ/mol from their all-data fit. Ni comes out 0.142 log units slower at
+  1200 C than either consistent pairing (time 1.4x too long). The fO2 exponent
+  1/4.25 and reference 1e-6 Pa match; our fO2 (1e-2.9 Pa) is 1.1 log units above
+  their highest (1e-4 Pa). Decision for Henry: a consistent `petry2004_ni` preset.
+- Mn: no Mn law in Holzapfel et al. (2007) or Petry et al. (2004); both endorse the
+  Fe-Mg law for Mn. Activation volumes: 7.1 cm3/mol at constant fO2 (Fe-Mg); Ni and
+  Mn only along NNO (5.3-5.8); changing V changes log D by 0.02-0.04 at 0.5 GPa.
+- Growth: neither Rawlings and Mutch (2026) nor Couperthwaite et al. (2020) contains
+  a growth-diffusion model. AUTODIFF's growth versions (Couperthwaite et al. 2021;
+  Kahl et al. 2023) and DFENS multi-step (Camejo-Harry et al. 2025) are the sources
+  to read. Couperthwaite et al. (2020) cut quench rims by hand and rejected 10 of 83
+  profiles for growth or changing boundary conditions.
+- Chakraborty (1997): Table 3 has 55 D values (12 runs, Fo25-97, [001], 1 atm, fO2
+  ~1e-7 Pa), joined to Table 2 for T. Inventoried for the Fe-Mg refit.
+
+Full notes: session scratchpad `review_growth.md`, `review_ni_mn.md`.
+
 ## Before stage 2
 
-- A consistency statistic for joint fits.
-- Element initial conditions fitted or scanned (the `forster.scan` machinery applies),
-  not guessed from the data ends.
+- Step positions for elements: scan them (they are the nonlinear part).
 - `ElementProfile.units` for axis labels and tables.
-- Check the DIPRA Ni law against its source, Petry et al. (2004), and the Ni and Mn
-  pressure terms against Holzapfel et al. (2007), now in Henry's Zotero.
+- Decide the Ni preset (above).
+- Growth stages: see the growth notes above; design after reading the AUTODIFF and
+  DFENS multi-step papers.

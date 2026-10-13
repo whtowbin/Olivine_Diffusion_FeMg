@@ -281,3 +281,94 @@ def test_input_errors_name_the_problem(synthetic):
             {"Ni": NI_INITIAL},
             FIT_GRID,
         )
+
+
+# --- fitted concentrations and consistency ----------------------------------------
+
+
+@pytest.mark.parametrize("scheme", ["central", "dipra"])
+def test_element_runs_are_linear_in_their_concentrations(scheme):
+    """The basis of FittedInitial: for a given Fo history an element's run at any
+    concentrations is the constant core value plus unit runs."""
+    two_step_fo = InitialCondition((0, 299), 0.80, 0.90, steps_um=(60, 150), step_fo=0.86)
+    grid = stable_grid("dohmen_chakraborty2007", "girona_costa2013_ni", days=2)
+    given = ElementInitial(0.40, 0.30, step=0.45)
+    unit_edge = ElementInitial(1.0, 0.0, step=0.0)
+    unit_step = ElementInitial(0.0, 0.0, step=1.0)
+    rows = run(
+        [("Ni", given, None), ("Ni", unit_edge, None), ("Ni", unit_step, None)],
+        grid,
+        fo_initial=two_step_fo,
+        scheme=scheme,
+    )
+    ni, phi_edge, phi_step = (rows[:, k * N_X : (k + 1) * N_X] for k in (1, 2, 3))
+    combined = 0.30 + (0.40 - 0.30) * phi_edge + (0.45 - 0.30) * phi_step
+    assert np.abs(ni - combined).max() < 1e-12
+
+
+def test_fitted_concentrations_recover_the_starting_profile(synthetic):
+    result = fit_element(synthetic[1], CONDITIONS, ALONG_001, FO_INITIAL, None, FIT_GRID)
+    fitted = result.inputs["element_initial"]
+    assert result.inputs["concentrations_fitted"]
+    assert result.time_days == pytest.approx(TRUE_DAYS, rel=0.1)
+    assert fitted.edge == pytest.approx(0.40, abs=0.005)
+    assert fitted.core == pytest.approx(0.30, abs=0.005)
+    # Fitting the concentrations widens the range relative to giving the true ones.
+    given = fit_ni(synthetic[1])
+    width = result.time_plus_days - result.time_minus_days
+    assert width >= given.time_plus_days - given.time_minus_days
+
+
+def test_early_stopping_gives_the_same_fit_with_fitted_concentrations(synthetic):
+    args = (synthetic[1], CONDITIONS, ALONG_001, FO_INITIAL, None, FIT_GRID)
+    early, full = fit_element(*args), fit_element(*args, stop_early=False)
+    assert early.indices == full.indices
+    assert (early.time_s, early.time_minus_s, early.time_plus_s) == (
+        full.time_s,
+        full.time_minus_s,
+        full.time_plus_s,
+    )
+
+
+def test_consistency_accepts_one_time_and_flags_two(synthetic):
+    fo_profile, ni_profile = synthetic
+    same = fit_joint(fo_profile, [ni_profile], CONDITIONS, ALONG_001, FO_INITIAL, None, FIT_GRID)
+    assert same.consistency_p > 0.05
+    assert set(same.species_days) == {"Fo", "Ni"}
+    # Ni made at four times the Fo time: the joint fit must say they disagree.
+    fo0 = np.where(X_UM < STEP_UM - 0.5, 0.80, 0.90)
+    ni0 = np.where(X_UM < STEP_UM - 0.5, 0.40, 0.30)
+
+    def d_fo(fo):
+        return d_profile("dohmen_chakraborty2007", fo)
+
+    def d_ni(fo):
+        return d_profile("girona_costa2013_ni", fo)
+
+    _, ni_late = flux_form_pair(fo0, ni0, d_fo, d_ni, 4 * TRUE_DAYS * 86400, DX_M)
+    rng = np.random.default_rng(11)
+    late = ElementProfile(
+        POINTS_UM, np.interp(POINTS_UM, X_UM, ni_late) + rng.normal(0, 0.002, len(POINTS_UM)), "Ni"
+    )
+    with pytest.warns(UserWarning, match="do not agree on one time"):
+        apart = fit_joint(fo_profile, [late], CONDITIONS, ALONG_001, FO_INITIAL, None, FIT_GRID)
+    assert apart.consistency_p < 0.01
+    assert apart.species_days["Ni"] > 2 * apart.species_days["Fo"]
+
+
+def test_a_profile_without_zoning_is_reported_as_unconstrained():
+    rng = np.random.default_rng(3)
+    flat = ElementProfile(POINTS_UM, 0.35 + rng.normal(0, 0.002, len(POINTS_UM)), "Ni")
+    with pytest.warns(UserWarning, match="does not constrain a diffusion time"):
+        fit_element(flat, CONDITIONS, ALONG_001, FO_INITIAL, ElementInitial(0.35, 0.35), FIT_GRID)
+
+
+def test_fo_diffuses_when_it_is_fitted_with_ca_alone(synthetic):
+    """Ca does not need Fo, but a joint fit of Fo and Ca must still advance Fo."""
+    fo_profile = synthetic[0]
+    ca = ElementProfile(
+        POINTS_UM, 0.15 + 0.0 * POINTS_UM + np.linspace(0, 0.01, len(POINTS_UM)), "Ca"
+    )
+    joint = fit_joint(fo_profile, [ca], CONDITIONS, ALONG_001, FO_INITIAL, None, FIT_GRID)
+    fo_alone = fit_profile(fo_profile, CONDITIONS, ALONG_001, FO_INITIAL, FIT_GRID)
+    assert joint.species_days["Fo"] == pytest.approx(fo_alone.time_days, rel=0.02)

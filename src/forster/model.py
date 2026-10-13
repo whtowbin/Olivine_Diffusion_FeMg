@@ -325,30 +325,45 @@ def _diffusion_model(
 
 
 def _run_past_best_fit(
-    start: np.ndarray, advance: Advance, total_steps: int, W: np.ndarray, y: np.ndarray
+    start: np.ndarray,
+    advance: Advance,
+    total_steps: int,
+    W: np.ndarray | None,
+    y: np.ndarray | None,
+    *,
+    rss: Callable[[np.ndarray], np.ndarray] | None = None,
 ) -> np.ndarray:
     """Profiles from time zero until the fit is well behind (or ``total_steps``).
 
     Advances in blocks and stops when the run is ``STOP_TIME_FACTOR`` times past the
     lowest sum of squared residuals so far, the sum is ``STOP_RSS_RATIO`` times that
-    lowest value, and it is still rising.
+    lowest value, and it is still rising. The sum is that of ``y - W @ row``, or
+    ``rss(rows)`` when given (`forster.elements`, where concentrations are fitted).
     """
+    if rss is None:
+        if W is None or y is None:
+            raise ValueError("give W and y, or rss")
+        weights, data = W, y
+
+        def rss(rows: np.ndarray) -> np.ndarray:
+            return chi2_per_step(rows, weights, data)
+
     block = max(500, -(-total_steps // STOP_BLOCKS))
     chunks = [start[None, :]]
-    rss_min = float(chi2_per_step(start[None, :], W, y)[0])
+    rss_min = float(rss(start[None, :])[0])
     k_min = done = 0
     c = start
     while done < total_steps:
         rows = advance(c, min(block, total_steps - done))[1:]
         chunks.append(rows)
         c = rows[-1]
-        rss = chi2_per_step(rows, W, y)
-        i = int(np.argmin(rss))
-        if rss[i] < rss_min:
-            rss_min, k_min = float(rss[i]), done + 1 + i
+        sums = rss(rows)
+        i = int(np.argmin(sums))
+        if sums[i] < rss_min:
+            rss_min, k_min = float(sums[i]), done + 1 + i
         done += len(rows)
         past = done >= STOP_TIME_FACTOR * max(k_min, 1)
-        if past and rss[-1] >= STOP_RSS_RATIO * rss_min and rss[-1] >= rss[0]:
+        if past and sums[-1] >= STOP_RSS_RATIO * rss_min and sums[-1] >= sums[0]:
             break
     return np.concatenate(chunks)
 
