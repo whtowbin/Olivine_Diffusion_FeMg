@@ -193,3 +193,25 @@ def test_fit_scans_runs_with_uncertainties_and_the_summary_refits(tmp_path, temp
     )
     assert too_big.returncode == 1
     assert "more than 4" in too_big.stderr
+
+
+def test_blank_dx_and_dt_are_chosen_and_recorded(tmp_path, template):
+    params = read_csv(template / "parameters.csv")
+    params.assign(dx_um=float("nan"), dt_s=float("nan")).to_csv(
+        template / "parameters.csv", index=False
+    )
+    done = forster("fit", template / "profiles.csv", template / "parameters.csv", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    row = read_csv(tmp_path / "results" / "summary.csv").iloc[0]
+    assert row.dx_um > 0 and row.dt_s > 0
+    assert row.grid_error_pct <= 1.05 and abs(row.grid_stability - 0.4) < 1e-6
+    again = forster(
+        "fit",
+        template / "profiles.csv",
+        tmp_path / "results" / "summary.csv",
+        "--out",
+        "again",
+        cwd=tmp_path,
+    )
+    assert again.returncode == 0, again.stderr
+    assert read_csv(tmp_path / "again" / "summary.csv").time_days[0] == row.time_days

@@ -76,12 +76,25 @@ PARAMETER_COLUMNS = (
     Column(
         "dx_um",
         "µm",
-        "required",
-        "Grid spacing. Keep D dt / dx² below 0.5: the explicit scheme is unstable above it, "
-        "and this is not checked.",
+        "optional",
+        "Grid spacing of the final fit. Leave empty to have it chosen for about 1% "
+        "accuracy in the fitted time; a value you give is kept, with a warning if it is "
+        "coarse, wastefully fine, or too coarse for the initial steps.",
     ),
-    Column("dt_s", "s", "required", "Time step."),
-    Column("max_time_days", "days", "optional", "Longest time modelled (default 200)."),
+    Column(
+        "dt_s",
+        "s",
+        "optional",
+        "Time step of the final fit. Leave empty for the stable step D dt / dx² = 0.4; "
+        "a value giving D dt / dx² > 0.5 is unstable and refused.",
+    ),
+    Column(
+        "max_time_days",
+        "days",
+        "optional",
+        "Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate "
+        "of the time).",
+    ),
     Column("scheme", "", "optional", "central (default) or dipra (Girona and Costa 2013)."),
     Column(
         "diffusivity",
@@ -121,6 +134,26 @@ PARAMETER_COLUMNS = (
         "",
         "optional",
         "Grid points per uncertain parameter (default 13 for one, 9 for two, 5 for more).",
+    ),
+    Column(
+        "scan_dx_um",
+        "µm",
+        "optional",
+        "Grid spacing of the initial-condition scan's runs. Empty: chosen for about 5% "
+        "accuracy (coarser and faster than the final fit).",
+    ),
+    Column(
+        "scan_dt_s",
+        "s",
+        "optional",
+        "Time step of the scan's runs. Empty: D dt / dx² = 0.4 for every candidate.",
+    ),
+    Column(
+        "scan_max_time_days",
+        "days",
+        "optional",
+        "Longest time the scan's runs model. Empty: max_time_days if given, else 3x the "
+        "fitted time.",
     ),
     Column("notes", "", "optional", "Free text for your own records."),
 )
@@ -210,11 +243,20 @@ SUMMARY_COLUMNS = (
         "Grid points left out as invalid (steps out of order or domain, Fo outside 0-1).",
     ),
     Column(
-        "scan_dt_s",
-        "s",
+        "grid_resolution",
         "",
-        "Time step of the scan's runs: dt raised until D dt / dx² = 0.4 (never dx).",
+        "",
+        "Diffusion length sqrt(D t) at the fit over the grid spacing; about 13 gives 5% and "
+        "65 gives 1% accuracy in the fitted time.",
     ),
+    Column(
+        "grid_error_pct",
+        "%",
+        "",
+        "Estimated worst-case error of the fitted time from the grid spacing "
+        "(0.65 x dx / diffusion length, measured on real profiles).",
+    ),
+    Column("grid_stability", "", "", "D dt / dx² of the final fit (stable up to 0.5)."),
 )
 
 # Columns of diffusivities.csv; the equation is in forster.diffusivity.
@@ -290,6 +332,12 @@ def column_guide() -> str:
             "candidates are refused (`--max-candidates`). The scan's runs share one grid "
             "with a larger time step (D dt / dx² = 0.4), which changed fitted times by "
             "under 0.2% in tests.",
+            "**Grids.** dx_um and dt_s may be left empty: `forster fit` then makes a quick "
+            "fit on a coarse grid, takes the diffusion length l = sqrt(D t) at its time, "
+            "and sets dx = l / 65 for the final fit (about 1% accuracy) and l / 13 for "
+            "scans (about 5%), and never more than a quarter of the narrowest gap between "
+            "steps; dt is the stable step D dt / dx² = 0.4. Values you give are kept and "
+            "checked. summary.csv records the grid actually used, so a refit reproduces it.",
             "## diffusivities.csv\n\nOptional. One row per diffusivity equation, for each "
             "crystal axis i ([100], [010], [001]):\n\n"
             f"`{DIFFUSIVITY_EQUATION}`\n\n"

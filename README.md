@@ -157,9 +157,9 @@ One row per model run. Fo is a fraction throughout.
 | `edge_fo` | fraction | required | Initial Fo before the first step (edge side). |
 | `core_fo` | fraction | required | Initial Fo after the last step (core side). |
 | `step_fo` | fraction | optional | Initial Fo of the plateau between two steps; required with two steps. |
-| `dx_um` | µm | required | Grid spacing. Keep D dt / dx² below 0.5: the explicit scheme is unstable above it, and this is not checked. |
-| `dt_s` | s | required | Time step. |
-| `max_time_days` | days | optional | Longest time modelled (default 200). |
+| `dx_um` | µm | optional | Grid spacing of the final fit. Leave empty to have it chosen for about 1% accuracy in the fitted time; a value you give is kept, with a warning if it is coarse, wastefully fine, or too coarse for the initial steps. |
+| `dt_s` | s | optional | Time step of the final fit. Leave empty for the stable step D dt / dx² = 0.4; a value giving D dt / dx² > 0.5 is unstable and refused. |
+| `max_time_days` | days | optional | Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate of the time). |
 | `scheme` |  | optional | central (default) or dipra (Girona and Costa 2013). |
 | `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or mutch2019_tamed, mutch2019_global) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
 | `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule; reproduces old results). |
@@ -172,6 +172,9 @@ One row per model run. Fo is a fraction throughout.
 | `step_fo_sd` | fraction | optional | 1-sigma uncertainty on step_fo (Gaussian). |
 | `step_fo_range` | fraction | optional | ± half-width on step_fo (uniform). |
 | `scan_points` |  | optional | Grid points per uncertain parameter (default 13 for one, 9 for two, 5 for more). |
+| `scan_dx_um` | µm | optional | Grid spacing of the initial-condition scan's runs. Empty: chosen for about 5% accuracy (coarser and faster than the final fit). |
+| `scan_dt_s` | s | optional | Time step of the scan's runs. Empty: D dt / dx² = 0.4 for every candidate. |
+| `scan_max_time_days` | days | optional | Longest time the scan's runs model. Empty: max_time_days if given, else 3x the fitted time. |
 | `notes` |  | optional | Free text for your own records. |
 
 *one form*: give fO2 either as `fO2_Pa` or as `fO2_buffer` with `fO2_delta_log`, and
@@ -229,7 +232,9 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `scan_best` |  | Best values of the scanned parameters (step1_um, edge_fo, ...); the nominal values stay in the parameter columns. |
 | `scan_candidates` |  | Initial conditions fitted (one model run each). |
 | `scan_dropped` |  | Grid points left out as invalid (steps out of order or domain, Fo outside 0-1). |
-| `scan_dt_s` | s | Time step of the scan's runs: dt raised until D dt / dx² = 0.4 (never dx). |
+| `grid_resolution` |  | Diffusion length sqrt(D t) at the fit over the grid spacing; about 13 gives 5% and 65 gives 1% accuracy in the fitted time. |
+| `grid_error_pct` | % | Estimated worst-case error of the fitted time from the grid spacing (0.65 x dx / diffusion length, measured on real profiles). |
+| `grid_stability` |  | D dt / dx² of the final fit (stable up to 0.5). |
 
 Parameter tables in the two older layouts of this project, the round robin
 spreadsheets and the tables of Towbin and Plank (2026), are read too.
@@ -248,6 +253,14 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   is well behind it rather than running to `max_time_days`, which gives the same
   result faster. The `legacy` option keeps the earlier rule, which compared the
   model with a kriged interpolation of the data.
+- The grid can be left to FORSTER: with `dx_um` and `dt_s` empty, a quick coarse fit
+  gives the diffusion length l = sqrt(D t), and the final fit uses dx = l / 65 (about
+  1% accuracy in the fitted time), scans dx = l / 13 (about 5%), and dt the stable step
+  D dt / dx² = 0.4. A grid you give is kept and checked: unstable grids are refused,
+  and coarse or wastefully fine ones get a warning. `grid_resolution`,
+  `grid_error_pct` and `grid_stability` in summary.csv say how well each fit was
+  resolved. [docs/references/grid-choice.md](docs/references/grid-choice.md) gives the
+  measurements behind these numbers.
 - The range does not include uncertainty in the initial condition. From Python,
   `forster.scan.scan_initial_conditions` fits a set of candidates (for example the
   step at a range of positions, `forster.scan.step_offsets`) and gives the range of

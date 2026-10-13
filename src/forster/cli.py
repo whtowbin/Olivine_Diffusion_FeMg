@@ -103,7 +103,9 @@ def _fit_one(run: Run, profiles: dict, out_dir: Path, max_candidates: int) -> di
         )
         with warnings.catch_warnings(record=True) as scan_caught:
             warnings.simplefilter("always")
-            scan = scan_run(run, profiles, max_candidates=max_candidates)
+            scan = scan_run(
+                run, profiles, time_days=result.time_days, max_candidates=max_candidates
+            )
         caught += scan_caught
         scan_table(scan).to_csv(out_dir / f"{file_stem(run.name)}_scan.csv", index=False)
         row.update(scan_summary(scan))

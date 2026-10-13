@@ -26,10 +26,12 @@ chi-squared for the profile range) or uniform (+- half-width; nodes over the who
 range, flat weights, no penalty). Edge and core Fo are the boundary values held
 fixed during diffusion, so scanning them changes the boundary conditions too.
 
-All candidates run on one numerical grid. By default its time step is raised to
-D dt / dx^2 = `SCAN_STABILITY` (0.4; the explicit scheme needs 0.5 or less), never
-lowered; the grid spacing is not changed, as coarsening it biases the result
-(``docs/references/likelihood-method.md``, section 7).
+All candidates run on one numerical grid. By default its time step is set so that
+D dt / dx^2 = `SCAN_STABILITY` (0.4; the explicit scheme needs 0.5 or less) for the
+largest diffusivity over every candidate's compositions. The grid spacing is not
+changed here, as coarsening it biases the result
+(``docs/references/likelihood-method.md``, section 7); `forster.grid.choose_grid`
+chooses it for the accuracy wanted.
 """
 
 from __future__ import annotations
@@ -224,16 +226,20 @@ def scan_grid(
     orientation: Orientation,
     diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY,
     stability: float = SCAN_STABILITY,
+    profile: Profile | None = None,
 ) -> Grid:
-    """``grid`` with dt raised until D_max dt / dx^2 = ``stability``, D_max being the largest
-    diffusivity over all candidates' compositions; dx and max time unchanged. One grid
-    for every candidate, so their chi-squared values stay comparable."""
-    D, _ = fe_mg_diffusivity(diffusivity).functions(conditions, orientation)
-    fos = [f for c in candidates for f in (c.edge_fo, c.core_fo, c.step_fo) if f is not None]
-    fo = np.linspace(min(fos), max(fos), 200)
-    d_max = float(np.max(D(fo)))
-    dt_limit = stability * (grid.dx_um * 1e-6) ** 2 / d_max
-    return replace(grid, dt_s=max(grid.dt_s, dt_limit))
+    """``grid`` with dt set so D_max dt / dx^2 = ``stability``, D_max over every
+    candidate's compositions (edge, core, plateau); dx and max time unchanged. One grid
+    for every candidate, so their chi-squared values stay comparable. With ``profile``
+    the spacing `fit_profile` will actually use is taken (`forster.grid.actual_dx_um`)."""
+    from forster.grid import actual_dx_um, stable_dt
+
+    lo = min(min(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in candidates)
+    hi = max(max(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in candidates)
+    dx = grid.dx_um if profile is None else actual_dx_um(profile, grid.dx_um, candidates[0])
+    return replace(
+        grid, dt_s=stable_dt(dx, [(diffusivity, (lo, hi))], conditions, orientation, stability)
+    )
 
 
 def step_offsets(initial: InitialCondition, offsets_um: Sequence[float]) -> list[InitialCondition]:
@@ -260,7 +266,11 @@ class CandidateRuns:
     model_x_um: np.ndarray
     x_um: np.ndarray
     fo: np.ndarray
-    dt_s: float
+    grid: Grid  # as run: the requested spacing, the time step used
+
+    @property
+    def dt_s(self) -> float:
+        return self.grid.dt_s
 
 
 @dataclass(frozen=True)
@@ -348,7 +358,7 @@ def run_candidates(
         lasts.append(curves[-1])
         if progress is not None:
             progress(i + 1, len(candidates))
-    runs = CandidateRuns(tuple(candidates), at_points, complete, model_x, x, y, grid.dt_s)
+    runs = CandidateRuns(tuple(candidates), at_points, complete, model_x, x, y, grid)
     return _extend_tails(runs, advances, lasts, W, grid.timesteps)
 
 
@@ -492,7 +502,18 @@ def scan_initial_conditions(
     else:
         prior, initials = None, tuple(candidates)
     if stability is not None:
-        grid = scan_grid(grid, initials, conditions, orientation, diffusivity, stability)
+        grid = scan_grid(grid, initials, conditions, orientation, diffusivity, stability, profile)
+    else:
+        from forster.grid import actual_dx_um, stability_ratio
+
+        lo = min(min(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in initials)
+        hi = max(max(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in initials)
+        dx = actual_dx_um(profile, grid.dx_um, initials[0])
+        ratio = stability_ratio(dx, grid.dt_s, [(diffusivity, (lo, hi))], conditions, orientation)
+        if ratio > 0.5:
+            raise ValueError(
+                f"scan grid unstable for some candidates: D_max dt / dx^2 = {ratio:.2f} > 0.5"
+            )
     runs = run_candidates(
         profile,
         conditions,

@@ -36,7 +36,7 @@ import ast
 import math
 import warnings
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -49,6 +49,12 @@ from forster.diffusivity import (
     Diffusivity,
     from_table,
     resolve,
+)
+from forster.grid import (
+    STABILITY_RATIO,
+    GridRequest,
+    check_grid,
+    grid_diagnostics,
 )
 from forster.model import (
     SCHEMES,
@@ -94,8 +100,6 @@ TEMPLATE_COLUMNS = {
     "steps_um",
     "edge_fo",
     "core_fo",
-    "dx_um",
-    "dt_s",
 }
 # Template rows give each of these in one of two forms (see _pick_form).
 ORIENTATION_FORMS = (
@@ -147,7 +151,7 @@ class Run:
     conditions: Conditions
     orientation: Orientation
     initial: InitialCondition
-    grid: Grid
+    grid: Grid | GridRequest  # a GridRequest has parts left to `forster.grid.choose_grid`
     kriging: KrigingSettings
     diffusivity: Diffusivity
     scheme: str = "central"
@@ -156,6 +160,8 @@ class Run:
     # Uncertain initial-condition parameters (template layout): scanned by `scan_run`.
     uncertainties: Mapping[str, Uncertainty] = field(default_factory=dict)
     scan_points: int | None = None
+    # The scan's grid: parts left as None are chosen by `forster.grid.choose_grid`.
+    scan_grid: GridRequest = field(default_factory=GridRequest)
 
 
 def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
@@ -460,11 +466,7 @@ def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Di
         conditions=_template_conditions(row),
         orientation=_template_orientation(row),
         initial=initial,
-        grid=Grid(
-            dx_um=row["dx_um"],
-            dt_s=row["dt_s"],
-            max_time_days=_max_time(row, defaults, "max_time_days"),
-        ),
+        grid=_template_grid(row, defaults),
         kriging=defaults.kriging,
         diffusivity=_diffusivity(row, defaults, custom),
         scheme=_scheme(row, defaults),
@@ -472,7 +474,24 @@ def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Di
         metadata={c: row[c] for c in METADATA_COLUMNS if _given(row, c)},
         uncertainties=_template_uncertainties(row, initial),
         scan_points=int(row["scan_points"]) if _given(row, "scan_points") else None,
+        scan_grid=GridRequest(
+            dx_um=_optional_float(row, "scan_dx_um"),
+            dt_s=_optional_float(row, "scan_dt_s"),
+            max_time_days=_optional_float(row, "scan_max_time_days"),
+        ),
     )
+
+
+def _optional_float(row: pd.Series, column: str) -> float | None:
+    return float(row[column]) if _given(row, column) else None
+
+
+def _template_grid(row: pd.Series, defaults: RunDefaults) -> Grid | GridRequest:
+    """The grid a template row gives; blank dx_um or dt_s are chosen at fit time."""
+    dx, dt = _optional_float(row, "dx_um"), _optional_float(row, "dt_s")
+    if dx is not None and dt is not None:
+        return Grid(dx_um=dx, dt_s=dt, max_time_days=_max_time(row, defaults, "max_time_days"))
+    return GridRequest(dx_um=dx, dt_s=dt, max_time_days=_optional_float(row, "max_time_days"))
 
 
 # (name, columns that identify it, run-name column, row reader), tried in order.
@@ -560,6 +579,7 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "dt_s": grid.dt_s,
         "max_time_days": grid.max_time_days,
         "diffusivity": inputs["diffusivity"].name,
+        **grid_diagnostics(result),
         "white_sigma_fo": noise.white_sigma if noise else math.nan,
         "correlated_sigma_fo": noise.correlated_sigma if noise else math.nan,
         "correlation_length_um": noise.correlation_length_um if noise else math.nan,
@@ -603,26 +623,45 @@ def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
     }
 
 
-def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = True) -> FitResult:
-    """Fit one run against its measured profile (``stop_early``: see `fit_profile`)."""
+def _profile(run: Run, profiles: Mapping[str, Profile]) -> Profile:
     if run.profile_name not in profiles:
         raise KeyError(
             f"run {run.name!r} needs profile {run.profile_name!r}, which is not in the profile "
             f"table (available: {sorted(profiles)})"
         )
     measured = profiles[run.profile_name]
-    return fit_profile(
-        Profile(measured.distance_um, measured.fo, name=run.name),
-        run.conditions,
-        run.orientation,
-        run.initial,
-        run.grid,
+    return Profile(measured.distance_um, measured.fo, name=run.name)
+
+
+def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = True) -> FitResult:
+    """Fit one run against its measured profile (``stop_early``: see `fit_profile`).
+
+    A grid with parts left blank (`GridRequest`) is completed by `choose_grid` for a
+    final fit (1%); a grid given in full is checked (`check_grid`): unstable raises,
+    and after the fit any accuracy or cost concerns are issued as warnings.
+    """
+    profile = _profile(run, profiles)
+    args = (profile, run.conditions, run.orientation, run.initial)
+    if isinstance(run.grid, GridRequest):
+        grid = run.grid.resolve(*args, run.diffusivity, scheme=run.scheme).grid
+        given = False
+    else:
+        grid = run.grid
+        check_grid(grid, *args, run.diffusivity)  # raises if unstable
+        given = True
+    result = fit_profile(
+        *args,
+        grid,
         run.kriging,
         run.diffusivity,
         run.scheme,
         run.uncertainty,
         stop_early=stop_early,
     )
+    if given:
+        for message in check_grid(grid, *args, run.diffusivity, time_days=result.time_days):
+            warnings.warn(f"run {run.name!r}: {message}", stacklevel=2)
+    return result
 
 
 def _steps_column(run: Run) -> dict[str, Any]:
@@ -654,24 +693,47 @@ def scan_run(
     run: Run,
     profiles: Mapping[str, Profile],
     *,
+    time_days: float | None = None,
     max_candidates: int = MAX_CANDIDATES,
     progress: Callable[[int, int], None] | None = None,
 ) -> ScanResult:
-    """Fit a run over its uncertain initial-condition parameters (`forster.scan`)."""
+    """Fit a run over its uncertain initial-condition parameters (`forster.scan`).
+
+    The scan's grid is ``run.scan_grid`` with blank parts chosen for a 5% scan
+    (`choose_grid`, purpose "scan"), using ``time_days`` (the nominal fit's time, if
+    known) to size it; otherwise a coarse fit estimates the time.
+    """
     if not run.uncertainties:
         raise ValueError(f"run {run.name!r} has no initial-condition uncertainties to scan")
-    measured = profiles[run.profile_name]
+    profile = _profile(run, profiles)
     candidates = candidate_grid(
         run.initial, run.uncertainties, run.scan_points, max_candidates=max_candidates
     )
+    request = run.scan_grid
+    if not request.is_complete():
+        max_time = run.grid.max_time_days if isinstance(run.grid, Grid) else None
+        request = replace(request, max_time_days=request.max_time_days or max_time)
+    grid = request.resolve(
+        profile,
+        run.conditions,
+        run.orientation,
+        run.initial,
+        run.diffusivity,
+        purpose="scan",
+        time_days=time_days,
+        scheme=run.scheme,
+    ).grid
     return scan_initial_conditions(
-        Profile(measured.distance_um, measured.fo, name=run.name),
+        profile,
         run.conditions,
         run.orientation,
         candidates,
-        run.grid,
+        grid,
         run.diffusivity,
         run.scheme,
+        # A scan dt the user gave is kept (checked for stability over every candidate);
+        # otherwise dt is set at the stability ratio for every candidate's compositions.
+        stability=None if run.scan_grid.dt_s is not None else STABILITY_RATIO,
         progress=progress,
     )
 
@@ -699,7 +761,10 @@ def scan_summary(scan: ScanResult) -> dict[str, Any]:
         "scan_best": "; ".join(f"{k}={v:.6g}" for k, v in best.items()),
         "scan_candidates": len(scan.runs.candidates),
         "scan_dropped": scan.prior.dropped if scan.prior is not None else 0,
-        "scan_dt_s": scan.runs.dt_s,
+        # The grid as requested, so a refit rebuilds the same one.
+        "scan_dx_um": scan.runs.grid.dx_um,
+        "scan_dt_s": scan.runs.grid.dt_s,
+        "scan_max_time_days": scan.runs.grid.max_time_days,
     }
 
 
