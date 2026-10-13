@@ -3,8 +3,20 @@
 Fe-Mg diffusion modeling of zoned olivine profiles.
 """
 
-from forster import dipra, uncertainty
-from forster.io import RunDefaults, fit_run, fit_tables, read_profiles, read_runs, summary_row
+from forster import diffusivity, dipra, scan, uncertainty
+from forster.diffusivity import DIFFUSIVITY_PRESETS, ArrheniusDiffusivity, Diffusivity
+from forster.io import (
+    RunDefaults,
+    fit_run,
+    fit_tables,
+    read_diffusivities,
+    read_profiles,
+    read_runs,
+    scan_run,
+    scan_summary,
+    scan_table,
+    summary_row,
+)
 from forster.model import (
     SCHEMES,
     UNCERTAINTY_METHODS,
@@ -18,13 +30,17 @@ from forster.model import (
     fit_profile,
 )
 from forster.plotting import plot_fit
+from forster.scan import Uncertainty, candidate_grid
 from forster.template import write_template
 from forster.uncertainty import NoiseModel
 
 __all__ = [
+    "DIFFUSIVITY_PRESETS",
     "SCHEMES",
     "UNCERTAINTY_METHODS",
+    "ArrheniusDiffusivity",
     "Conditions",
+    "Diffusivity",
     "FitResult",
     "Grid",
     "InitialCondition",
@@ -33,13 +49,21 @@ __all__ = [
     "Orientation",
     "Profile",
     "RunDefaults",
+    "Uncertainty",
+    "candidate_grid",
+    "diffusivity",
     "dipra",
     "fit_profile",
     "fit_run",
     "fit_tables",
     "plot_fit",
+    "read_diffusivities",
     "read_profiles",
     "read_runs",
+    "scan",
+    "scan_run",
+    "scan_summary",
+    "scan_table",
     "summary_row",
     "uncertainty",
     "write_template",

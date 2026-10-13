@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import time
 import warnings
 from collections.abc import Sequence
 from importlib.metadata import version
@@ -13,9 +14,24 @@ from pathlib import Path
 import pandas as pd
 from matplotlib.figure import Figure
 
-from forster.io import Run, fit_run, fit_tables, read_profiles, read_runs, summary_row
+from forster.diffusivity import ArrheniusDiffusivity, diffusivity_table
+from forster.io import (
+    Run,
+    fit_run,
+    fit_tables,
+    read_diffusivities,
+    read_profiles,
+    read_runs,
+    scan_run,
+    scan_size,
+    scan_summary,
+    scan_table,
+    summary_row,
+    uncertainty_columns,
+)
 from forster.model import FitResult
 from forster.plotting import plot_fit
+from forster.scan import MAX_CANDIDATES
 from forster.template import write_template
 
 DPI = 200
@@ -69,14 +85,29 @@ def _user_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
     return sorted({str(w.message) for w in caught if issubclass(w.category, UserWarning)})
 
 
-def _fit_one(run: Run, profiles: dict, out_dir: Path) -> dict:
+def _fit_one(run: Run, profiles: dict, out_dir: Path, max_candidates: int) -> dict:
+    n_scan = scan_size(run, max_candidates=max_candidates)  # raises early if too large
+    t0 = time.perf_counter()
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         result = fit_run(run, profiles)
-    notes = _user_warnings(caught)
+    seconds = time.perf_counter() - t0
     write_fit(result, out_dir, file_stem(run.name))
     row = summary_row(result)
-    row = {"run": row.pop("run"), "profile": run.profile_name, **row}
+    row = {"run": row.pop("run"), "profile": run.profile_name, **row, **uncertainty_columns(run)}
+    if n_scan:
+        print(
+            f"  scanning {n_scan} initial conditions (roughly {n_scan * seconds / 3:.0f} s "
+            "or less)",
+            flush=True,
+        )
+        with warnings.catch_warnings(record=True) as scan_caught:
+            warnings.simplefilter("always")
+            scan = scan_run(run, profiles, max_candidates=max_candidates)
+        caught += scan_caught
+        scan_table(scan).to_csv(out_dir / f"{file_stem(run.name)}_scan.csv", index=False)
+        row.update(scan_summary(scan))
+    notes = _user_warnings(caught)
     row["warnings"] = "; ".join(notes)
     row["forster_version"] = version("forster")
     for note in notes:
@@ -88,7 +119,8 @@ def fit_command(args: argparse.Namespace) -> int:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", UserWarning)
         profiles = read_profiles(args.profiles, sheet=_sheet(args.profiles_sheet))
-        runs = read_runs(args.parameters, sheet=_sheet(args.parameters_sheet))
+        custom = read_diffusivities(args.diffusivities) if args.diffusivities else None
+        runs = read_runs(args.parameters, sheet=_sheet(args.parameters_sheet), diffusivities=custom)
     for note in _user_warnings(caught):
         print(f"warning: {note}", file=sys.stderr)
     runs = _select(runs, args.run)
@@ -99,7 +131,7 @@ def fit_command(args: argparse.Namespace) -> int:
     for i, run in enumerate(runs, 1):
         print(f"[{i}/{len(runs)}] {run.name}", flush=True)
         try:
-            row = _fit_one(run, profiles, out_dir)
+            row = _fit_one(run, profiles, out_dir, args.max_candidates)
         except (KeyError, ValueError) as error:
             # One bad row should not lose the other fits.
             print(f"  failed: {error}", file=sys.stderr)
@@ -107,8 +139,17 @@ def fit_command(args: argparse.Namespace) -> int:
             continue
         rows.append(row)
         print(f"  {row['time_days']:.2f} days ({row['low_days']:.2f}-{row['high_days']:.2f})")
+        if "scan_best_days" in row:
+            print(
+                f"  with initial-condition uncertainty: {row['scan_best_days']:.2f} days "
+                f"({row['scan_low_days']:.2f}-{row['scan_high_days']:.2f}); best {row['scan_best']}"
+            )
     summary = out_dir / "summary.csv"
     pd.DataFrame(rows).to_csv(summary, index=False)
+    # The equations behind summary.csv, so it can be refitted with --diffusivities.
+    used = {r.diffusivity.name: r.diffusivity for r in runs}
+    tabled = [d for d in used.values() if isinstance(d, ArrheniusDiffusivity)]
+    diffusivity_table(tabled).to_csv(out_dir / "diffusivities.csv", index=False)
     print(f"{len(rows)} of {len(runs)} runs fitted; results in {out_dir}, summary in {summary}")
     if failed:
         print(f"failed: {', '.join(failed)}", file=sys.stderr)
@@ -135,7 +176,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     template = commands.add_parser(
         "template",
-        help="write profiles.csv and parameters.csv to fill in (with a worked example)",
+        help="write profiles.csv, parameters.csv and diffusivities.csv to fill in "
+        "(with a worked example)",
     )
     template.add_argument("dir", help="folder to write into (created if needed)")
     template.add_argument("--force", action="store_true", help="overwrite existing files")
@@ -148,6 +190,16 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument("--run", nargs="+", metavar="NAME", help="fit only these runs")
     fit.add_argument("--profiles-sheet", help="Excel sheet of the profile table")
     fit.add_argument("--parameters-sheet", help="Excel sheet of the parameter table")
+    fit.add_argument(
+        "--max-candidates",
+        type=int,
+        default=MAX_CANDIDATES,
+        help=f"largest initial-condition scan to run (default {MAX_CANDIDATES} model runs)",
+    )
+    fit.add_argument(
+        "--diffusivities",
+        help="table of diffusivity equations named in the parameter table's diffusivity column",
+    )
     fit.set_defaults(handler=fit_command)
     return parser
 

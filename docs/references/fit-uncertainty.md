@@ -3,6 +3,9 @@
 How the 1-sigma range on a fitted time is found, how that has changed between
 versions of this code, and why. Started 2026-10-12.
 
+The method itself, step by step, with a worked example, validation on synthetic
+and real profiles, and figures: [likelihood-method.md](likelihood-method.md).
+
 ## Summary
 
 Every version fits time the same way: run the model forward, keep the profile at
@@ -161,8 +164,10 @@ Monte Carlo over T, P, fO2 and activation energy:
    Varying E at fixed D0 pivots the Arrhenius line at 1/T = 0, so at 1200 C it alone
    moves D by about +-0.28 log units (x1.9). Pivoting near the middle of the
    experimental range would move D much less at 1100-1200 C. This term
-   dominates the Monte Carlo spread. [Henry to decide; needs the correlation
-   between E and D0, or a pivot temperature, from Dohmen et al. 2007.]
+   dominates the Monte Carlo spread. Dohmen et al. (2007) publish no E-D0
+   correlation; Mutch et al. (2019, 2021) publish a regression with full
+   covariance, which gives x0.78 to x1.29 at 1200 C for the calibration term.
+   See `diffusivity-literature.md`. [Henry to decide whether to adopt it.]
 
 Items 1 and 2 partly cancel. For samples 1-3 (1200 C, T +-30 C, fO2 +-0.2 log,
 E +-8 kJ/mol) the time multiplier reported as +-1 sigma was x0.66 to x1.51; with

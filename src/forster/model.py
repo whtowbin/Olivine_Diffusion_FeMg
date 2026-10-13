@@ -13,20 +13,34 @@ pascals (``_Pa``), degrees Celsius (``_C``). Fo is a fraction (0.88, not 88).
 
 from __future__ import annotations
 
+import warnings
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 
 from forster import dipra, engine, orientation
-from forster.uncertainty import NoiseModel, fit_correlated
+from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
+from forster.uncertainty import (
+    NoiseModel,
+    chi2_per_step,
+    fit_correlated,
+    interpolation_matrix,
+    points_in_domain,
+)
 
 SECONDS_PER_DAY = 24 * 60 * 60
-FE_MG_ACTIVATION_ENERGY_J_MOL = 201_000.0  # Dohmen and Chakraborty (2007)
 FO2_BUFFERS = ("QFM", "FMQ", "NNO")
 SCHEMES = ("central", "dipra")  # finite-difference schemes, see fit_profile
 # How the time uncertainty is estimated, see fit_profile and docs/references/fit-uncertainty.md
 UNCERTAINTY_METHODS = ("correlated", "legacy")
+# Early stopping (correlated method): stop once the run is STOP_TIME_FACTOR times past the
+# best fit so far and the sum of squared residuals is STOP_RSS_RATIO times its minimum and
+# rising. If the 1-sigma range still reaches the end, the run is extended.
+STOP_TIME_FACTOR = 2.0
+STOP_RSS_RATIO = 4.0
+STOP_BLOCKS = 100  # the run is advanced in about this many blocks of max_time_days
 
 
 @dataclass(frozen=True)
@@ -226,6 +240,11 @@ class FitResult:
         return self.sum_chi2 / (n - 1)
 
     @property
+    def modelled_days(self) -> float:
+        """Time the model was run to: ``max_time_days`` unless the run stopped early."""
+        return (len(self.curves) - 1) * self.dt_s / SECONDS_PER_DAY
+
+    @property
     def best_fit(self) -> np.ndarray:
         return self.curves[self.indices[0]]
 
@@ -234,58 +253,123 @@ class FitResult:
         return self.curves[0]
 
 
-def _run_diffusion(
+Advance = Callable[[np.ndarray, int], np.ndarray]
+
+
+def fe_mg_diffusivity(diffusivity: Diffusivity | str) -> Diffusivity:
+    """The equation object for a name or object, checked to be for Fe-Mg."""
+    diffusivity = resolve(diffusivity)
+    if diffusivity.element != "Fe-Mg":
+        raise ValueError(
+            f"diffusivity {diffusivity.name!r} is for {diffusivity.element}; fit_profile models "
+            "Fe-Mg (Fo) profiles and needs an Fe-Mg equation"
+        )
+    return diffusivity
+
+
+def model_grid(
+    x_um: np.ndarray, grid: Grid, domain_um: tuple[float, float]
+) -> tuple[np.ndarray, float, tuple[int, int]]:
+    """Even grid from 0 to the last measured point (as in model_diffusion), its spacing,
+    and the grid rows nearest the two ends of the model domain."""
+    num_x = int(round(abs(x_um.max() - x_um.min()) / grid.dx_um, 0))
+    step_x, dx_um = np.linspace(0, x_um.max(), num_x, endpoint=True, retstep=True)
+    low_idx = int(np.abs(step_x - domain_um[0]).argmin())
+    high_idx = int(np.abs(step_x - domain_um[1]).argmin())
+    return step_x, float(dx_um), (low_idx, high_idx)
+
+
+def _diffusion_model(
     scheme: str,
     conditions: Conditions,
     orientation: Orientation,
     initial: InitialCondition,
     grid: Grid,
-    activation_energy_J_mol: float,
+    diffusivity: Diffusivity,
     model_x: np.ndarray,
     dx_um: float,
-) -> np.ndarray:
-    """Model Fo profiles at every time step, starting from the step-function profile.
+) -> tuple[np.ndarray, Advance]:
+    """The step-function start and a function advancing a profile by n time steps.
 
-    The same calls as ``engine.Diffusion_call``, with the time stepper chosen by
-    ``scheme``: "central" is the engine's, "dipra" is Girona and Costa (2013) eq. 5.
+    ``advance(c, n)`` returns n + 1 rows, the first being ``c``. The time steppers
+    restart exactly where they stopped, so running in blocks gives the same numbers
+    as one run. The calls are those of ``engine.Diffusion_call``, with the stepper
+    chosen by ``scheme``: "central" is the engine's, "dipra" is Girona and Costa
+    (2013) eq. 5.
     """
+    D, dD_dfo = diffusivity.functions(conditions, orientation)
     intervals = [initial.edge_fo, initial.core_fo]
     if initial.step_fo is not None:
         intervals[1:1] = [initial.step_fo]
     start = engine.step_condition(model_x, list(initial.steps_um), intervals)
     bounds = (initial.edge_fo, initial.core_fo)
     dx_m = dx_um * 1e-6
-    if scheme == "central":
-        diffusivity = engine.D_Fo(
-            T=conditions.T_K,
-            P=conditions.P_Pa,
-            fO2=conditions.fO2_Pa,
-            alpha=orientation.alpha_deg,
-            beta=orientation.beta_deg,
-            gamma=orientation.gamma_deg,
-            EFo=activation_energy_J_mol,
-        )
-        return engine.timestepper(
-            vector_c_in=start,
-            vector_Fo_in=start,
-            diffusivity_function=diffusivity,
-            bounds_c=bounds,
-            timesteps=grid.timesteps,
-            dx=dx_m,
-            dt=grid.dt_s,
-        )
-    diffusivity, derivative = dipra.D_Fo_and_derivative(
-        conditions.T_K,
-        conditions.P_Pa,
-        conditions.fO2_Pa,
-        orientation.alpha_deg,
-        orientation.beta_deg,
-        orientation.gamma_deg,
-        activation_energy_J_mol,
-    )
-    return dipra.timestepper(
-        start, diffusivity, derivative, bounds, grid.timesteps, dt=grid.dt_s, dx=dx_m
-    )
+
+    def advance(c: np.ndarray, n: int) -> np.ndarray:
+        if scheme == "central":
+            return engine.timestepper(
+                vector_c_in=c,
+                vector_Fo_in=c,
+                diffusivity_function=D,
+                bounds_c=bounds,
+                timesteps=n,
+                dx=dx_m,
+                dt=grid.dt_s,
+            )
+        return dipra.timestepper(c, D, dD_dfo, bounds, n, dt=grid.dt_s, dx=dx_m)
+
+    return start, advance
+
+
+def _run_past_best_fit(
+    start: np.ndarray, advance: Advance, total_steps: int, W: np.ndarray, y: np.ndarray
+) -> np.ndarray:
+    """Profiles from time zero until the fit is well behind (or ``total_steps``).
+
+    Advances in blocks and stops when the run is ``STOP_TIME_FACTOR`` times past the
+    lowest sum of squared residuals so far, the sum is ``STOP_RSS_RATIO`` times that
+    lowest value, and it is still rising.
+    """
+    block = max(500, -(-total_steps // STOP_BLOCKS))
+    chunks = [start[None, :]]
+    rss_min = float(chi2_per_step(start[None, :], W, y)[0])
+    k_min = done = 0
+    c = start
+    while done < total_steps:
+        rows = advance(c, min(block, total_steps - done))[1:]
+        chunks.append(rows)
+        c = rows[-1]
+        rss = chi2_per_step(rows, W, y)
+        i = int(np.argmin(rss))
+        if rss[i] < rss_min:
+            rss_min, k_min = float(rss[i]), done + 1 + i
+        done += len(rows)
+        past = done >= STOP_TIME_FACTOR * max(k_min, 1)
+        if past and rss[-1] >= STOP_RSS_RATIO * rss_min and rss[-1] >= rss[0]:
+            break
+    return np.concatenate(chunks)
+
+
+def _fit_correlated_extending(
+    curves: np.ndarray,
+    advance: Advance,
+    total_steps: int,
+    model_x: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+):
+    """`fit_correlated`, extending the run while the 1-sigma range reaches its end."""
+    while True:
+        complete = len(curves) - 1 >= total_steps
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fit = fit_correlated(curves, model_x, x, y, end_is_limit=complete)
+        if complete or fit.interval.high_row < len(curves) - 1:
+            for w in caught:
+                warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
+            return curves, fit
+        extra = min(len(curves) - 1, total_steps - (len(curves) - 1))
+        curves = np.concatenate([curves, advance(curves[-1], extra)[1:]])
 
 
 def fit_profile(
@@ -295,9 +379,10 @@ def fit_profile(
     initial: InitialCondition,
     grid: Grid,
     kriging: KrigingSettings | None = None,
-    activation_energy_J_mol: float = FE_MG_ACTIVATION_ENERGY_J_MOL,
+    diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY,
     scheme: str = "central",
     uncertainty: str = "correlated",
+    stop_early: bool = True,
 ) -> FitResult:
     """Fit Fe-Mg diffusion from a step-function start to a measured Fo profile.
 
@@ -311,18 +396,34 @@ def fit_profile(
     equation and converge to the same answer as ``grid.dx_um`` shrinks; running
     both is a check on the discretization.
 
+    ``diffusivity`` is the Fe-Mg diffusivity equation: a preset name from
+    `forster.diffusivity.DIFFUSIVITY_PRESETS` or an equation object (an
+    `ArrheniusDiffusivity`, or anything with the `Diffusivity` attributes). The
+    default, "dohmen_chakraborty2007", is the equation DIPRA uses (Girona and Costa
+    2013, Table 1). ``docs/references/diffusivity-literature.md`` compares the
+    presets and newer work.
+
     ``uncertainty`` picks how the best fit and its 1-sigma range are found:
 
     - "correlated" (default since 2026-10-12): each model curve is interpolated to
       the measured points, whose errors are modelled as white noise plus a smooth
       correlated misfit fitted by maximum likelihood; the range is where that
-      chi-squared rises by 1. See `forster.uncertainty`.
+      chi-squared rises by `forster.uncertainty.interval_threshold` (1 for many
+      points, more for few: the Student-t small-sample correction, since
+      2026-10-13). See `forster.uncertainty`.
     - "legacy": the round robin and paper-era rule, ``engine.Best_fit_Chi2`` on
       the kriged grid (reduced chi-squared within 1 of its minimum, which is
       chi-squared within N - 1 for N grid points). Gives results identical to the
       old scripts.
 
-    ``docs/references/fit-uncertainty.md`` explains the change and its effect.
+    With "correlated" and ``stop_early`` (the default) the model stops once the fit
+    is well behind it (see `STOP_TIME_FACTOR`, `STOP_RSS_RATIO`) instead of running to
+    ``grid.max_time_days``, and is extended if the 1-sigma range reaches the end;
+    ``FitResult.curves`` then ends at ``FitResult.modelled_days``. The fit is the same
+    as with the full run. The legacy method always runs to ``max_time_days``.
+
+    ``docs/references/likelihood-method.md`` explains the method and its validation,
+    ``docs/references/fit-uncertainty.md`` the change from earlier versions.
     """
     if scheme not in SCHEMES:
         raise ValueError(f"unknown scheme {scheme!r}; use one of {', '.join(SCHEMES)}")
@@ -331,12 +432,10 @@ def fit_profile(
             f"unknown uncertainty method {uncertainty!r}; use one of "
             f"{', '.join(UNCERTAINTY_METHODS)}"
         )
+    diffusivity = fe_mg_diffusivity(diffusivity)
     kriging = kriging or KrigingSettings()
     x, y = profile.distance_um, profile.fo
-
-    # Even grid from 0 to the last measured point (as in model_diffusion).
-    num_x = int(round(abs(x.max() - x.min()) / grid.dx_um, 0))
-    step_x, dx_um = np.linspace(0, x.max(), num_x, endpoint=True, retstep=True)
+    step_x, dx_um, (low_idx, high_idx) = model_grid(x, grid, initial.domain_um)
     interp_x, interp_fo, interp_sigma = engine.Krige_Interpolate(
         x,
         y,
@@ -345,23 +444,28 @@ def fit_profile(
         variogram_parameters=kriging.variogram_parameters,
     )
 
-    low_idx = int(np.abs(step_x - initial.domain_um[0]).argmin())
-    high_idx = int(np.abs(step_x - initial.domain_um[1]).argmin())
     model_x = step_x[low_idx : high_idx + 1]
     data_interp = interp_fo[low_idx : high_idx + 1]
     sigma_interp = interp_sigma[low_idx : high_idx + 1] + kriging.uniform_uncertainty
 
-    curves = _run_diffusion(
-        scheme, conditions, orientation, initial, grid, activation_energy_J_mol, model_x, dx_um
+    start, advance = _diffusion_model(
+        scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um
     )
     noise = None
     if uncertainty == "legacy":
+        curves = advance(start, grid.timesteps)
         time, indices, sum_chi2 = engine.Best_fit_Chi2(
             curves, data_interp, sigma_interp, grid.dt_s, scale_error=False
         )
         fit_x, fit_fo = model_x, data_interp
     else:
-        fit = fit_correlated(curves, model_x, x, y)
+        if stop_early:
+            px, py = points_in_domain(model_x, x, y)
+            W = interpolation_matrix(model_x, px)
+            curves = _run_past_best_fit(start, advance, grid.timesteps, W, py)
+        else:
+            curves = advance(start, grid.timesteps)
+        curves, fit = _fit_correlated_extending(curves, advance, grid.timesteps, model_x, x, y)
         span = fit.interval
         time = (
             span.best * grid.dt_s,
@@ -391,9 +495,10 @@ def fit_profile(
             "initial": initial,
             "grid": grid,
             "kriging": kriging,
-            "activation_energy_J_mol": activation_energy_J_mol,
+            "diffusivity": diffusivity,
             "scheme": scheme,
             "uncertainty": uncertainty,
+            "stop_early": stop_early,
         },
         uncertainty=uncertainty,
         fit_x_um=fit_x,

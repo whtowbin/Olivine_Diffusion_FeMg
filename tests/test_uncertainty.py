@@ -171,3 +171,86 @@ def test_uncertainty_column_is_read_per_run(tmp_path):
     methods = {run.name: run.uncertainty for run in read_runs(path)}
     assert methods[table.loc[0, "Sample"]] == "legacy"
     assert set(methods.values()) == {"correlated", "legacy"}
+
+
+def test_small_sample_threshold():
+    from forster.uncertainty import interval_threshold
+
+    assert interval_threshold(6) == pytest.approx(1.480, abs=1e-3)
+    assert interval_threshold(29) == pytest.approx(1.074, abs=1e-3)
+    assert interval_threshold(10_000) == pytest.approx(1.0, abs=1e-3)
+    assert interval_threshold(29, 2) > interval_threshold(29, 1)
+    with pytest.raises(ValueError, match="cannot constrain"):
+        interval_threshold(2, 2)
+
+
+def test_posterior_interval_matches_delta_chi2_for_many_points_and_is_wider_for_few():
+    from forster.uncertainty import posterior_interval
+
+    k = np.arange(400.0)
+    n = 10_000
+    chi2 = n + ((k - 150.3) / 7.0) ** 2  # chi2 near n at its minimum, as for a fitted s
+    many = posterior_interval(chi2, n)
+    assert many.best == 150
+    assert many.low == pytest.approx(143.3, abs=0.1)
+    assert many.high == pytest.approx(157.3, abs=0.1)
+    # Same delta chi2 curve with 6 points: the Student-t-like posterior is wider.
+    few = posterior_interval(6 + ((k - 150.3) / 7.0) ** 2, 6)
+    assert few.high - few.low > 1.15 * (many.high - many.low)
+
+
+def test_sparse_profile_coverage_with_the_small_sample_correction(round_robin_fit):
+    """6 points (50 um apart): 57% before the correction, about 64% with it."""
+    r = round_robin_fit
+    k_true = r.indices[0]
+    curves = r.curves[: 3 * k_true]
+    x = r.fit_x_um[::5]
+    truth = interpolation_matrix(r.model_x_um, x) @ curves[k_true]
+    rng = np.random.default_rng(RNG_SEED)
+    trials, hits = 200, 0
+    for _ in range(trials):
+        y = truth + rng.normal(0, 0.002, x.size)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            span = fit_correlated(curves, r.model_x_um, x, y).interval
+        hits += span.low <= k_true <= span.high
+    assert 0.58 <= hits / trials <= 0.78
+
+
+def test_grid_edge_warning_only_for_a_profile_wide_misfit():
+    rng = np.random.default_rng(RNG_SEED)
+    x = np.linspace(0, 300, 29)
+    warned = 0
+    for _ in range(100):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fit_noise_model(x, rng.normal(0, 0.002, x.size))
+        warned += any("spans the profile" in str(w.message) for w in caught)
+    assert warned <= 5  # about 1%; the old rule fired in 25-35% of white-noise fits
+    trend = 0.006 * (x / 300 - 0.5) + rng.normal(0, 0.001, x.size)  # misfit across the profile
+    with pytest.warns(UserWarning, match="spans the profile"):
+        fit_noise_model(x, trend)
+
+
+def test_early_stopping_gives_the_same_fit_as_the_full_run(monkeypatch):
+    """Two-step profile; also with stop settings so tight that the run has to be extended."""
+    import forster.model as model
+
+    runs = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS)}
+    profiles = read_profiles(ROUND_ROBIN_DATA)
+    run = runs["KS20-527-8_transect-2"]
+    assert run.initial.step_fo is not None
+    full = fit_run(run, profiles, stop_early=False)
+    early = fit_run(run, profiles)
+    assert early.modelled_days < full.modelled_days
+    assert early.indices[0] == full.indices[0]
+    assert (early.time_minus_s, early.time_plus_s) == (full.time_minus_s, full.time_plus_s)
+    assert early.noise == full.noise
+    monkeypatch.setattr(model, "STOP_TIME_FACTOR", 1.0)
+    monkeypatch.setattr(model, "STOP_RSS_RATIO", 1.0)
+    extended = fit_run(run, profiles)
+    assert (extended.indices[0], extended.time_minus_s, extended.time_plus_s) == (
+        full.indices[0],
+        full.time_minus_s,
+        full.time_plus_s,
+    )

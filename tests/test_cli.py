@@ -114,3 +114,82 @@ def test_excel_tables_in_the_paper_layout(tmp_path):
     summary = read_csv(tmp_path / "results" / "summary.csv")
     assert summary.run.tolist() == [run]
     assert summary.time_days[0] > 0
+
+
+def test_custom_diffusivity_from_a_table_and_refit_from_the_outputs(tmp_path, template):
+    """A run naming a row of diffusivities.csv; the fit writes the equations it used, so
+    summary.csv refits with the output folder's diffusivities.csv."""
+    table = read_csv(template / "diffusivities.csv")
+    mine = table[table.name == "dohmen_chakraborty2007"].assign(name="half_D")
+    for axis in ("100", "010", "001"):
+        mine[f"log10_D0_{axis}"] -= 0.30103  # D / 2
+    pd.concat([table, mine]).to_csv(template / "diffusivities.csv", index=False)
+    params = read_csv(template / "parameters.csv")
+    pd.concat([params, params.assign(run="slow", diffusivity="half_D")]).to_csv(
+        template / "parameters.csv", index=False
+    )
+    args = ("fit", template / "profiles.csv", template / "parameters.csv")
+    missing = forster(*args, cwd=tmp_path)
+    assert missing.returncode == 2
+    assert "unknown diffusivity 'half_D'" in missing.stderr
+
+    done = forster(*args, "--diffusivities", template / "diffusivities.csv", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    summary = read_csv(tmp_path / "results" / "summary.csv").set_index("run")
+    assert summary.diffusivity.to_dict() == {EXAMPLE: "dohmen_chakraborty2007", "slow": "half_D"}
+    assert summary.time_days["slow"] > 1.5 * summary.time_days[EXAMPLE]
+    used = read_csv(tmp_path / "results" / "diffusivities.csv")
+    assert sorted(used.name) == ["dohmen_chakraborty2007", "half_D"]
+
+    again = forster(
+        "fit",
+        template / "profiles.csv",
+        tmp_path / "results" / "summary.csv",
+        "--diffusivities",
+        tmp_path / "results" / "diffusivities.csv",
+        "--out",
+        "again",
+        cwd=tmp_path,
+    )
+    assert again.returncode == 0, again.stderr
+    refit = read_csv(tmp_path / "again" / "summary.csv").set_index("run")
+    assert refit.time_days.to_dict() == summary.time_days.to_dict()
+
+
+def test_fit_scans_runs_with_uncertainties_and_the_summary_refits(tmp_path, template):
+    params = read_csv(template / "parameters.csv")
+    params.assign(steps_sd_um=1.0, edge_fo_range=0.002, scan_points=3).to_csv(
+        template / "parameters.csv", index=False
+    )
+    done = forster("fit", template / "profiles.csv", template / "parameters.csv", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert "scanning 9 initial conditions" in done.stdout
+    out = tmp_path / "results"
+    scan = read_csv(out / f"{STEM}_scan.csv")
+    assert len(scan) == 9 and abs(scan.probability.sum() - 1) < 1e-9
+    summary = read_csv(out / "summary.csv")
+    row = summary.iloc[0]
+    assert row.scan_low_days <= row.scan_best_days <= row.scan_high_days
+    assert row.scan_candidates == 9 and row.steps_sd_um == 1.0
+    again = forster(
+        "fit", template / "profiles.csv", out / "summary.csv", "--out", "again", cwd=tmp_path
+    )
+    assert again.returncode == 0, again.stderr
+    refit = read_csv(tmp_path / "again" / "summary.csv").iloc[0]
+    assert (refit.scan_best_days, refit.scan_low_days, refit.scan_high_days) == (
+        row.scan_best_days,
+        row.scan_low_days,
+        row.scan_high_days,
+    )
+    too_big = forster(
+        "fit",
+        template / "profiles.csv",
+        template / "parameters.csv",
+        "--max-candidates",
+        "4",
+        "--out",
+        "big",
+        cwd=tmp_path,
+    )
+    assert too_big.returncode == 1
+    assert "more than 4" in too_big.stderr

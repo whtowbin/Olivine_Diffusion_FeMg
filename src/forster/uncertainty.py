@@ -13,9 +13,14 @@ spatially correlated misfit (the part of the profile the model cannot follow):
 so the white noise has standard deviation ``s`` and the correlated misfit
 ``a = rho * s`` over a length ``L``. ``s``, ``rho`` and ``L`` are fitted by maximum
 likelihood to the residuals of a first, white-noise best fit, then held fixed.
-The generalised chi-squared r^T C^-1 r is evaluated for every time step, its
-minimum is the best fit, and the 1-sigma range is where it rises by 1 (a profile
-likelihood interval for the one fitted parameter, time).
+The generalised chi-squared r^T C^-1 r is evaluated for every time step and its
+minimum is the best fit. The 1-sigma range is where it rises by
+`interval_threshold`: 1 for many points, more for few, because ``s`` is estimated
+from the same residuals (the Student-t small-sample correction). This is a profile
+likelihood interval for the one fitted parameter, time. `posterior_interval` gives
+the Bayesian alternative, with ``s`` integrated out.
+
+Method, validation and references: ``docs/references/likelihood-method.md``.
 """
 
 from __future__ import annotations
@@ -25,12 +30,15 @@ from dataclasses import dataclass
 
 import numpy as np
 import scipy.linalg as sla
+from scipy import stats
 
 # Grid searched for the noise model. rho = a / s is the ratio of correlated misfit to
 # white noise; L runs from the point spacing to half the profile length.
 RHO_GRID = np.concatenate([[0.0], np.geomspace(0.1, 30.0, 12)])
 N_LENGTHS = 12
 CHUNK_ROWS = 20_000  # time steps per block when evaluating chi2 (bounds memory)
+ONE_SIGMA = 0.6827  # probability inside a 1-sigma range
+WARN_RHO = 0.5  # warn of a profile-wide misfit only if it is at least half the white noise
 
 
 @dataclass(frozen=True)
@@ -114,10 +122,16 @@ def fit_noise_model(x_um: np.ndarray, residuals: np.ndarray) -> NoiseModel:
             if nll < best[0]:
                 best = (nll, s2, rho, L)
     _, s2, rho, L = best
-    if rho == RHO_GRID[-1] or (rho > 0 and L in (lengths[0], lengths[-1])):
+    # Only a substantial profile-wide misfit predicts a range that is too narrow. In the
+    # validation (docs/references/likelihood-method.md), trials with L at the upper end
+    # (half the profile) and rho >= 0.5 covered 50-55%, the rest 62-67%; L at the lower
+    # end (the point spacing: misfit too short to resolve) is harmless. On pure white
+    # noise this fires in about 1% of fits.
+    if rho == RHO_GRID[-1] or (rho >= WARN_RHO and lengths[-1] == L):
         warnings.warn(
-            f"noise model at the edge of its search grid (rho={rho:.3g}, L={L:.3g} um); "
-            "the uncertainty may be underestimated",
+            f"the misfit spans the profile (correlated noise {rho * np.sqrt(s2) * 100:.2g} Fo "
+            f"over L={L:.3g} um, half the profile): check the initial and boundary "
+            "conditions; the range may be too narrow",
             stacklevel=3,
         )
     s = float(np.sqrt(s2))
@@ -139,12 +153,32 @@ class Interval:
     high_row: int
 
 
-def delta_chi2_interval(chi2: np.ndarray, delta: float = 1.0) -> Interval:
+def interval_threshold(n_points: int, n_parameters: int = 1, level: float = ONE_SIGMA) -> float:
+    """Rise in chi-squared that bounds the ``level`` range, with the noise estimated from
+    the same ``n_points`` residuals and ``n_parameters`` fitted.
+
+    n / (n - p) * F(level; 1, n - p), i.e. n / (n - p) * t(0.5 + level / 2; n - p)^2:
+    the first factor corrects the maximum-likelihood noise estimate (which divides by
+    n) for the parameters fitted, the second widens the range for the uncertainty of
+    that estimate. 1.48 at 6 points, 1.07 at 29, 1.007 at 300; tends to 1.
+    """
+    dof = n_points - n_parameters
+    if dof < 1:
+        raise ValueError(
+            f"{n_points} points cannot constrain {n_parameters} parameter(s) and the noise"
+        )
+    return n_points / dof * float(stats.f.ppf(level, 1, dof))
+
+
+def delta_chi2_interval(
+    chi2: np.ndarray, delta: float = 1.0, *, end_is_limit: bool = True
+) -> Interval:
     """Rows where chi2 <= min + delta, with the ends interpolated to the crossing.
 
     Takes the outermost rows under the threshold, as the legacy rule did, so a
     second minimum within delta widens the range rather than being ignored. If
-    the range reaches the first or last time step it stops there, with a warning.
+    the range reaches the first or last time step it stops there, with a warning
+    (for the last step only if ``end_is_limit``, i.e. it is the longest time modelled).
     """
     best = int(np.argmin(chi2))
     level = chi2[best] + delta
@@ -165,11 +199,38 @@ def delta_chi2_interval(chi2: np.ndarray, delta: float = 1.0) -> Interval:
         high = crossing(hi_row, hi_row + 1)
     else:
         high = float(hi_row)
-        warnings.warn(
-            "1-sigma range reaches the last modelled time step; increase max_time_days",
-            stacklevel=2,
-        )
-    return Interval(best=best, low=low, high=high, low_row=lo_row, high_row=hi_row)
+        if end_is_limit:
+            warnings.warn(
+                "1-sigma range reaches the last modelled time step; increase max_time_days",
+                stacklevel=2,
+            )
+    return Interval(best=best, low=float(low), high=float(high), low_row=lo_row, high_row=hi_row)
+
+
+def posterior_interval(chi2: np.ndarray, n_points: int, level: float = ONE_SIGMA) -> Interval:
+    """Central ``level`` credible range of time with the noise scale integrated out.
+
+    ``chi2`` must be r^T C^-1 r with C = s^2 B for a fixed B (as from `fit_correlated`).
+    With a flat prior on time and a 1/s prior on s, the posterior of time is
+    proportional to chi2^(-n/2) (Student-t-like). Ends are interpolated between time
+    steps; the best row is the posterior mode (the minimum of chi2). ``chi2`` should
+    cover all times with appreciable posterior weight: from a fit with
+    ``stop_early=False``, or with the run extended well past the range.
+    """
+    log_post = -0.5 * n_points * np.log(chi2)
+    weights = np.exp(log_post - log_post.max())
+    cdf = np.concatenate([[0.0], np.cumsum(0.5 * (weights[1:] + weights[:-1]))])
+    cdf /= cdf[-1]
+    rows = np.arange(len(chi2), dtype=float)
+    low = float(np.interp(0.5 - level / 2, cdf, rows))
+    high = float(np.interp(0.5 + level / 2, cdf, rows))
+    return Interval(
+        best=int(np.argmin(chi2)),
+        low=low,
+        high=high,
+        low_row=int(np.floor(low)),
+        high_row=int(np.ceil(high)),
+    )
 
 
 @dataclass(frozen=True)
@@ -179,21 +240,39 @@ class CorrelatedFit:
     noise: NoiseModel
     x_um: np.ndarray
     fo: np.ndarray
+    threshold: float  # rise in chi2 that bounds the 1-sigma range (`interval_threshold`)
 
 
-def fit_correlated(
-    curves: np.ndarray, model_x_um: np.ndarray, x_um: np.ndarray, fo: np.ndarray
-) -> CorrelatedFit:
-    """Best fit and 1-sigma range in time from the measured points.
-
-    Points outside the model domain or with missing Fo are left out.
-    """
+def points_in_domain(
+    model_x_um: np.ndarray, x_um: np.ndarray, fo: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """The measured points that are fitted: inside the model domain, Fo not missing."""
     keep = (x_um >= model_x_um[0]) & (x_um <= model_x_um[-1]) & np.isfinite(fo)
     x, y = x_um[keep], fo[keep]
     if len(x) < 3:
         raise ValueError(f"need at least 3 measured points inside the model domain, got {len(x)}")
+    return x, y
+
+
+def fit_correlated(
+    curves: np.ndarray,
+    model_x_um: np.ndarray,
+    x_um: np.ndarray,
+    fo: np.ndarray,
+    *,
+    end_is_limit: bool = True,
+) -> CorrelatedFit:
+    """Best fit and 1-sigma range in time from the measured points.
+
+    Points outside the model domain or with missing Fo are left out. ``end_is_limit``
+    says whether the last row of ``curves`` is the longest time that can be modelled
+    (False while a run is being extended).
+    """
+    x, y = points_in_domain(model_x_um, x_um, fo)
     W = interpolation_matrix(model_x_um, x)
     first = int(np.argmin(chi2_per_step(curves, W, y)))
     noise = fit_noise_model(x, y - W @ curves[first])
     chi2 = chi2_per_step(curves, W, y, noise.covariance(x))
-    return CorrelatedFit(chi2, delta_chi2_interval(chi2), noise, x, y)
+    threshold = interval_threshold(len(x))
+    span = delta_chi2_interval(chi2, threshold, end_is_limit=end_is_limit)
+    return CorrelatedFit(chi2, span, noise, x, y, threshold)

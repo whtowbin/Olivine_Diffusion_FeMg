@@ -20,8 +20,10 @@ The last two give the initial condition as ``edge_x1``, ``edge_x2`` (model domai
 ``inflection_x`` (step positions, um; one number or text such as ``"0, 31"``),
 ``edge_c``, ``center_c`` and ``inflection_c`` (Fo in percent). An optional
 ``scheme`` column picks the finite-difference scheme per run ("central" or
-"dipra"), and an optional ``uncertainty`` column the uncertainty method
-("correlated" or "legacy"); see `fit_profile`.
+"dipra"), an optional ``uncertainty`` column the uncertainty method
+("correlated" or "legacy"), and an optional ``diffusivity`` column the
+diffusivity equation (a preset, or a row of a diffusivities table read with
+`read_diffusivities`); see `fit_profile`.
 
 Profile tables have one row per analysis: ``profile``, ``distance_um`` and ``fo``
 (fraction) in the template layout, or ``Profile_Name``, ``Distance µm`` and
@@ -33,7 +35,7 @@ from __future__ import annotations
 import ast
 import math
 import warnings
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -41,8 +43,14 @@ from typing import Any, NamedTuple
 import numpy as np
 import pandas as pd
 
+from forster.diffusivity import (
+    DEFAULT_DIFFUSIVITY,
+    ArrheniusDiffusivity,
+    Diffusivity,
+    from_table,
+    resolve,
+)
 from forster.model import (
-    FE_MG_ACTIVATION_ENERGY_J_MOL,
     SCHEMES,
     UNCERTAINTY_METHODS,
     Conditions,
@@ -53,6 +61,13 @@ from forster.model import (
     Orientation,
     Profile,
     fit_profile,
+)
+from forster.scan import (
+    MAX_CANDIDATES,
+    ScanResult,
+    Uncertainty,
+    candidate_grid,
+    scan_initial_conditions,
 )
 
 ROUND_ROBIN_COLUMNS = {
@@ -88,6 +103,15 @@ ORIENTATION_FORMS = (
     ("phi1_deg", "Phi_deg", "phi2_deg", "profile_angle_deg"),
 )
 FO2_FORMS = (("fO2_Pa",), ("fO2_buffer", "fO2_delta_log"))
+# Initial-condition uncertainties (template layout): per parameter a Gaussian sigma
+# (``_sd``) or a uniform half-width (``_range``), not both. Steps take one value for all
+# steps or a list, one per step ("2, 5"); 0 or empty leaves a parameter fixed.
+UNCERTAINTY_COLUMNS = (
+    ("steps", "steps_sd_um", "steps_range_um"),
+    ("edge_fo", "edge_fo_sd", "edge_fo_range"),
+    ("core_fo", "core_fo_sd", "core_fo_range"),
+    ("step_fo", "step_fo_sd", "step_fo_range"),
+)
 METADATA_COLUMNS = ("Descriptive_Name", "Category", "Uncert_Category", "Notes", "notes")
 MIN_PROFILE_POINTS = 3  # Profile needs at least this many points
 
@@ -109,7 +133,7 @@ class RunDefaults:
 
     max_time_days: float = 200.0
     kriging: KrigingSettings = field(default_factory=KrigingSettings)
-    activation_energy_J_mol: float = FE_MG_ACTIVATION_ENERGY_J_MOL
+    diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY
     scheme: str = "central"
     uncertainty: str = "correlated"
 
@@ -125,10 +149,13 @@ class Run:
     initial: InitialCondition
     grid: Grid
     kriging: KrigingSettings
-    activation_energy_J_mol: float
+    diffusivity: Diffusivity
     scheme: str = "central"
     uncertainty: str = "correlated"
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    # Uncertain initial-condition parameters (template layout): scanned by `scan_run`.
+    uncertainties: Mapping[str, Uncertainty] = field(default_factory=dict)
+    scan_points: int | None = None
 
 
 def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
@@ -283,7 +310,27 @@ def _uncertainty(row: pd.Series, defaults: RunDefaults) -> str:
     return value
 
 
-def _round_robin_run(row: pd.Series, defaults: RunDefaults) -> Run:
+def _diffusivity(
+    row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Diffusivity]
+) -> Diffusivity:
+    """Optional ``diffusivity`` column: a preset name or a name from the diffusivities
+    table; the default otherwise."""
+    value = row.get("diffusivity")
+    if value is None or pd.isna(value):
+        return resolve(defaults.diffusivity, custom)
+    return resolve(str(value).strip(), custom)
+
+
+def read_diffusivities(
+    path: str | Path, *, sheet: str | int = 0
+) -> dict[str, ArrheniusDiffusivity]:
+    """Diffusivity equations from a table (see `forster.diffusivity.TABLE_COLUMNS`), by name."""
+    return from_table(read_table(path, sheet), origin=str(path))
+
+
+def _round_robin_run(
+    row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Diffusivity]
+) -> Run:
     return Run(
         name=str(row["Sample"]),
         profile_name=str(row["File_Name"]),
@@ -292,14 +339,14 @@ def _round_robin_run(row: pd.Series, defaults: RunDefaults) -> Run:
         initial=_initial(row),
         grid=Grid(dx_um=row["dx_um"], dt_s=row["dt_s"], max_time_days=_max_time(row, defaults)),
         kriging=defaults.kriging,
-        activation_energy_J_mol=defaults.activation_energy_J_mol,
+        diffusivity=_diffusivity(row, defaults, custom),
         scheme=_scheme(row, defaults),
         uncertainty=_uncertainty(row, defaults),
         metadata={c: row[c] for c in METADATA_COLUMNS if c in row.index and not pd.isna(row[c])},
     )
 
 
-def _paper_run(row: pd.Series, defaults: RunDefaults) -> Run:
+def _paper_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Diffusivity]) -> Run:
     name = str(row["File_Name"])
     return Run(
         name=name,
@@ -309,7 +356,7 @@ def _paper_run(row: pd.Series, defaults: RunDefaults) -> Run:
         initial=_initial(row),
         grid=Grid(dx_um=row["dx"], dt_s=row["dt"], max_time_days=_max_time(row, defaults)),
         kriging=defaults.kriging,
-        activation_energy_J_mol=defaults.activation_energy_J_mol,
+        diffusivity=_diffusivity(row, defaults, custom),
         scheme=_scheme(row, defaults),
         uncertainty=_uncertainty(row, defaults),
         metadata={c: row[c] for c in METADATA_COLUMNS if c in row.index and not pd.isna(row[c])},
@@ -350,29 +397,64 @@ def _template_orientation(row: pd.Series) -> Orientation:
     )
 
 
-def _template_run(row: pd.Series, defaults: RunDefaults) -> Run:
+def _template_uncertainties(row: pd.Series, initial: InitialCondition) -> dict[str, Uncertainty]:
+    """The ``_sd`` / ``_range`` columns of a template row, by `forster.scan` parameter name."""
+    out: dict[str, Uncertainty] = {}
+    for what, sd_col, range_col in UNCERTAINTY_COLUMNS:
+        given = [c for c in (sd_col, range_col) if _given(row, c)]
+        if not given:
+            continue
+        if len(given) == 2:
+            raise ValueError(f"run {row['run']!r}: give {sd_col} or {range_col}, not both")
+        column = given[0]
+        kind = "normal" if column == sd_col else "uniform"
+        if what == "steps":
+            spreads = [float(v) for v in _steps(row[column])]
+            n = len(initial.steps_um)
+            if len(spreads) == 1:
+                spreads *= n
+            if len(spreads) != n:
+                raise ValueError(
+                    f"run {row['run']!r}: {column} has {len(spreads)} values for {n} steps"
+                )
+            for i, spread in enumerate(spreads):
+                if spread:
+                    out[f"step{i + 1}_um"] = Uncertainty(spread, kind)
+            continue
+        if what == "step_fo" and initial.step_fo is None:
+            raise ValueError(f"run {row['run']!r}: {column} needs a plateau (step_fo)")
+        spread = float(row[column])
+        if spread:
+            out[what] = Uncertainty(spread, kind)
+    return out
+
+
+def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Diffusivity]) -> Run:
+    initial = InitialCondition(
+        domain_um=(row["domain_start_um"], row["domain_end_um"]),
+        edge_fo=row["edge_fo"],
+        core_fo=row["core_fo"],
+        steps_um=_steps(row["steps_um"]),
+        step_fo=float(row["step_fo"]) if _given(row, "step_fo") else None,
+    )
     return Run(
         name=str(row["run"]),
         profile_name=str(row["profile"]),
         conditions=_template_conditions(row),
         orientation=_template_orientation(row),
-        initial=InitialCondition(
-            domain_um=(row["domain_start_um"], row["domain_end_um"]),
-            edge_fo=row["edge_fo"],
-            core_fo=row["core_fo"],
-            steps_um=_steps(row["steps_um"]),
-            step_fo=float(row["step_fo"]) if _given(row, "step_fo") else None,
-        ),
+        initial=initial,
         grid=Grid(
             dx_um=row["dx_um"],
             dt_s=row["dt_s"],
             max_time_days=_max_time(row, defaults, "max_time_days"),
         ),
         kriging=defaults.kriging,
-        activation_energy_J_mol=defaults.activation_energy_J_mol,
+        diffusivity=_diffusivity(row, defaults, custom),
         scheme=_scheme(row, defaults),
         uncertainty=_uncertainty(row, defaults),
         metadata={c: row[c] for c in METADATA_COLUMNS if _given(row, c)},
+        uncertainties=_template_uncertainties(row, initial),
+        scan_points=int(row["scan_points"]) if _given(row, "scan_points") else None,
     )
 
 
@@ -385,9 +467,17 @@ LAYOUTS = (
 
 
 def read_runs(
-    path: str | Path, *, sheet: str | int = 0, defaults: RunDefaults | None = None
+    path: str | Path,
+    *,
+    sheet: str | int = 0,
+    defaults: RunDefaults | None = None,
+    diffusivities: Mapping[str, Diffusivity] | None = None,
 ) -> list[Run]:
-    """One `Run` per named row of a parameter table, in table order."""
+    """One `Run` per named row of a parameter table, in table order.
+
+    A ``diffusivity`` column names a preset or an equation in ``diffusivities``
+    (from `read_diffusivities`).
+    """
     defaults = defaults or RunDefaults()
     df = read_table(path, sheet)
     columns = set(df.columns)
@@ -404,7 +494,8 @@ def read_runs(
     duplicates = named[name_column][named[name_column].duplicated()].unique()
     if len(duplicates):
         raise ValueError(f"{path}: run names must be unique; repeated: {list(duplicates)}")
-    return [make_run(row, defaults) for _, row in named.iterrows()]
+    custom = dict(diffusivities or {})
+    return [make_run(row, defaults, custom) for _, row in named.iterrows()]
 
 
 def _steps_text(steps: tuple[float, ...]) -> str:
@@ -451,7 +542,7 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "dx_um": grid.dx_um,
         "dt_s": grid.dt_s,
         "max_time_days": grid.max_time_days,
-        "activation_energy_J_mol": inputs["activation_energy_J_mol"],
+        "diffusivity": inputs["diffusivity"].name,
         "white_sigma_fo": noise.white_sigma if noise else math.nan,
         "correlated_sigma_fo": noise.correlated_sigma if noise else math.nan,
         "correlation_length_um": noise.correlation_length_um if noise else math.nan,
@@ -495,8 +586,8 @@ def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
     }
 
 
-def fit_run(run: Run, profiles: Mapping[str, Profile]) -> FitResult:
-    """Fit one run against its measured profile."""
+def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = True) -> FitResult:
+    """Fit one run against its measured profile (``stop_early``: see `fit_profile`)."""
     if run.profile_name not in profiles:
         raise KeyError(
             f"run {run.name!r} needs profile {run.profile_name!r}, which is not in the profile "
@@ -510,7 +601,105 @@ def fit_run(run: Run, profiles: Mapping[str, Profile]) -> FitResult:
         run.initial,
         run.grid,
         run.kriging,
-        run.activation_energy_J_mol,
+        run.diffusivity,
         run.scheme,
         run.uncertainty,
+        stop_early=stop_early,
     )
+
+
+def uncertainty_columns(run: Run) -> dict[str, Any]:
+    """A run's uncertainty columns, as `read_runs` reads them (for summary.csv to refit)."""
+    out: dict[str, Any] = {}
+    steps = [run.uncertainties.get(f"step{i + 1}_um") for i in range(len(run.initial.steps_um))]
+    kinds = {u.kind for u in steps if u is not None}
+    if len(kinds) > 1:
+        raise ValueError(f"run {run.name!r}: steps mix Gaussian and uniform uncertainties")
+    for what, sd_col, range_col in UNCERTAINTY_COLUMNS:
+        if what == "steps":
+            if kinds:
+                column = sd_col if kinds == {"normal"} else range_col
+                out[column] = _steps_text(tuple(u.spread if u else 0.0 for u in steps))
+            continue
+        u = run.uncertainties.get(what)
+        if u is not None:
+            out[sd_col if u.kind == "normal" else range_col] = u.spread
+    if run.scan_points is not None:
+        out["scan_points"] = run.scan_points
+    return out
+
+
+def scan_run(
+    run: Run,
+    profiles: Mapping[str, Profile],
+    *,
+    max_candidates: int = MAX_CANDIDATES,
+    progress: Callable[[int, int], None] | None = None,
+) -> ScanResult:
+    """Fit a run over its uncertain initial-condition parameters (`forster.scan`)."""
+    if not run.uncertainties:
+        raise ValueError(f"run {run.name!r} has no initial-condition uncertainties to scan")
+    measured = profiles[run.profile_name]
+    candidates = candidate_grid(
+        run.initial, run.uncertainties, run.scan_points, max_candidates=max_candidates
+    )
+    return scan_initial_conditions(
+        Profile(measured.distance_um, measured.fo, name=run.name),
+        run.conditions,
+        run.orientation,
+        candidates,
+        run.grid,
+        run.diffusivity,
+        run.scheme,
+        progress=progress,
+    )
+
+
+def scan_size(run: Run, *, max_candidates: int = MAX_CANDIDATES) -> int:
+    """Number of candidates (model runs) `scan_run` would make for ``run``."""
+    if not run.uncertainties:
+        return 0
+    return len(
+        candidate_grid(
+            run.initial, run.uncertainties, run.scan_points, max_candidates=max_candidates
+        ).candidates
+    )
+
+
+def scan_summary(scan: ScanResult) -> dict[str, Any]:
+    """The scan's results as summary.csv columns (see SUMMARY_COLUMNS in forster.template)."""
+    best = scan.best_values
+    return {
+        "scan_best_days": scan.time_days,
+        "scan_low_days": scan.profile_days[0],
+        "scan_high_days": scan.profile_days[1],
+        "scan_marginal_low_days": scan.marginal_days[0],
+        "scan_marginal_high_days": scan.marginal_days[1],
+        "scan_best": "; ".join(f"{k}={v:.6g}" for k, v in best.items()),
+        "scan_candidates": len(scan.runs.candidates),
+        "scan_dropped": scan.prior.dropped if scan.prior is not None else 0,
+        "scan_dt_s": scan.runs.dt_s,
+    }
+
+
+def scan_table(scan: ScanResult) -> pd.DataFrame:
+    """One row per candidate: its parameter values, best time, chi-squared and probability."""
+    rows = []
+    for i, chi2 in enumerate(scan.chi2):
+        k = int(np.argmin(chi2))
+        values = (
+            dict(zip(scan.prior.names, scan.prior.values[i], strict=True))
+            if scan.prior is not None
+            else {"steps_um": _steps_text(scan.runs.candidates[i].steps_um)}
+        )
+        penalty = float(scan.prior.penalty[i]) if scan.prior is not None else 0.0
+        rows.append(
+            {
+                **values,
+                "best_days": k * scan.runs.dt_s / 86400,
+                "min_chi2": float(chi2[k]),
+                "prior_penalty": penalty,
+                "probability": float(scan.candidate_probability[i]),
+            }
+        )
+    return pd.DataFrame(rows)

@@ -153,3 +153,45 @@ def test_bad_scheme_in_table_is_an_error(tmp_path):
     table.to_csv(path, index=False)
     with pytest.raises(ValueError, match="scheme 'implicit'"):
         read_runs(path)
+
+
+def test_uncertainty_columns_are_read_and_written_back(tmp_path):
+    from forster import write_template
+    from forster.io import uncertainty_columns
+    from forster.scan import Uncertainty
+
+    write_template(tmp_path / "t")
+    table = pd.read_csv(tmp_path / "t" / "parameters.csv")
+    table = table.assign(steps_sd_um=2.0, edge_fo_range=0.003, scan_points=7)
+    path = tmp_path / "params.csv"
+    table.to_csv(path, index=False)
+    (run,) = read_runs(path)
+    assert run.uncertainties == {
+        "step1_um": Uncertainty(2.0, "normal"),
+        "edge_fo": Uncertainty(0.003, "uniform"),
+    }
+    assert run.scan_points == 7
+    again = tmp_path / "again.csv"
+    table.drop(columns=["steps_sd_um", "edge_fo_range", "scan_points"]).assign(
+        **uncertainty_columns(run)
+    ).to_csv(again, index=False)
+    assert read_runs(again)[0] == run
+
+
+@pytest.mark.parametrize(
+    ("columns", "message"),
+    [
+        ({"steps_sd_um": 2.0, "steps_range_um": 3.0}, "not both"),
+        ({"steps_sd_um": "1, 2"}, "2 values for 1 steps"),
+        ({"step_fo_sd": 0.01}, "needs a plateau"),
+    ],
+)
+def test_bad_uncertainty_columns_are_errors(tmp_path, columns, message):
+    from forster import write_template
+
+    write_template(tmp_path / "t")
+    table = pd.read_csv(tmp_path / "t" / "parameters.csv").assign(**columns)
+    path = tmp_path / "params.csv"
+    table.to_csv(path, index=False)
+    with pytest.raises(ValueError, match=message):
+        read_runs(path)

@@ -2,8 +2,9 @@
 
 `write_template` writes ``profiles.csv`` and ``parameters.csv`` holding one
 published profile (AZ18 WHT01_Ol_63_prof_1 from Towbin and Plank 2026, a
-melt-vein olivine), so the template fits as it is, and ``COLUMNS.md``, generated
-from `PROFILE_COLUMNS` and `PARAMETER_COLUMNS`. The tables are read by
+melt-vein olivine), so the template fits as it is; ``diffusivities.csv`` with the
+preset diffusivity equations, to copy and edit; and ``COLUMNS.md``, generated
+from `PROFILE_COLUMNS`, `PARAMETER_COLUMNS` and `DIFFUSIVITY_COLUMNS`. The tables are read by
 `forster.io.read_profiles` and `forster.io.read_runs` (the "template" layout).
 """
 
@@ -12,6 +13,8 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 from typing import NamedTuple
+
+from forster.diffusivity import DEFAULT_DIFFUSIVITY, DIFFUSIVITY_PRESETS, diffusivity_table
 
 
 class Column(NamedTuple):
@@ -81,10 +84,43 @@ PARAMETER_COLUMNS = (
     Column("max_time_days", "days", "optional", "Longest time modelled (default 200)."),
     Column("scheme", "", "optional", "central (default) or dipra (Girona and Costa 2013)."),
     Column(
+        "diffusivity",
+        "",
+        "optional",
+        f"Fe-Mg diffusivity equation: a preset ({DEFAULT_DIFFUSIVITY}, the default and "
+        "DIPRA's, or mutch2019_tamed, mutch2019_global) or a name from diffusivities.csv "
+        "(then run forster fit with --diffusivities).",
+    ),
+    Column(
         "uncertainty",
         "",
         "optional",
         "correlated (default) or legacy (the round robin rule; reproduces old results).",
+    ),
+    Column(
+        "steps_sd_um",
+        "µm",
+        "optional",
+        "Uncertainty (1 sigma, Gaussian) on the step position(s): one value, or one per step "
+        '("2, 5"); 0 keeps a step fixed. Or give steps_range_um.',
+    ),
+    Column(
+        "steps_range_um",
+        "µm",
+        "optional",
+        "Uncertainty (± half-width, uniform) on the step position(s), as steps_sd_um.",
+    ),
+    Column("edge_fo_sd", "fraction", "optional", "1-sigma uncertainty on edge_fo (Gaussian)."),
+    Column("edge_fo_range", "fraction", "optional", "± half-width on edge_fo (uniform)."),
+    Column("core_fo_sd", "fraction", "optional", "1-sigma uncertainty on core_fo (Gaussian)."),
+    Column("core_fo_range", "fraction", "optional", "± half-width on core_fo (uniform)."),
+    Column("step_fo_sd", "fraction", "optional", "1-sigma uncertainty on step_fo (Gaussian)."),
+    Column("step_fo_range", "fraction", "optional", "± half-width on step_fo (uniform)."),
+    Column(
+        "scan_points",
+        "",
+        "optional",
+        "Grid points per uncertain parameter (default 13 for one, 9 for two, 5 for more).",
     ),
     Column("notes", "", "optional", "Free text for your own records."),
 )
@@ -131,18 +167,88 @@ SUMMARY_COLUMNS = (
         "Length scale of that misfit; near half the profile length, the misfit is profile-wide.",
     ),
     Column(
-        "activation_energy_J_mol",
-        "J/mol",
-        "",
-        "Fe-Mg activation energy used (not read back; set it in Python with RunDefaults).",
-    ),
-    Column(
         "warnings",
         "",
         "",
         "Warnings from the fit, such as a range that reaches the last time step.",
     ),
     Column("forster_version", "", "", "FORSTER version that made the fit."),
+    Column(
+        "scan_best_days",
+        "days",
+        "",
+        "With uncertainties: best-fit time over all scanned initial conditions.",
+    ),
+    Column(
+        "scan_low_days",
+        "days",
+        "",
+        "Low end of the 1-sigma range including the initial-condition uncertainty (profile "
+        "likelihood; use this one).",
+    ),
+    Column("scan_high_days", "days", "", "High end of that range."),
+    Column(
+        "scan_marginal_low_days",
+        "days",
+        "",
+        "Low end of the Bayesian (marginal) range; with Gaussian uncertainties it is pulled "
+        "toward the nominal initial condition.",
+    ),
+    Column("scan_marginal_high_days", "days", "", "High end of the Bayesian range."),
+    Column(
+        "scan_best",
+        "",
+        "",
+        "Best values of the scanned parameters (step1_um, edge_fo, ...); the nominal "
+        "values stay in the parameter columns.",
+    ),
+    Column("scan_candidates", "", "", "Initial conditions fitted (one model run each)."),
+    Column(
+        "scan_dropped",
+        "",
+        "",
+        "Grid points left out as invalid (steps out of order or domain, Fo outside 0-1).",
+    ),
+    Column(
+        "scan_dt_s",
+        "s",
+        "",
+        "Time step of the scan's runs: dt raised until D dt / dx² = 0.4 (never dx).",
+    ),
+)
+
+# Columns of diffusivities.csv; the equation is in forster.diffusivity.
+DIFFUSIVITY_COLUMNS = (
+    Column("name", "", "required", "Name to use in the `diffusivity` column of parameters.csv."),
+    Column("element", "", "required", "Fe-Mg for fits (Ni, Mn and Ca are listed for reference)."),
+    Column("log10_D0_100", "log10 m²/s", "required", "Pre-factor along [100]."),
+    Column("log10_D0_010", "log10 m²/s", "required", "Pre-factor along [010]."),
+    Column("log10_D0_001", "log10 m²/s", "required", "Pre-factor along [001]."),
+    Column("E_100_J_mol", "J/mol", "required", "Activation energy along [100]."),
+    Column("E_010_J_mol", "J/mol", "required", "Activation energy along [010]."),
+    Column("E_001_J_mol", "J/mol", "required", "Activation energy along [001]."),
+    Column("fO2_exponent", "", "required", "Exponent n of (fO2 / fO2_ref_Pa)."),
+    Column("fO2_ref_Pa", "Pa", "required", "Reference fO2 (1e5 if the equation uses bar)."),
+    Column(
+        "fo_coefficient", "log10 per unit Fo", "required", "m in m (fo_ref - X_Fo); 0 for none."
+    ),
+    Column("fo_ref", "fraction", "required", "Reference Fo of the composition term."),
+    Column("activation_volume_m3_mol", "m³/mol", "required", "Activation volume (0 for none)."),
+    Column("P_ref_Pa", "Pa", "required", "Reference pressure of the pressure terms."),
+    Column(
+        "pressure_coefficient_per_Pa",
+        "log10 per Pa",
+        "required",
+        "Pressure term outside the exponential (0 for none).",
+    ),
+    Column("source", "", "optional", "Where the equation comes from."),
+)
+
+DIFFUSIVITY_EQUATION = (
+    "log10 D_i = log10_D0_i + fO2_exponent log10(fO2 / fO2_ref_Pa) "
+    "+ fo_coefficient (fo_ref - X_Fo) "
+    "- (E_i + activation_volume_m3_mol (P - P_ref_Pa)) / (ln(10) R T) "
+    "+ pressure_coefficient_per_Pa (P - P_ref_Pa)"
 )
 
 FILES = {"profiles.csv": "example_profiles.csv", "parameters.csv": "example_parameters.csv"}
@@ -171,15 +277,39 @@ def column_guide() -> str:
             "`gamma_deg` or as the four EBSD columns. Leave the other form empty.",
             "The example row is AZ18 WHT01_Ol_63_prof_1 from Towbin and Plank (2026), "
             "J. Petrology 67(9), egag077. Replace it with your own rows.",
+            "**Uncertain initial conditions.** Give an uncertainty on any step position or "
+            "concentration (`_sd` for a Gaussian 1 sigma, or `_range` for a uniform ± "
+            "half-width; not both for one parameter) and `forster fit` also fits a grid of "
+            "initial conditions around the nominal one: Gaussian parameters over ±2.5 "
+            "sigma, uniform ones over the whole range. It reports the range of time "
+            "including that uncertainty (`scan_*` columns in summary.csv) and writes "
+            "`<run>_scan.csv`, one row per candidate. Edge and core Fo are the boundary "
+            "values held during diffusion, so their uncertainty also covers the boundary "
+            "conditions. The grid has `scan_points` values per parameter; the number of "
+            "model runs is their product, printed before the scan, and grids over 2000 "
+            "candidates are refused (`--max-candidates`). The scan's runs share one grid "
+            "with a larger time step (D dt / dx² = 0.4), which changed fitted times by "
+            "under 0.2% in tests.",
+            "## diffusivities.csv\n\nOptional. One row per diffusivity equation, for each "
+            "crystal axis i ([100], [010], [001]):\n\n"
+            f"`{DIFFUSIVITY_EQUATION}`\n\n"
+            "with T in K, P and fO2 in Pa and R = 8.3145 J/mol/K. Along the profile, "
+            "D = sum of D_i cos²(angle to axis i). The table `forster template` writes "
+            "holds the presets; copy a row, give it a new name and change the values. "
+            "A row with a preset's name must keep the preset's values.",
+            column_table(DIFFUSIVITY_COLUMNS),
             "## summary.csv (written by forster fit)\n\nOne row per fitted run: `run`, "
             "`profile`, the results below, and every parameter column above.",
             column_table(SUMMARY_COLUMNS),
+            "`forster fit` also writes `diffusivities.csv` to the output folder with every "
+            "equation the runs used, so summary.csv refits with `forster fit profiles.csv "
+            "summary.csv --diffusivities diffusivities.csv`.",
         ]
     )
 
 
 def write_template(out_dir: str | Path, *, overwrite: bool = False) -> list[Path]:
-    """Write ``profiles.csv``, ``parameters.csv`` and ``COLUMNS.md`` into ``out_dir``.
+    """Write ``profiles.csv``, ``parameters.csv``, ``diffusivities.csv`` and ``COLUMNS.md``.
 
     Refuses (FileExistsError, nothing written) if any of them exists, unless
     ``overwrite``.
@@ -187,6 +317,9 @@ def write_template(out_dir: str | Path, *, overwrite: bool = False) -> list[Path
     out_dir = Path(out_dir)
     data = resources.files("forster").joinpath("data")
     contents = {name: data.joinpath(source).read_text() for name, source in FILES.items()}
+    contents["diffusivities.csv"] = diffusivity_table(DIFFUSIVITY_PRESETS.values()).to_csv(
+        index=False
+    )
     contents["COLUMNS.md"] = column_guide() + "\n"
     targets = [out_dir / name for name in contents]
     existing = [str(p) for p in targets if p.exists()]
