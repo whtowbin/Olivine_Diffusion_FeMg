@@ -372,3 +372,22 @@ def test_fo_diffuses_when_it_is_fitted_with_ca_alone(synthetic):
     joint = fit_joint(fo_profile, [ca], CONDITIONS, ALONG_001, FO_INITIAL, None, FIT_GRID)
     fo_alone = fit_profile(fo_profile, CONDITIONS, ALONG_001, FO_INITIAL, FIT_GRID)
     assert joint.species_days["Fo"] == pytest.approx(fo_alone.time_days, rel=0.02)
+
+
+def test_element_runs_accept_first_row_and_reject_other_schemes():
+    grid = stable_grid("dohmen_chakraborty2007", "girona_costa2013_ni", days=0.5)
+    start, advance = coupled_model(
+        CONDITIONS, ALONG_001, FO_INITIAL, [("Ni", NI_INITIAL, None)], grid, X_UM, DX_UM
+    )
+    assert np.array_equal(advance(start, 5), advance(start, 5, first_row=100))
+    with pytest.raises(ValueError, match=r"'implicit'.*element fits use central or dipra"):
+        coupled_model(
+            CONDITIONS,
+            ALONG_001,
+            FO_INITIAL,
+            [("Ni", NI_INITIAL, None)],
+            grid,
+            X_UM,
+            DX_UM,
+            scheme="implicit",
+        )

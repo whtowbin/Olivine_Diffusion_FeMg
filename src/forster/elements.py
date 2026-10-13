@@ -65,7 +65,10 @@ DEFAULT_DIFFUSIVITY = {
     "Ca": "girona_costa2013_ca",
 }
 
-Advance = Callable[[np.ndarray, int], np.ndarray]
+# advance(state, n, first_row=0): ``first_row`` is the row ``state`` is at; the element
+# steppers do not depend on it (it matches `forster.model`'s advance functions).
+Advance = Callable[..., np.ndarray]
+ELEMENT_SCHEMES = ("central", "dipra")  # explicit steppers that take a separate Fo vector
 Step = Callable[..., np.ndarray]
 
 
@@ -220,8 +223,11 @@ def coupled_model(
     ``advance_fo``: whether Fo diffuses. By default it does unless every element's
     diffusivity is independent of Fo (Ca); pass True when Fo itself is fitted.
     """
-    if scheme not in SCHEMES:
-        raise ValueError(f"unknown scheme {scheme!r}; use one of {', '.join(SCHEMES)}")
+    if scheme not in ELEMENT_SCHEMES:
+        known = "is not supported for elements yet" if scheme in SCHEMES else "is unknown"
+        raise ValueError(
+            f"scheme {scheme!r} {known}; element fits use {' or '.join(ELEMENT_SCHEMES)}"
+        )
     dx_m = dx_um * 1e-6
     fo_d = fe_mg_diffusivity(fo_diffusivity)
     fo_intervals = [fo_initial.edge_fo, fo_initial.core_fo]
@@ -262,7 +268,7 @@ def _advance(species: list[_Species], move_fo: bool, step: Step) -> Advance:
     n_x = len(species[0].start)
     fo, others = species[0], species[1:]
 
-    def advance(state: np.ndarray, n: int) -> np.ndarray:
+    def advance(state: np.ndarray, n: int, first_row: int = 0) -> np.ndarray:
         rows = np.empty((n + 1, len(state)))
         rows[0] = state
         x_fo = state[:n_x]
