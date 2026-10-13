@@ -3,8 +3,9 @@
 Fe-Mg diffusion modeling of zoned olivine profiles.
 """
 
-from forster import diffusivity, dipra, scan, uncertainty
+from forster import diffusivity, dipra, elements, scan, uncertainty
 from forster.diffusivity import DIFFUSIVITY_PRESETS, ArrheniusDiffusivity, Diffusivity
+from forster.elements import ElementInitial, ElementProfile, JointFit, fit_element, fit_joint
 from forster.io import (
     RunDefaults,
     fit_run,
@@ -41,9 +42,12 @@ __all__ = [
     "ArrheniusDiffusivity",
     "Conditions",
     "Diffusivity",
+    "ElementInitial",
+    "ElementProfile",
     "FitResult",
     "Grid",
     "InitialCondition",
+    "JointFit",
     "KrigingSettings",
     "NoiseModel",
     "Orientation",
@@ -53,6 +57,9 @@ __all__ = [
     "candidate_grid",
     "diffusivity",
     "dipra",
+    "elements",
+    "fit_element",
+    "fit_joint",
     "fit_profile",
     "fit_run",
     "fit_tables",

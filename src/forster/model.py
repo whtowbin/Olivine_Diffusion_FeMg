@@ -217,6 +217,9 @@ class FitResult:
     fit_x_um: np.ndarray | None = None
     fit_fo: np.ndarray | None = None
     noise: NoiseModel | None = None
+    # "Fe-Mg" for Fo fits; "Ni", "Mn" or "Ca" for `forster.elements.fit_element`, whose
+    # curves and data (in the Fo-named fields) are that element's, in its own units.
+    element: str = "Fe-Mg"
 
     @property
     def time_days(self) -> float:
