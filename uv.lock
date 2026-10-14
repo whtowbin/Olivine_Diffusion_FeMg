@@ -473,7 +473,6 @@ version = "0.1.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
-    { name = "mplstereonet" },
     { name = "numpy" },
     { name = "openpyxl" },
     { name = "pandas" },
@@ -492,6 +491,7 @@ analysis = [
     { name = "great-tables" },
     { name = "ipykernel" },
     { name = "marimo" },
+    { name = "mplstereonet" },
     { name = "scikit-learn" },
     { name = "seaborn" },
     { name = "selenium" },
@@ -508,7 +508,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "matplotlib", specifier = ">=3.10.6" },
-    { name = "mplstereonet", specifier = ">=0.6.3" },
     { name = "numba", marker = "extra == 'fast'", specifier = ">=0.61" },
     { name = "numpy", specifier = ">=2.3.3" },
     { name = "openpyxl", specifier = ">=3.1.5" },
@@ -524,6 +523,7 @@ analysis = [
     { name = "great-tables", specifier = ">=0.21.0" },
     { name = "ipykernel", specifier = ">=6.30.1" },
     { name = "marimo", specifier = ">=0.20.2" },
+    { name = "mplstereonet", specifier = ">=0.6.3" },
     { name = "scikit-learn", specifier = ">=1.8.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "selenium", specifier = ">=4.41.0" },

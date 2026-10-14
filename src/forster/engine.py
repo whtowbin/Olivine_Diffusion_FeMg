@@ -1,13 +1,6 @@
 # %%w
-# from scipy.optimize import fsolve, root
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import scipy.interpolate as interp
-#import mc3
-
-# from numba import jit  #
-from pykrige import OrdinaryKriging, UniversalKriging 
+from pykrige import UniversalKriging
 
 # import mc3
 
@@ -39,71 +32,6 @@ def diffusion_kernel(dt, dx):
     return kernel_1, kernel_2, delta
 
 
-def VectorMaker(init_Concentration, N_points):
-    """
-    Creates a profile with a flat initial concentration
-    """
-    return init_Concentration * np.ones(N_points)
-
-
-def boundary_cond(bounds_c):
-    # C: single concentration at boundary ( in the future we will support changing boundary conditions.
-    # This can probably be accomplished with a list that pops next value
-    pad = np.ones(3) * bounds_c
-
-    if len(bounds_c) > 1:
-        pad = (np.ones(3) * bounds_c[0], np.ones(3) * bounds_c[1])
-
-    return pad
-
-
-# def old_step_condition(edge_x1, edge_x2, inflect_x, interval_concentrations, dx
-# ):
-#     """
-#     Creates a step function for diffusion models
-#     Parameters:
-#         X_Intervals - List of tuples - each tuple has start and end point of step
-#         interval_concentrations - list of concentrations coresponding to each interval,m_intervals = n_inflection_points+1
-#         dx - spacing between x points.
-
-#     Returns
-#         step_x - array of x coordinates
-#         step_c - array of concentrations
-#     """
-
-
-#     length = abs(x.max() - x.min())
-#     num_x = int(round(length / dx_micron,0))
-#     step_x, dx_micron = np.linspace(0, x.max(), num_x, endpoint=True, retstep=True)
-
-
-#     length = abs(np.max(X_Intervals) - np.min(X_Intervals))
-#     num_x = int(length / dx)
-
-#     segments_x = []
-#     segments_c = []
-
-#     # Define concentration steps.
-#     for idx, interval in enumerate(X_Intervals):
-#         interval_num = int((interval[1] - interval[0]) / length * num_x)
-
-#         # alternate version
-#         # int_x = step_x = np.arange(interval[0], interval[1], dx)
-
-#         # Original method- Fails on some odd length profiles.
-#         int_x = np.linspace(start=interval[0], stop=interval[1] - dx, num=interval_num)
-#         int_c = np.ones_like(int_x) * Interval_concentrations[idx]
-
-#         segments_x.append(int_x)
-#         segments_c.append(int_c)
-
-#     step_x = np.concatenate(segments_x)
-#     step_c = np.concatenate(segments_c)
-#     if len(step_x) < results_length:
-#         print("Model Array lenght is too short. Array will be extended by 1")
-#         step_x = np.concatenate(step_x, (step_x[-1] + dx))
-#         step_c = np.concatenate(step_c, (step_c[-1]))
-#     return step_x, step_c
 #%%
 
 
@@ -185,36 +113,6 @@ def diffusion_step(
 
     # vector_c_in + delta*(Diffusion + (Diff_C* Diff_D))
     # out = (Diff_C * Diff_D) * delta
-    return vector_out
-
-
-def diffusion_step_Ca(
-    vector_c_in,
-    diffusivity,
-    diff_kernel_1,
-    delta,
-    bounds_c,
-):
-
-    """
-    Function that takes one step forward in finite difference model of calcium diffusion in olivine.
-    This is an efficient step so I have tried to move the creation of kernels and vectors outside of this single step
-    Parameters:
-    bounds_c = tuple of left and right boundary conditions for diffusing species (Fixed bounds at the moment)
-    bounds_Fo = tuple of left and right boundary conditions for Fo
-    Output:
-
-    """
-    pad = np.ones(3)
-    pad_c = (bounds_c[0] * pad, bounds_c[1] * pad)
-    # pad generation can probably be taken out of the loop
-
-    vector_c = np.concatenate([pad_c[0], vector_c_in, pad_c[1]])
-
-    Diffusion = (np.convolve(vector_c, diff_kernel_1, mode="same") * diffusivity)[3:-3]
-
-    vector_out = vector_c_in + delta * Diffusion
-
     return vector_out
 
 
@@ -466,79 +364,8 @@ def timestepper(
     return results
 
 
-def timestepper_Ni_Mn(
-    vector_c_in,
-    vector_Fo_in,
-    diffusivity_function,
-    bounds_c,
-    timesteps,
-    dt,
-    dx,
-    bounds_Fo=None,
-    **kwargs
-):
-    """
-
-    vector_Fo_in: If running for Ni, or Mn this must be an 2D array of size(n,v) that where n is the total number of timesteps and v is the size of the Fo vector.
-    Iterates multiple diffusion steps
-    Built for Fo# Diffusion. Can be written for other elements by simultaneous Fo and Trace element diffusion.
-    """
-    kernel_1, kernel_2, delta = diffusion_kernel(dt=dt, dx=dx)
-
-    # At the moment only handles Fo but should diffuse other elements too with a little modification
-    results = np.zeros((timesteps + 1, len(vector_c_in)))
-    results[0] = vector_c_in
-
-    if (
-        bounds_Fo == None and len(vector_Fo_in) > 1
-    ):  # assumes That if Bounds Fo isnt input Fo is diffusing species
-        bounds_Fo = (vector_Fo_in[0], vector_Fo_in[1])
-
-        for n, _ in enumerate(range(timesteps)):
-
-            vector_c_in = diffusion_step(
-                vector_c_in=vector_c_in,
-                vector_Fo_in=vector_Fo_in[n, :],
-                diffusivity_function=diffusivity_function,
-                diff_kernel_1=kernel_1,
-                der_kernel_2=kernel_2,
-                delta=delta,
-                bounds_c=bounds_c,
-                bounds_Fo=bounds_Fo,
-            )
-
-            results[n + 1] = vector_c_in
-        return results
-
-    else:
-        vector_c_in = diffusion_step(
-            vector_c_in=vector_c_in,
-            vector_Fo_in=vector_Fo_in,
-            diffusivity_function=diffusivity_function,
-            diff_kernel_1=kernel_1,
-            der_kernel_2=kernel_2,
-            delta=delta,
-            bounds_c=bounds_c,
-            bounds_Fo=bounds_c,
-        )
-        return results
-
-
 # %%
 
-
-def Best_fit_R2(results, data_interp, dt):
-    # Should be Chi2 but looks more like likelihood?
-
-    residual = results - data_interp
-    sum_r2 = np.sum(residual**2, axis=1)
-    idx_min = np.argmin(sum_r2)
-
-    # sum_r2[idx_min] * 1.05
-
-    time = (idx_min + 1) * dt  # seconds
-    time_days = time / (60 * 60 * 24)
-    return time, idx_min, sum_r2
 
 # This was the code prior to 3/19/26. I think it is too narrow 
 def Best_fit_Chi2_old(results, data_interp, sigma, dt, sigma_min=1e-4, scale_error=False):
