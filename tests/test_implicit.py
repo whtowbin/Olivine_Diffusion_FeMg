@@ -176,7 +176,7 @@ def test_changing_rims_need_the_implicit_scheme_and_delay_early_stopping():
     rim = RimPath((0.0, 150.0), (0.82, 0.80))
     grid = Grid(2.0, 0.05 * DAY, 200)  # early stopping advances in blocks of 500 rows
     with pytest.raises(ValueError, match="implicit"):
-        fit_profile(*args, grid, rim_fo=rim)
+        fit_profile(*args, grid, scheme="central", rim_fo=rim)
     with pytest.raises(ValueError, match="correlated"):
         fit_profile(*args, grid, scheme="implicit", uncertainty="legacy")
     late = fit_profile(*args, grid, scheme="implicit", rim_fo=rim)
@@ -215,14 +215,15 @@ def test_chosen_implicit_grid_meets_its_tolerance_on_a_real_profile(two_step):
     coarse = fit_profile(*fit_args, scan.grid, None, run.diffusivity, scheme="implicit")
     assert chosen.time_days == pytest.approx(ref.time_days, rel=0.01)
     assert coarse.time_days == pytest.approx(ref.time_days, rel=0.05)
-    # Far fewer nodes and steps than the explicit final grid.
-    explicit = choose_grid(*args, purpose="final", time_days=final.coarse_time_days)
-    assert final.grid.dx_um > 5 * explicit.grid.dx_um
-    assert final.grid.dt_s > 20 * explicit.grid.dt_s
-    # Explicit and implicit converge to the same time.
-    assert ref.time_days == pytest.approx(
-        fit_profile(*fit_args, explicit.grid, None, run.diffusivity).time_days, rel=0.02
+    # Far fewer nodes and steps than even the explicit scan grid (5%; the explicit
+    # final grid, l / dx = 240, is too slow for a test), which agrees within 5%.
+    explicit = choose_grid(
+        *args, purpose="scan", time_days=final.coarse_time_days, scheme="central"
     )
+    assert final.grid.dx_um > 5 * explicit.grid.dx_um
+    assert final.grid.dt_s > 10 * explicit.grid.dt_s
+    explicit_fit = fit_profile(*fit_args, explicit.grid, None, run.diffusivity, scheme="central")
+    assert explicit_fit.time_days == pytest.approx(ref.time_days, rel=0.05)
 
 
 def test_check_grid_for_the_implicit_scheme(two_step):
@@ -231,7 +232,7 @@ def test_check_grid_for_the_implicit_scheme(two_step):
     # Far beyond the explicit stability limit: fine for the implicit scheme.
     big_dt = Grid(2.0, 0.15 * DAY, 200)
     with pytest.raises(ValueError, match="unstable"):
-        check_grid(big_dt, *args)
+        check_grid(big_dt, *args, scheme="central")
     assert check_grid(big_dt, *args, scheme="implicit") == []
     assert check_grid(big_dt, *args, scheme="implicit", time_days=70) == []
     coarse_dt = replace(big_dt, dt_s=10 * DAY)

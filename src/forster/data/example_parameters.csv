@@ -1,2 +1,2 @@
 run,profile,T_C,P_Pa,fO2_Pa,fO2_buffer,fO2_delta_log,alpha_deg,beta_deg,gamma_deg,phi1_deg,Phi_deg,phi2_deg,profile_angle_deg,domain_start_um,domain_end_um,steps_um,edge_fo,core_fo,step_fo,dx_um,dt_s,max_time_days,scheme,uncertainty,notes
-AZ18 WHT01_Ol_63_prof_1,AZ18 WHT01_Ol_63_prof_1,1250.0,500000000.0,,QFM,0.3,,,,77.0,61.2,334.2,-80.0,2.5,72.0,24,0.9146,0.8985,,0.5,60.0,40,central,correlated,"Towbin and Plank (2026) J. Petrology 67(9) egag077; melt-vein olivine, xenolith WHT01"
+AZ18 WHT01_Ol_63_prof_1,AZ18 WHT01_Ol_63_prof_1,1250.0,500000000.0,,QFM,0.3,,,,77.0,61.2,334.2,-80.0,2.5,72.0,24,0.9146,0.8985,,,,40,,correlated,"Towbin and Plank (2026) J. Petrology 67(9) egag077; melt-vein olivine, xenolith WHT01"

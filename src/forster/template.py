@@ -85,8 +85,9 @@ PARAMETER_COLUMNS = (
         "dt_s",
         "s",
         "optional",
-        "Time step of the final fit. Leave empty for the stable step D dt / dx² = 0.4; "
-        "a value giving D dt / dx² > 0.5 is unstable and refused.",
+        "Time step of the final fit. Leave empty to have it chosen: 1/400 of the fitted "
+        "time (implicit), or the stable step D dt / dx² = 0.4 (central, dipra; above 0.5 "
+        "is unstable and refused).",
     ),
     Column(
         "max_time_days",
@@ -99,8 +100,9 @@ PARAMETER_COLUMNS = (
         "scheme",
         "",
         "optional",
-        "central (default), dipra (Girona and Costa 2013) or implicit (rim on the end node, "
-        "steps not snapped to nodes; about 1% at a far coarser grid).",
+        "implicit (default since 2026-10-13: rim on the end node, steps not snapped to "
+        "nodes, any time step), central (the engine's explicit scheme, used before) or "
+        "dipra (Girona and Costa 2013). With uncertainty = legacy the default is central.",
     ),
     Column(
         "diffusivity",
@@ -252,17 +254,23 @@ SUMMARY_COLUMNS = (
         "grid_resolution",
         "",
         "",
-        "Diffusion length sqrt(D t) at the fit over the grid spacing; about 13 gives 5% and "
-        "65 gives 1% accuracy in the fitted time.",
+        "Diffusion length sqrt(D t) at the fit over the grid spacing: for 1% accuracy in "
+        "the fitted time about 5 (implicit) or 240 (central, dipra).",
     ),
     Column(
         "grid_error_pct",
         "%",
         "",
-        "Estimated worst-case error of the fitted time from the grid spacing "
-        "(0.65 x dx / diffusion length, measured on real profiles).",
+        "Estimated worst-case error of the fitted time from the grid spacing (implicit: "
+        "0.2 x (dx / l)²; central, dipra: 2.4 x dx / l; l the diffusion length; measured "
+        "on 35 real profiles).",
     ),
-    Column("grid_stability", "", "", "D dt / dx² of the final fit (stable up to 0.5)."),
+    Column(
+        "grid_stability",
+        "",
+        "",
+        "D dt / dx² of the final fit (central, dipra: stable up to 0.5; empty for implicit).",
+    ),
 )
 
 # Columns of diffusivities.csv; the equation is in forster.diffusivity.
@@ -340,10 +348,12 @@ def column_guide() -> str:
             "under 0.2% in tests.",
             "**Grids.** dx_um and dt_s may be left empty: `forster fit` then makes a quick "
             "fit on a coarse grid, takes the diffusion length l = sqrt(D t) at its time, "
-            "and sets dx = l / 65 for the final fit (about 1% accuracy) and l / 13 for "
-            "scans (about 5%), and never more than a quarter of the narrowest gap between "
-            "steps; dt is the stable step D dt / dx² = 0.4. Values you give are kept and "
-            "checked. summary.csv records the grid actually used, so a refit reproduces it.",
+            "and, for the implicit scheme (the default), sets dx = l / 8 for the final fit "
+            "and l / 4 for scans and dt = 1/400 and 1/80 of the time (within about 0.3% and "
+            "5%). For central and dipra: dx = l / 240 and l / 48, never more than a quarter "
+            "of the narrowest gap between steps, and dt the stable step D dt / dx² = 0.4. "
+            "Values you give are kept and checked. summary.csv records the grid actually "
+            "used, so a refit reproduces it.",
             "## diffusivities.csv\n\nOptional. One row per diffusivity equation, for each "
             "crystal axis i ([100], [010], [001]):\n\n"
             f"`{DIFFUSIVITY_EQUATION}`\n\n"

@@ -36,6 +36,15 @@ SECONDS_PER_DAY = 24 * 60 * 60
 FO2_BUFFERS = ("QFM", "FMQ", "NNO")
 SCHEMES = ("central", "dipra", "implicit")  # finite-difference schemes, see fit_profile
 EXPLICIT_SCHEMES = ("central", "dipra")
+DEFAULT_SCHEME = "implicit"  # since 2026-10-13; "central" before
+
+
+def default_scheme(uncertainty: str) -> str:
+    """The scheme used when none is given: "implicit", or "central" with the legacy
+    uncertainty method (which needs an explicit scheme and reproduces the old scripts)."""
+    return "central" if uncertainty == "legacy" else DEFAULT_SCHEME
+
+
 # How the time uncertainty is estimated, see fit_profile and docs/references/fit-uncertainty.md
 UNCERTAINTY_METHODS = ("correlated", "legacy")
 # Early stopping (correlated method): stop once the run is STOP_TIME_FACTOR times past the
@@ -612,7 +621,7 @@ def fit_profile(
     grid: Grid,
     kriging: KrigingSettings | None = None,
     diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY,
-    scheme: str = "central",
+    scheme: str | None = None,
     uncertainty: str = "correlated",
     stop_early: bool = True,
     stages: Sequence[Stage] = (),
@@ -624,7 +633,8 @@ def fit_profile(
     distance, the model runs forward from ``initial`` for ``grid.max_time_days``,
     and the time step with the smallest chi-squared is the best fit.
 
-    ``scheme`` picks the finite-difference scheme: "central" (the engine's,
+    ``scheme`` picks the finite-difference scheme: "implicit" (the default since
+    2026-10-13; "central" with the legacy uncertainty method), "central" (the engine's,
     central differences in the cross term) or "dipra" (Girona and Costa 2013,
     eq. 5: forward differences and the analytic dD/dX_Fo). Both solve the same
     equation and converge to the same answer as ``grid.dx_um`` shrinks; running
@@ -685,6 +695,7 @@ def fit_profile(
     ``docs/references/likelihood-method.md`` explains the method and its validation,
     ``docs/references/fit-uncertainty.md`` the change from earlier versions.
     """
+    scheme = scheme or default_scheme(uncertainty)
     _check_options(scheme, uncertainty, stages, rim_fo)
     diffusivity = fe_mg_diffusivity(diffusivity)
     kriging = kriging or KrigingSettings()

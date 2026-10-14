@@ -5,17 +5,19 @@ time step at ``STABILITY_RATIO`` (0.4) of that, for the largest diffusivity of e
 species over the compositions it passes through. Raising dt to that ratio changed
 fitted times by under 0.2% (``docs/references/likelihood-method.md``, section 7).
 
-The grid spacing sets the accuracy. On six real profiles (round robin and Towbin and
-Plank 2026), the error in the fitted time fell roughly as 1/k with k = l / dx, l the
-diffusion length sqrt(D t) at the fit: worst case about 0.65 / k (5.6% at k = 12, 3%
-at k = 20, 1.3% at k = 30-40, against k = 60). The schemes are first order in dx here
-because the boundary values sit one node outside the domain and the initial steps
-snap to the nearest node. `choose_grid` therefore sets dx = l * tolerance / 0.65,
-and never more than a quarter of the narrowest gap between steps (or between a step
-and an end of the domain), so the initial condition is resolved:
+The grid spacing sets the accuracy. For the explicit schemes the error in the fitted
+time falls as 1/k with k = l / dx, l the diffusion length sqrt(D t) at the fit: they
+are first order in dx because the boundary values sit one node outside the domain and
+the initial steps snap to the nearest node. On 35 real profiles against a converged
+(implicit) reference, the worst case is about 2.4 / k (3.6% at k = 65). An earlier
+calibration on six profiles gave 0.65 / k because its reference, explicit at k = 60,
+shared the bias. `choose_grid` sets dx = l * tolerance / 2.4, and never more than a
+quarter of the narrowest gap between steps (or between a step and an end of the
+domain), so the initial condition is resolved:
 
-- ``purpose="scan"``: tolerance 5%, for parameter scans (k = 13);
-- ``purpose="final"``: tolerance 1%, for the final fit (k = 65).
+- ``purpose="scan"``: tolerance 5%, for parameter scans (k = 48);
+- ``purpose="final"``: tolerance 1%, for the final fit (k = 240; about 50x the cost
+  of k = 65, which is why the implicit scheme is the default).
 
 The implicit scheme (`forster.implicit`: values held on the end nodes, cell-averaged
 start, TR-BDF2 in time) is second order in dx on the same profiles: worst case about
@@ -27,12 +29,6 @@ steps the fitted time was up to 1% off on three round robin profiles, 0.3% with 
 tolerance needs), with no limit from the gaps between steps: the cell average places
 them exactly. On all 35 real profiles the chosen final grid was within 0.3% of a
 converged reference.
-
-The explicit coefficient 0.65 is too small: it was measured against an explicit
-reference at k = 60, which shares the first-order bias. Against the implicit
-reference the explicit final grid (k = 65) was off by a median 1.1% and up to 3.6%
-(``docs/references/grid-choice.md``), a coefficient of about 2.4. It is kept until
-the default scheme is decided.
 
 l comes from a quick fit on a coarse grid, using the slowest species' diffusivity at
 the middle of its composition range (for several species, each one's own best time
@@ -51,6 +47,7 @@ import numpy as np
 
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
 from forster.model import (
+    DEFAULT_SCHEME,
     EXPLICIT_SCHEMES,
     SECONDS_PER_DAY,
     Conditions,
@@ -66,7 +63,7 @@ from forster.model import (
 
 STABILITY_RATIO = 0.4  # D_max dt / dx^2 used for chosen grids
 UNSTABLE_RATIO = 0.5  # the explicit schemes diverge above this
-ERROR_COEFFICIENT = 0.65  # fitted-time error ~ ERROR_COEFFICIENT * dx / l (worst case measured)
+ERROR_COEFFICIENT = 2.4  # explicit: fitted-time error ~ this x dx / l (worst case measured)
 TOLERANCES = {"scan": 0.05, "final": 0.01}
 MIN_NODES_PER_GAP = 4  # nodes across the narrowest feature of the initial condition
 MAX_TIME_FACTOR = 3.0  # chosen max time = this x the coarse best fit
@@ -146,7 +143,7 @@ def narrowest_gap_um(initial: InitialCondition) -> float:
 
 
 def actual_dx_um(
-    profile: Profile, dx_um: float, initial: InitialCondition, scheme: str = "central"
+    profile: Profile, dx_um: float, initial: InitialCondition, scheme: str = DEFAULT_SCHEME
 ) -> float:
     """The spacing `fit_profile` will really use for a requested ``dx_um`` (the largest,
     for the implicit scheme's grid)."""
@@ -155,7 +152,7 @@ def actual_dx_um(
 
 
 def dx_not_above(
-    profile: Profile, target_um: float, initial: InitialCondition, scheme: str = "central"
+    profile: Profile, target_um: float, initial: InitialCondition, scheme: str = DEFAULT_SCHEME
 ) -> tuple[float, float]:
     """A ``dx_um`` to ask for, and the spacing `fit_profile` will then use, no coarser than
     ``target_um``. The grid's node count is rounded, so the two differ slightly; keep the
@@ -169,7 +166,7 @@ def dx_not_above(
     return request, actual_dx_um(profile, request, initial, scheme)
 
 
-def estimated_error(dx_um: float, length_um: float, scheme: str = "central") -> float:
+def estimated_error(dx_um: float, length_um: float, scheme: str = DEFAULT_SCHEME) -> float:
     """Worst-case relative error of the fitted time from the grid spacing (fraction)."""
     if scheme == "implicit":
         return IMPLICIT_ERROR_COEFFICIENT * (dx_um / length_um) ** 2
@@ -259,7 +256,7 @@ def choose_grid(
     species: Sequence[Species] | None = None,
     time_days: float | None = None,
     max_time_days: float | None = None,
-    scheme: str = "central",
+    scheme: str = DEFAULT_SCHEME,
 ) -> GridChoice:
     """A grid for fitting ``profile`` to within ``tolerance`` (default by ``purpose``).
 
@@ -319,7 +316,7 @@ def check_grid(
     purpose: str = "final",
     tolerance: float | None = None,
     species: Sequence[Species] | None = None,
-    scheme: str = "central",
+    scheme: str = DEFAULT_SCHEME,
 ) -> list[str]:
     """Problems with a given grid, as messages; raises if it is unstable.
 
@@ -433,7 +430,7 @@ class GridRequest:
         purpose: str = "final",
         time_days: float | None = None,
         species: Sequence[Species] | None = None,
-        scheme: str = "central",
+        scheme: str = DEFAULT_SCHEME,
     ) -> GridChoice:
         """The grid with the missing parts chosen; given parts are kept (and a given
         dt that would be unstable on the chosen dx raises)."""

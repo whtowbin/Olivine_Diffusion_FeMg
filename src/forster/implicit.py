@@ -33,11 +33,12 @@ import math
 from collections.abc import Callable, Sequence
 
 import numpy as np
-import scipy.linalg as sla
+from scipy.linalg import lapack
 
 from forster.boundary import Rim, rim_at
 
 GAMMA = 2.0 - math.sqrt(2.0)
+(_gtsv,) = lapack.get_lapack_funcs(("gtsv",), dtype=np.float64)  # dgtsv
 
 
 def node_grid(nodes_um: Sequence[float], dx_um: float) -> np.ndarray:
@@ -81,8 +82,8 @@ def cell_average(
 
 
 def _operator(c: np.ndarray, D: Callable[[np.ndarray], np.ndarray], dt_s: float, geometry):
-    """dt * A as its three diagonals (upper, main, lower in solve_banded's layout);
-    zero on the two end rows, which are held.
+    """dt * A as its three diagonals (lower and upper of length n - 1, main of n), zero on
+    the two end rows, which are held.
 
     Flux form: dc_i/dt = (F_i+1/2 - F_i-1/2) / w_i with F_i+1/2 = D_face (c_i+1 - c_i) / h_i,
     h the node spacings and w the interior cell widths (m); D_face is the mean of the
@@ -91,31 +92,33 @@ def _operator(c: np.ndarray, D: Callable[[np.ndarray], np.ndarray], dt_s: float,
     h, w = geometry
     d = D(c)
     conductance = dt_s * 0.5 * (d[1:] + d[:-1]) / h  # per face
+    lower = np.zeros(len(c) - 1)  # row i's coefficient of c[i - 1]
+    lower[:-1] = conductance[:-1] / w
+    upper = np.zeros(len(c) - 1)  # row i's coefficient of c[i + 1]
+    upper[1:] = conductance[1:] / w
     main = np.zeros_like(c)
     main[1:-1] = -(conductance[:-1] + conductance[1:]) / w
-    upper = np.zeros_like(c)
-    upper[2:] = conductance[1:] / w
-    lower = np.zeros_like(c)
-    lower[:-2] = conductance[:-1] / w
-    return upper, main, lower
+    return lower, main, upper
 
 
-def _apply(upper, main, lower, c: np.ndarray) -> np.ndarray:
+def _apply(lower, main, upper, c: np.ndarray) -> np.ndarray:
     out = main * c
-    out[:-1] += upper[1:] * c[1:]
-    out[1:] += lower[:-1] * c[:-1]
+    out[:-1] += upper * c[1:]
+    out[1:] += lower * c[:-1]
     return out
 
 
-def _solve(weight: float, rhs: np.ndarray, upper, main, lower, ends: tuple[float, float]):
-    """Solve (I - weight * dt A) c = rhs with c held at ``ends`` on the end nodes."""
-    ab = np.empty((3, len(rhs)))
-    ab[0] = -weight * upper
-    ab[1] = 1.0 - weight * main
-    ab[2] = -weight * lower
+def _solve(weight: float, rhs: np.ndarray, lower, main, upper, ends: tuple[float, float]):
+    """Solve (I - weight * dt A) c = rhs with c held at ``ends`` on the end nodes.
+
+    LAPACK's tridiagonal solver directly: half the cost of a step through
+    `scipy.linalg.solve_banded` (whose checks dominate at these sizes), same result."""
     rhs = rhs.copy()
     rhs[0], rhs[-1] = ends
-    return sla.solve_banded((1, 1), ab, rhs, overwrite_ab=True, overwrite_b=True)
+    *_, c, info = _gtsv(-weight * lower, 1.0 - weight * main, -weight * upper, rhs, 1, 1, 1, 1)
+    if info != 0:
+        raise np.linalg.LinAlgError(f"tridiagonal solve failed (LAPACK gtsv info {info})")
+    return c
 
 
 def tr_bdf2_step(
@@ -128,14 +131,14 @@ def tr_bdf2_step(
 ) -> np.ndarray:
     """One TR-BDF2 step; ``ends_mid`` and ``ends`` are the held values at t + gamma dt
     and t + dt; ``geometry`` = `grid_geometry` of the grid."""
-    upper, main, lower = _operator(c, D, dt_s, geometry)
+    lower, main, upper = _operator(c, D, dt_s, geometry)
     half = GAMMA / 2
-    mid = _solve(half, c + half * _apply(upper, main, lower, c), upper, main, lower, ends_mid)
-    upper, main, lower = _operator(mid, D, dt_s, geometry)
+    mid = _solve(half, c + half * _apply(lower, main, upper, c), lower, main, upper, ends_mid)
+    lower, main, upper = _operator(mid, D, dt_s, geometry)
     a = 1.0 / (GAMMA * (2.0 - GAMMA))
     b = (1.0 - GAMMA) ** 2 / (GAMMA * (2.0 - GAMMA))
     weight = (1.0 - GAMMA) / (2.0 - GAMMA)
-    return _solve(weight, a * mid - b * c, upper, main, lower, ends)
+    return _solve(weight, a * mid - b * c, lower, main, upper, ends)
 
 
 def grid_geometry(x_um: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

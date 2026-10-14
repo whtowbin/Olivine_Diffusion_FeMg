@@ -57,6 +57,7 @@ from forster.grid import (
     grid_diagnostics,
 )
 from forster.model import (
+    DEFAULT_SCHEME,
     SCHEMES,
     UNCERTAINTY_METHODS,
     Conditions,
@@ -66,6 +67,7 @@ from forster.model import (
     KrigingSettings,
     Orientation,
     Profile,
+    default_scheme,
     fit_profile,
 )
 from forster.scan import (
@@ -138,7 +140,7 @@ class RunDefaults:
     max_time_days: float = 200.0
     kriging: KrigingSettings = field(default_factory=KrigingSettings)
     diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY
-    scheme: str = "central"
+    scheme: str | None = None  # None: `forster.model.default_scheme` of the uncertainty
     uncertainty: str = "correlated"
 
 
@@ -154,7 +156,7 @@ class Run:
     grid: Grid | GridRequest  # a GridRequest has parts left to `forster.grid.choose_grid`
     kriging: KrigingSettings
     diffusivity: Diffusivity
-    scheme: str = "central"
+    scheme: str = DEFAULT_SCHEME
     uncertainty: str = "correlated"
     metadata: Mapping[str, Any] = field(default_factory=dict)
     # Uncertain initial-condition parameters (template layout): scanned by `scan_run`.
@@ -290,10 +292,11 @@ def _max_time(row: pd.Series, defaults: RunDefaults, column: str = "max_model_ti
 
 
 def _scheme(row: pd.Series, defaults: RunDefaults) -> str:
-    """Optional ``scheme`` column ("central" or "dipra"); the default otherwise."""
+    """Optional ``scheme`` column ("implicit", "central" or "dipra"); otherwise the
+    default's, or `default_scheme` of the run's uncertainty method."""
     value = row.get("scheme")
     if value is None or pd.isna(value):
-        return defaults.scheme
+        return defaults.scheme or default_scheme(_uncertainty(row, defaults))
     value = str(value).strip().lower()
     if value not in SCHEMES:
         raise ValueError(

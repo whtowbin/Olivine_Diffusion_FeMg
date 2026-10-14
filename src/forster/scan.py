@@ -47,6 +47,7 @@ import scipy.linalg as sla
 
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity
 from forster.model import (
+    DEFAULT_SCHEME,
     SECONDS_PER_DAY,
     Conditions,
     Grid,
@@ -322,7 +323,7 @@ def run_candidates(
     candidates: Sequence[InitialCondition],
     grid: Grid,
     diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY,
-    scheme: str = "central",
+    scheme: str = DEFAULT_SCHEME,
     *,
     stop_early: bool = True,
     progress: Callable[[int, int], None] | None = None,
@@ -477,7 +478,7 @@ def scan_initial_conditions(
     candidates: Sequence[InitialCondition] | CandidateGrid,
     grid: Grid,
     diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY,
-    scheme: str = "central",
+    scheme: str = DEFAULT_SCHEME,
     *,
     n_free: int = 1,
     stability: float | None = SCAN_STABILITY,

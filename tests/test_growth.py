@@ -65,7 +65,14 @@ def staged_curves():
     grid = Grid(dx_um=DX_UM, dt_s=dt, max_time_days=TOTAL_DAYS)
     dummy = Profile(X_UM, np.full(len(X_UM), 0.88) + 1e-4 * np.sin(X_UM), name="dummy")
     result = fit_profile(
-        dummy, CONDITIONS, ALONG_001, EARLY, grid, stop_early=False, stages=[GROWTH]
+        dummy,
+        CONDITIONS,
+        ALONG_001,
+        EARLY,
+        grid,
+        stop_early=False,
+        stages=[GROWTH],
+        scheme="central",
     )
     return result, grid
 
@@ -99,6 +106,7 @@ def test_staged_run_matches_an_independent_solver(staged_curves):
         single,
         Grid(DX_UM, grid.dt_s, (row - round(STAGE_DAYS * DAY / grid.dt_s)) * grid.dt_s / DAY),
         stop_early=False,
+        scheme="central",
     )
     late = np.interp(x_ref, unstaged.model_x_um, unstaged.curves[-1])
     assert np.abs(late - ref).max() > 10 * 5e-4
@@ -110,9 +118,18 @@ def test_a_stage_that_changes_nothing_leaves_the_run_unchanged():
     dt = 0.2 * (DX_UM * 1e-6) ** 2 / d_fo(np.array([0.82])).max()
     grid = Grid(DX_UM, dt, max_time_days=4)
     profile = Profile(X_UM, np.full(len(X_UM), 0.88) + 1e-4 * np.sin(X_UM))
-    plain = fit_profile(profile, CONDITIONS, ALONG_001, initial, grid, stop_early=False)
+    plain = fit_profile(
+        profile, CONDITIONS, ALONG_001, initial, grid, stop_early=False, scheme="central"
+    )
     staged = fit_profile(
-        profile, CONDITIONS, ALONG_001, initial, grid, stop_early=False, stages=[nothing]
+        profile,
+        CONDITIONS,
+        ALONG_001,
+        initial,
+        grid,
+        stop_early=False,
+        stages=[nothing],
+        scheme="central",
     )
     assert np.array_equal(plain.curves, staged.curves)
 

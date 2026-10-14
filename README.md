@@ -196,9 +196,9 @@ One row per model run. Fo is a fraction throughout.
 | `core_fo` | fraction | required | Initial Fo after the last step (core side). |
 | `step_fo` | fraction | optional | Initial Fo of the plateau between two steps; required with two steps. |
 | `dx_um` | µm | optional | Grid spacing of the final fit. Leave empty to have it chosen for about 1% accuracy in the fitted time; a value you give is kept, with a warning if it is coarse, wastefully fine, or too coarse for the initial steps. |
-| `dt_s` | s | optional | Time step of the final fit. Leave empty for the stable step D dt / dx² = 0.4; a value giving D dt / dx² > 0.5 is unstable and refused. |
+| `dt_s` | s | optional | Time step of the final fit. Leave empty to have it chosen: 1/400 of the fitted time (implicit), or the stable step D dt / dx² = 0.4 (central, dipra; above 0.5 is unstable and refused). |
 | `max_time_days` | days | optional | Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate of the time). |
-| `scheme` |  | optional | central (default), dipra (Girona and Costa 2013) or implicit (rim on the end node, steps not snapped to nodes; about 1% at a far coarser grid). |
+| `scheme` |  | optional | implicit (default since 2026-10-13: rim on the end node, steps not snapped to nodes, any time step), central (the engine's explicit scheme, used before) or dipra (Girona and Costa 2013). With uncertainty = legacy the default is central. |
 | `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or mutch2019_tamed, mutch2019_global) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
 | `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule; reproduces old results). |
 | `steps_sd_um` | µm | optional | Uncertainty (1 sigma, Gaussian) on the step position(s): one value, or one per step ("2, 5"); 0 keeps a step fixed. Or give steps_range_um. |
@@ -270,9 +270,9 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `scan_best` |  | Best values of the scanned parameters (step1_um, edge_fo, ...); the nominal values stay in the parameter columns. |
 | `scan_candidates` |  | Initial conditions fitted (one model run each). |
 | `scan_dropped` |  | Grid points left out as invalid (steps out of order or domain, Fo outside 0-1). |
-| `grid_resolution` |  | Diffusion length sqrt(D t) at the fit over the grid spacing; about 13 gives 5% and 65 gives 1% accuracy in the fitted time. |
-| `grid_error_pct` | % | Estimated worst-case error of the fitted time from the grid spacing (0.65 x dx / diffusion length, measured on real profiles). |
-| `grid_stability` |  | D dt / dx² of the final fit (stable up to 0.5). |
+| `grid_resolution` |  | Diffusion length sqrt(D t) at the fit over the grid spacing: for 1% accuracy in the fitted time about 5 (implicit) or 240 (central, dipra). |
+| `grid_error_pct` | % | Estimated worst-case error of the fitted time from the grid spacing (implicit: 0.2 x (dx / l)²; central, dipra: 2.4 x dx / l; l the diffusion length; measured on 35 real profiles). |
+| `grid_stability` |  | D dt / dx² of the final fit (central, dipra: stable up to 0.5; empty for implicit). |
 
 Parameter tables in the two older layouts of this project, the round robin
 spreadsheets and the tables of Towbin and Plank (2026), are read too.
@@ -292,14 +292,14 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   result faster. The `legacy` option keeps the earlier rule, which compared the
   model with a kriged interpolation of the data.
 - The grid can be left to FORSTER: with `dx_um` and `dt_s` empty, a quick coarse fit
-  gives the diffusion length l = sqrt(D t), and the final fit uses dx = l / 65 (about
-  1% accuracy in the fitted time; measured later against a converged reference it is
-  1.1% median, up to 3.6%), scans dx = l / 13 (about 5%), and dt the stable step
-  D dt / dx² = 0.4. With `scheme = implicit`: dx = l / 8 and l / 4, and dt = 1/400 and
-  1/80 of the fitted time. A grid you give is kept and checked: unstable grids are refused,
-  and coarse or wastefully fine ones get a warning. `grid_resolution`,
-  `grid_error_pct` and `grid_stability` in summary.csv say how well each fit was
-  resolved. [docs/references/grid-choice.md](docs/references/grid-choice.md) gives the
+  gives the diffusion length l = sqrt(D t). With the default implicit scheme the final
+  fit uses dx = l / 8 and dt = 1/400 of the fitted time (within 0.3% of a converged
+  value on all 35 real profiles), scans dx = l / 4 and 1/80. With `central` or `dipra`:
+  dx = l / 240 for 1% and l / 48 for scans, and dt the stable step D dt / dx² = 0.4.
+  A grid you give is kept and checked: unstable grids are refused, and coarse or
+  wastefully fine ones get a warning. `grid_resolution`, `grid_error_pct` and
+  `grid_stability` in summary.csv say how well each fit was resolved.
+  [docs/references/grid-choice.md](docs/references/grid-choice.md) gives the
   measurements behind these numbers.
 - The range does not include uncertainty in the initial condition. From Python,
   `forster.scan.scan_initial_conditions` fits a set of candidates (for example the
@@ -316,20 +316,27 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   used to fit Fo profiles.
   [docs/references/diffusivity-literature.md](docs/references/diffusivity-literature.md)
   compares them with newer experiments.
+- The default scheme (since 2026-10-13) is `implicit`: the rim and core values are
+  held on the end nodes of the grid, the starting steps are averaged over each node's
+  cell instead of moved to the nearest node, and time steps are TR-BDF2, stable at any
+  step size. Its fitted time is second order in the grid spacing: on all 35 real
+  profiles the chosen grid gave times within 0.3% of a converged value, in a median
+  0.13 s per fit.
+- `scheme = central` is the explicit scheme used before (the default until
+  2026-10-13; still the default with `uncertainty = legacy`, so old results
+  reproduce exactly). It holds the rim one node outside the profile and moves steps
+  to nodes, which makes its fitted time first order in dx: the grid then chosen
+  (dx = l / 65) was off by a median 1.1% and up to 3.6%, mostly too long. Refitting
+  old parameter tables without a `scheme` column now uses `implicit`: for the round
+  robin and paper tables (their own grids) times move by a median 2.7% and up to
+  8.1%, mostly shorter, because on those grids `central` itself was a median 2.6%
+  (up to 8.7%) off the converged value and `implicit` 0.05%.
 - `scheme = dipra` swaps in the finite-difference scheme of DIPRA (Girona and Costa
-  2013, G³ 14, 422-431). Both schemes solve the same equation; fitting a profile with
-  both is a check on the grid spacing.
-- `scheme = implicit` holds the rim and core values on the end nodes of the grid
-  (the explicit schemes hold them one node outside), averages the starting steps over
-  each node's cell instead of moving them to the nearest node, and steps in time with
-  TR-BDF2, which is stable at any time step. With its chosen grid (dx = l / 8, 400
-  time steps up to the fit) the fitted time was within 0.3% of a converged value on
-  all 35 real profiles; the explicit chosen grid (dx = l / 65) was off by a median
-  1.1% and up to 3.6%. A fit takes a median 0.13 s instead of 0.9 s. Because the rim sits one node apart in the two kinds of scheme, the
-  same inputs give slightly different fits at coarse grids; both converge to the same
-  answer. From Python, `fit_profile(..., scheme="implicit", rim_fo=...)` also takes a
-  rim value that changes in time (`forster.boundary.RimPath`, or any function of time),
-  and growth stages start at their exact times.
+  2013, G³ 14, 422-431), explicit like `central`; fitting a profile with both is a
+  check on the grid spacing.
+- From Python, `fit_profile(..., rim_fo=...)` takes a rim value that changes in time
+  (`forster.boundary.RimPath`, or any function of time; implicit only), and growth
+  stages start at their exact times.
 
 The diffusivity law matters as much as the fit: `analyses/femg_refit/` refits the
 Fe-Mg law to the published experiments, and at the round robin and paper fO2 the

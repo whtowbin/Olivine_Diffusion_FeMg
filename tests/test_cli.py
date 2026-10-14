@@ -204,7 +204,7 @@ def test_blank_dx_and_dt_are_chosen_and_recorded(tmp_path, template):
     assert done.returncode == 0, done.stderr
     row = read_csv(tmp_path / "results" / "summary.csv").iloc[0]
     assert row.dx_um > 0 and row.dt_s > 0
-    assert row.grid_error_pct <= 1.05 and abs(row.grid_stability - 0.4) < 1e-6
+    assert row.grid_error_pct <= 1.05 and pd.isna(row.grid_stability)  # implicit: no limit
     again = forster(
         "fit",
         template / "profiles.csv",

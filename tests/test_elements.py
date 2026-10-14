@@ -227,7 +227,9 @@ def test_early_stopping_gives_the_same_element_fit(synthetic):
 def test_joint_fit_with_fo_alone_equals_fit_profile(synthetic):
     fo_profile = synthetic[0]
     joint = fit_joint(fo_profile, [], CONDITIONS, ALONG_001, FO_INITIAL, {}, FIT_GRID)
-    single = fit_profile(fo_profile, CONDITIONS, ALONG_001, FO_INITIAL, FIT_GRID)
+    single = fit_profile(
+        fo_profile, CONDITIONS, ALONG_001, FO_INITIAL, FIT_GRID, scheme="central"
+    )  # element fits use the central scheme
     assert joint.indices == single.indices
     assert (joint.time_s, joint.time_minus_s, joint.time_plus_s) == (
         single.time_s,

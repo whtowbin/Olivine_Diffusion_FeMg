@@ -142,7 +142,7 @@ def test_scheme_column_is_read_per_run(tmp_path):
     table.to_csv(path, index=False)
     schemes = {run.name: run.scheme for run in read_runs(path)}
     assert schemes[table.loc[0, "Sample"]] == "dipra"
-    assert set(schemes.values()) == {"central", "dipra"}
+    assert set(schemes.values()) == {"implicit", "dipra"}  # implicit: the default
     assert {r.scheme for r in read_runs(path, defaults=RunDefaults(scheme="dipra"))} == {"dipra"}
 
 

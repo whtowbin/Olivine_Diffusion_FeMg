@@ -1,10 +1,12 @@
-"""forster.grid: choosing dx, dt and the longest time, and checking a given grid.
+"""forster.grid for the explicit schemes: choosing dx, dt and the longest time, and
+checking a given grid (the implicit scheme's rules: tests/test_implicit.py).
 
-The accuracy rule (error of the fitted time ~ 0.65 dx / l) comes from a convergence
-study on six real profiles (docs/references/grid-choice.md); here it is checked on a
-two-step round robin profile against a fine-grid reference.
+The accuracy rule (error of the fitted time ~ 2.4 dx / l, worst case on 35 real
+profiles against a converged reference; docs/references/grid-choice.md) is checked
+here on a two-step round robin profile against an implicit fine-grid reference.
 """
 
+import math
 import warnings
 from dataclasses import replace
 
@@ -70,66 +72,68 @@ def test_stable_dt_uses_the_fastest_species_on_the_actual_spacing(two_step):
 def test_choose_grid_meets_its_tolerance(two_step):
     run, profile = two_step
     args = (profile, run.conditions, run.orientation, run.initial, run.diffusivity)
-    final = choose_grid(*args, purpose="final", max_time_days=300)
-    scan = choose_grid(*args, purpose="scan", time_days=final.coarse_time_days)
+    final = choose_grid(*args, purpose="final", max_time_days=300, scheme="central")
+    scan = choose_grid(*args, purpose="scan", time_days=final.coarse_time_days, scheme="central")
     assert final.estimated_error <= 0.01 + 1e-9
     assert scan.estimated_error <= 0.05 + 1e-9
+    assert final.resolution == pytest.approx(240, rel=0.02)
     assert scan.grid.dx_um == pytest.approx(5 * final.grid.dx_um, rel=0.05)
     assert final.stability_ratio == pytest.approx(0.4)
-    # Against a reference at l / dx = 120 (twice as fine as "final").
+    # Against a converged reference: the implicit scheme at l / dx = 40 (an explicit
+    # reference would share the explicit first-order bias). The final explicit grid
+    # (l / dx = 240) is too slow for a test; the scan grid is checked.
     length = diffusion_length_um(
         final.coarse_time_days,
         [(run.diffusivity, fo_range(run.initial))],
         run.conditions,
         run.orientation,
     )
-    dx_ref = actual_dx_um(profile, length / 120, run.initial)
-    ref_grid = Grid(
-        dx_ref,
-        stable_dt(
-            dx_ref, [(run.diffusivity, fo_range(run.initial))], run.conditions, run.orientation
-        ),
-        300,
-    )
+    ref_grid = Grid(length / 40, final.coarse_time_days * 86400 / 1000, 300)
     fit_args = (profile, run.conditions, run.orientation, run.initial)
-    ref = fit_profile(*fit_args, ref_grid, None, run.diffusivity)
-    chosen = fit_profile(*fit_args, final.grid, None, run.diffusivity)
-    coarse = fit_profile(*fit_args, scan.grid, None, run.diffusivity)
-    assert chosen.time_days == pytest.approx(ref.time_days, rel=0.02)
-    assert coarse.time_days == pytest.approx(ref.time_days, rel=0.08)
+    ref = fit_profile(*fit_args, ref_grid, None, run.diffusivity, scheme="implicit")
+    coarse = fit_profile(*fit_args, scan.grid, None, run.diffusivity, scheme="central")
+    assert coarse.time_days == pytest.approx(ref.time_days, rel=0.05)
 
 
 def test_check_grid_messages(two_step):
     run, profile = two_step
     args = (profile, run.conditions, run.orientation, run.initial, run.diffusivity)
     sp = [(run.diffusivity, fo_range(run.initial))]
-    dx = actual_dx_um(profile, 1.0, run.initial)
+    dx = actual_dx_um(profile, 0.5, run.initial, "central")
     good_dt = stable_dt(dx, sp, run.conditions, run.orientation)
     with pytest.raises(ValueError, match="unstable grid"):
-        check_grid(Grid(1.0, 2 * good_dt / 0.4 * 0.5 + good_dt, 100), *args)
+        check_grid(Grid(0.5, 2 * good_dt / 0.4 * 0.5 + good_dt, 100), *args, scheme="central")
     assert (
-        check_grid(Grid(1.0, good_dt, 100), *args, time_days=71, purpose="scan") == []
-    )  # l/dx ~ 36 for 5%
-    coarse = check_grid(Grid(12.0, 1.0, 100), *args, time_days=71)
+        check_grid(Grid(0.5, good_dt, 100), *args, time_days=71, purpose="scan", scheme="central")
+        == []
+    )  # l/dx ~ 72; 48 needed for 5%
+    coarse = check_grid(Grid(12.0, 1.0, 100), *args, time_days=71, scheme="central")
     assert any("coarse" in m for m in coarse)
     assert any("nodes across the narrowest" in m for m in coarse)
     fine = check_grid(
-        Grid(0.05, 0.4 * (0.05e-6) ** 2 / 1e-15, 100), *args, time_days=71, purpose="scan"
+        Grid(0.05, 0.4 * (0.05e-6) ** 2 / 1e-15, 100),
+        *args,
+        time_days=71,
+        purpose="scan",
+        scheme="central",
     )
     assert any("much finer than needed" in m for m in fine)
-    slow = check_grid(Grid(1.0, good_dt / 20, 100), *args)
+    slow = check_grid(Grid(0.5, good_dt / 20, 100), *args, scheme="central")
     assert any("below the stable step" in m for m in slow)
 
 
 def test_grid_request_fills_in_what_is_missing(two_step):
     run, profile = two_step
     args = (profile, run.conditions, run.orientation, run.initial, run.diffusivity)
-    given_dx = GridRequest(dx_um=2.0).resolve(*args, time_days=71)
+    given_dx = GridRequest(dx_um=2.0).resolve(*args, time_days=71, scheme="central")
     assert given_dx.grid.dx_um == 2.0
     assert given_dx.stability_ratio == pytest.approx(0.4)
     assert given_dx.grid.max_time_days == pytest.approx(3 * 71)
     with pytest.raises(ValueError, match="unstable grid"):
-        GridRequest(dt_s=1e9).resolve(*args, time_days=71)
+        GridRequest(dt_s=1e9).resolve(*args, time_days=71, scheme="central")
+    # The implicit scheme (the default) keeps a given dt: it is stable at any dt.
+    implicit = GridRequest(dx_um=2.0).resolve(*args, time_days=71)
+    assert implicit.grid.dt_s == pytest.approx(71 * 86400 * 0.01 / 4)
 
 
 @pytest.fixture
@@ -149,7 +153,7 @@ def test_blank_grid_is_chosen_and_the_summary_refits_identically(tmp_path, blank
     row = summary_row(result)
     # Chosen from the coarse fit's time; evaluated at the final fit's, so within a hair.
     assert row["grid_error_pct"] <= 1.05
-    assert row["grid_stability"] == pytest.approx(0.4)
+    assert math.isnan(row["grid_stability"])  # the implicit scheme has no limit
     again_path = tmp_path / "again.csv"
     pd.DataFrame([dict(row, profile=run.profile_name)]).to_csv(again_path, index=False)
     (again,) = read_runs(again_path)

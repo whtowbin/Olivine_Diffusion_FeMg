@@ -193,8 +193,7 @@ def test_template_writes_the_presets(example):
 def test_fit_rejects_a_diffusivity_for_another_element_or_an_unknown_name(example):
     (run,) = read_runs(example / "parameters.csv")
     profile = read_profiles(example / "profiles.csv")[run.profile_name]
-    assert isinstance(run.grid, Grid)  # the template example gives dx and dt
-    args = (profile, run.conditions, run.orientation, run.initial, run.grid)
+    args = (profile, run.conditions, run.orientation, run.initial, Grid(1.0, 600.0, 40))
     with pytest.raises(ValueError, match="is for Ni"):
         fit_profile(*args, diffusivity="girona_costa2013_ni")
     with pytest.raises(ValueError, match="unknown diffusivity 'dipra'"):

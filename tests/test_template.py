@@ -8,7 +8,15 @@ import pandas as pd
 import pytest
 from conftest import PAPER_DATA, PAPER_PARAMS, REPO_ROOT
 
-from forster import InitialCondition, Orientation, fit_run, read_profiles, read_runs, summary_row
+from forster import (
+    GridRequest,
+    InitialCondition,
+    Orientation,
+    fit_run,
+    read_profiles,
+    read_runs,
+    summary_row,
+)
 from forster.io import _steps, _steps_text
 from forster.template import (
     PARAMETER_COLUMNS,
@@ -46,7 +54,7 @@ def test_example_matches_the_paper_row_and_profile_it_was_taken_from(example):
     assert run.conditions == paper_run.conditions  # fO2 from the QFM buffer
     assert run.orientation == paper_run.orientation  # from the Euler angles
     assert run.initial == paper_run.initial
-    assert run.grid == replace(paper_run.grid, max_time_days=40)
+    assert run.grid == GridRequest(max_time_days=40)  # chosen by forster.grid
 
     profiles = read_profiles(example / "profiles.csv")
     with warnings.catch_warnings():
@@ -59,7 +67,7 @@ def test_example_matches_the_paper_row_and_profile_it_was_taken_from(example):
     np.testing.assert_array_equal(profiles[EXAMPLE].fo, paper_profiles[EXAMPLE].fo)
 
     result = fit_run(run, profiles)
-    paper_result = fit_run(replace(paper_run, grid=run.grid), paper_profiles)
+    paper_result = fit_run(replace(paper_run, grid=run.grid, scheme=run.scheme), paper_profiles)
     assert result.indices == paper_result.indices
     assert result.time_s == paper_result.time_s
 
@@ -127,7 +135,8 @@ def test_summary_reads_back_as_the_same_runs(tmp_path, example):
     documented = {c.name for c in (*PARAMETER_COLUMNS, *SUMMARY_COLUMNS)}
     assert set(row) - documented == set()
     rerun = _read_row(tmp_path, dict(row, profile=run.profile_name))
-    assert rerun == replace(run, metadata={})
+    # The example leaves the grid to forster.grid; summary.csv records the one chosen.
+    assert rerun == replace(run, metadata={}, grid=result.inputs["grid"])
 
 
 def test_readme_documents_every_template_column():

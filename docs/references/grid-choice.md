@@ -7,46 +7,45 @@ measurements behind both. Code: `src/forster/grid.py`. Scripts and data:
 
 ## What happens
 
-Leave `dx_um` and `dt_s` blank in `parameters.csv` (or pass a
+The default scheme is `implicit` (since 2026-10-13; section "The implicit
+scheme" below). Leave `dx_um` and `dt_s` blank in `parameters.csv` (or pass a
 `GridRequest()` from Python) and the grid is chosen for you:
 
-1. A quick fit on a coarse grid (150 nodes, or a quarter of the narrowest gap
-   if that is finer) estimates the time, and from it the diffusion length
-   l = sqrt(D t), with D the diffusivity at the middle of the composition range.
-2. dx is set so the fitted time is within a tolerance: dx = l × tolerance / 0.65,
-   and never more than a quarter of the narrowest gap between steps of the
-   initial condition (or between a step and an end of the profile).
-3. dt is set at D_max dt / dx² = 0.4, with D_max the largest diffusivity over
-   the compositions the profile passes through (the explicit schemes diverge
+1. A quick fit on a coarse grid with the explicit scheme (150 nodes, or a
+   quarter of the narrowest gap if that is finer) estimates the time, and from
+   it the diffusion length l = sqrt(D t), with D the diffusivity at the middle
+   of the composition range.
+2. dx is set so the fitted time is within a tolerance. Implicit: dx = l / 8 for
+   the final fit and l / 4 for scans (the error is about 0.2 (dx / l)²; the start
+   is averaged over each node's cell, so narrow zones need no extra nodes).
+   Central and dipra: dx = l × tolerance / 2.4, and never more than a quarter of
+   the narrowest gap between steps of the initial condition (or between a step
+   and an end of the profile).
+3. dt: implicit, t × tolerance / 4, that is 400 steps up to the fit (80 for
+   scans), because the scheme is stable at any dt and the best fit is a whole
+   time step. Central and dipra: D_max dt / dx² = 0.4, with D_max the largest
+   diffusivity over the compositions the profile passes through (they diverge
    above 0.5).
 4. The longest time is 3× the coarse fit's time. Early stopping ends the run
    sooner and extends it if the 1σ range reaches the end.
 
-| Purpose | Tolerance | l / dx (explicit) | l / dx (implicit) | Used for |
+| Purpose | Tolerance | l / dx (implicit) | l / dx (central, dipra) | Used for |
 |---|---|---|---|---|
-| `scan` | 5% | 13 | 4 | initial-condition and parameter scans (`scan_dx_um`, `scan_dt_s`) |
-| `final` | 1% | 65 | 8 | the reported fit (`dx_um`, `dt_s`) |
+| `scan` | 5% | 4 | 48 | initial-condition and parameter scans (`scan_dx_um`, `scan_dt_s`) |
+| `final` | 1% | 8 | 240 | the reported fit (`dx_um`, `dt_s`) |
 
-With `scheme = implicit` (section "The implicit scheme" below) steps 2 and 3
-change: dx = l / 8 for the final fit and l / 4 for scans, with no limit from the
-gaps (the start is averaged over each node's cell, so steps are not moved), and
-dt = t × tolerance / 4, that is 400 steps up to the fit (80 for scans): the
-scheme is stable at any dt, and the best fit is a whole time step. The coarse
-estimate of step 1 always uses the explicit scheme.
+**Correction (2026-10-13, applied).** The explicit rule was first dx = l ×
+tolerance / 0.65 (l / dx = 65 for 1%, 13 for 5%). Against a converged
+reference, that final grid is off by a median 1.1% and up to 3.6% on the 35
+real profiles, above 1% on 18 and too long on 28: its calibration (below) used
+an explicit k = 60 reference, which carries the same first-order bias. The
+coefficient is now 2.4, which makes explicit final grids about 50× slower than
+before; this is why the implicit scheme became the default.
 
-**Correction (2026-10-13, same day).** Against a converged reference, the
-explicit `final` grid (l / dx = 65) is not within 1%: on all 35 real profiles
-its fitted time is off by a median 1.1% and up to 3.6%, above 1% on 18 of them
-and too long on 28. The rule below was calibrated against an explicit k = 60
-reference, which carries the same first-order bias, so it hid most of the
-error; the true coefficient is about 2.4, not 0.65 (section "The implicit
-scheme"). The explicit rule and `grid_error_pct` for explicit fits are
-unchanged until the choice between a finer explicit grid (about 50× slower)
-and the implicit scheme as the default is made.
-
-Any part you give is kept and the rest chosen: a `dx_um` alone gets the
-stable dt for it, a `dt_s` alone gets the dx for the tolerance. Give both and
-the grid is used as it is, after a check:
+Any part you give is kept and the rest chosen: a `dx_um` alone gets the dt
+of step 3 (for central and dipra, the stable dt on that spacing), a `dt_s` alone
+gets the dx for the tolerance. Give both and the grid is used as it is, after a
+check. For central and dipra:
 
 | Check | Result |
 |---|---|
@@ -56,9 +55,14 @@ the grid is used as it is, after a check:
 | l / dx over 4× what is needed | warning: `much finer than needed` (slow, no gain) |
 | dt below a quarter of the stable step | warning: dt is `below the stable step` (slow, no gain) |
 
+For implicit there is no stability limit or gap check; dx is checked the same
+way against 0.2 (dx / l)², and dt against step 3: above it, a warning that it
+leaves too few `time steps up to the fit`; below a quarter of it, that it is
+smaller than needed.
+
 summary.csv records, for every fit, `grid_resolution` (l / dx at the fitted
-time), `grid_error_pct` (0.65 dx / l, the estimated error of the time) and
-`grid_stability` (D_max dt / dx²). A summary row refits on exactly the same
+time), `grid_error_pct` (the estimated error of the time: 0.2 (dx / l)² implicit,
+2.4 dx / l explicit) and `grid_stability` (D_max dt / dx²; empty for implicit). A summary row refits on exactly the same
 grid: the chosen dx and dt are written back.
 
 From Python: `choose_grid(profile, conditions, orientation, initial,
@@ -92,9 +96,11 @@ at k = 5–8 it is up to 24%.
 The error falls roughly as 1/k, not 1/k² as the scheme's interior order
 would suggest, for two reasons: the boundary value sits on a ghost node one
 dx outside the profile, and each step of the initial condition snaps to the
-nearest node. The worst cases above give the rule error ≈ 0.65 / k
-(5.4% at k = 12, 1% at k = 65). It is approximate: KS20-527-8_transect-2
-reaches 6.5% at k = 12.
+nearest node. The worst cases above gave the rule error ≈ 0.65 / k
+(5.4% at k = 12, 1% at k = 65). That was too small: these errors are measured
+against an explicit k = 60 reference with the same first-order bias. Against a
+converged reference the coefficient is about 2.4 (see the correction above and
+"All 35 real profiles" below).
 
 **Step snapping.** Repeating the study with the grid shifted so the first
 step falls exactly on a node (`aligned` in `calib_grid2.csv`):
@@ -204,6 +210,27 @@ estimates the time, and kriging the profile for plots. Building the kriging
 model (pykrige's leave-one-out statistics, up to 0.45 s for 300 points) was 89%
 of an implicit fit before it was cached per profile (`engine._kriging_model`;
 results identical).
+
+### Refitting the existing tables
+
+The round robin and paper parameter tables give their own grids (dx = 1 and
+0.5 µm, dt = 600 and 60 s). Refitting them with both schemes on those grids,
+against the same converged references (`old_tables.py`, `old_tables.csv`):
+
+| | central (old default) | implicit (new default) |
+|---|---|---|
+| error of the fitted time, median | 2.6% | 0.05% |
+| error, worst | 8.7% | 0.48% |
+| all 35 fits | 20 s | 40 s |
+
+So switching the default moves these fits by a median 2.7% and up to 8.1%
+(28 of 35 shorter), all toward the converged value. Their time steps were set
+for the explicit stability limit and are 10–100× smaller than the implicit
+scheme needs, which is why it is slower here; with `dx_um` and `dt_s` left
+empty the grids are chosen and the fits take a median 0.13 s. An implicit step
+costs about 22 µs for 150 nodes (explicit: 9 µs), after calling LAPACK's
+tridiagonal solver directly instead of `scipy.linalg.solve_banded`, whose checks
+were half the cost (identical results).
 
 ### Boundary values that change
 
