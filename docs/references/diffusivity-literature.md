@@ -151,6 +151,36 @@ median x0.90, range x0.35-x1.00. Traverses close to [010] (for example
 KS20-527_5, beta = 166 deg; several paper overgrowth profiles) move most. The
 SH63 runs (1102 C) are below the transition.
 
+**Data now transcribed (2026-10-14).** `analyses/femg_refit/data/oeser2026.csv` holds 54
+profiles from Tables 1-3 (the PDF's text, not figures), written by
+`transcribe_oeser2026.py`. The fields are:
+
+- T and fO2 for each run, from Table 1;
+- per profile: the tracer D for Fe and Mg, D_Fe-Mg from the multicomponent model, and
+  the conventional-fit D_Fe-Mg where given;
+- the beta values and the measurement technique;
+- an italic flag for convolution-corrected values.
+
+The composition is Fo91.5. A first look (`oeser_first_look.py`, not a fit; numbers in
+`analyses/femg_refit/results/oeser2026_*.csv`):
+
+- **Level against femg_refit2026: +0.20 log below 1200 C, +0.75 at 1200-1303 C.** Below
+  1200 C, [001] and [100] are within -0.30 to +0.26 of the refit; [010] is +0.09 to +0.46.
+- **The fO2 dependence is not one power law.** Same axis, same temperature, depth-profile
+  runs only (1150 C):
+  - from 10^-7.1 to 10^-5 Pa the slope is 0.09-0.24;
+  - from 10^-5 to 10^-3.7 Pa it is 0.42-0.52, well above 1/6 and the refit's 0.22.
+
+  Flat at low fO2 and steep at high fO2 is the shape a sum of an fO2-independent and an
+  fO2-dependent mechanism would give.
+- **Caveat on the hottest runs.** Runs 7, 14 and 15 (1255-1300 C, 72-96 h) were measured
+  by laser linescan after the crystals broke out of sintered powder, and their D values
+  are convolution-corrected with an assumed 7.5 um beam (D = D_measured - sigma^2/2t).
+  They sit highest: run 15 at 1256 C and 10^-7 Pa is +1.2 above the refit, against +0.1
+  to +0.5 for depth-profile run 5 at 1250 C. They make the 1250-1300 C fO2 steps negative
+  or flat (-0.22 to +0.08). The "more complex" fO2 dependence above 1250 C may therefore
+  be partly a measurement effect. Flag these rows in any fit.
+
 ### Shea et al. (2023): melt makes diffusion about 10x faster
 
 Natural Kilauea and San Carlos olivine seeds in Kilauea basalt, superliquidus
@@ -173,6 +203,36 @@ Error bars on each diffusivity span 0.6 log units.
   before published diffusivities are revised.
 - Against the refit's study offsets, the between-study term and the fO2 exponent:
   `melt-contact-diffusion.md` (2026-10-14).
+
+### Shea, Nizam and Helz (2026): the same speed-up in a natural lava lake
+
+Geology, doi:10.1130/G55140.1 (in `~/Downloads/g55140-2.pdf`).
+
+**What they did.** Olivine from the 1959 Kilauea Iki lava lake, from drill cores taken in
+1960-1988. A 3-D cooling model of the lake supplies each sample's temperature-time path,
+which drives 3-D diffusion models of olivine populations: 300-850 modelled crystals per
+sample, against 24-65 cores measured by electron probe. They tested DC07 times 1, 3, 5,
+7.5, 10 and 15, scoring each against the measured core Fo distributions by the
+Wasserstein distance.
+
+**What they found.**
+- **The cores need 5-15x DC07** (+0.7 to +1.18 log). The average misfit falls to about
+  1 mol% at 10x or more.
+- **A lower bound, not a bracket**: for two samples (1976, 1988) the misfit is still
+  falling at 15x.
+- **Temperature cannot be the explanation**: a tenfold change would need a history
+  120-170 C hotter. The model's temperatures are set deliberately high, so the
+  multipliers are minima.
+- **Neither sectioning nor growth can explain it**: growth would require faster
+  diffusion still.
+
+**Why it matters here.**
+- **It is natural, melt-bearing olivine with no laboratory interface**, which answers
+  whether the melt-contact rates apply to magmas: they do, at least here.
+- **It sits below the ~1150 C transition Oeser report** (lake at about 1090-1150 C), so
+  their [010] effect cannot explain it, and it is near the SH63 conditions (1102 C).
+- **It is a population constraint, not a measured D.** Its fO2 is in the supplement, so
+  it enters as a bound on a melt term, not as data in the refit.
 
 ## Where the studies disagree with each other
 
@@ -262,6 +322,8 @@ published coefficients and the forster parameter tables:
   The presence of silicate melt may enhance rates of cation diffusion in olivine.
   Earth and Planetary Science Letters 621, 118370.
   doi:10.1016/j.epsl.2023.118370
+- Shea, T., Nizam, N. and Helz, R. T. (2026). A 29-year natural experiment constrains
+  Fe-Mg diffusion rates in olivine. Geology, doi:10.1130/G55140.1
 - Sio, C. K., Roskosz, M., Dauphas, N., Bennett, N. R., Mock, T. and Shahar, A.
   (2018). The isotope effect for Mg-Fe interdiffusion in olivine and its
   dependence on crystal orientation, composition and temperature. Geochimica et

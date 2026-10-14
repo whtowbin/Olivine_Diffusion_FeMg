@@ -142,7 +142,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
     -   ×0.15 for +0.83 (both studies);
     -   ×0.12 for about +0.91 (Shea alone).
 
-3.  **Whether natural crystals in a melt-bearing magma count as melt contact at all.** Shea et al. argue they do. None of the solid-source calibrants had melt present.
+3.  **Whether natural crystals in a melt-bearing magma count as melt contact at all.** Shea et al. argue they do. None of the solid-source calibrants had melt present. **New evidence that they do:** Shea, Nizam and Helz (2026, Geology) need Fe-Mg diffusion 5-15x DC07 to match 29 years of re-equilibration of olivine populations in the Kilauea Iki lava lake, at about 1090-1150 °C, and call 5-15x a lower bound (`diffusivity-literature.md`). Against DC07, that is +0.7 to +1.18 log, the same range as the three melt-contact experiments (+0.71 to +0.96, Fig. 3).
 
 ## Figures
 
