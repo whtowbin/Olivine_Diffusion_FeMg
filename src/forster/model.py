@@ -43,6 +43,7 @@ FO2_BUFFERS = ("QFM", "FMQ", "NNO")
 SCHEMES = ("central", "dipra", "implicit")  # finite-difference schemes, see fit_profile
 EXPLICIT_SCHEMES = ("central", "dipra")
 DEFAULT_SCHEME = "implicit"  # since 2026-10-13; "central" before
+STEP_TOLERANCE = 1e-9  # implicit stages: a start this many steps past a step is on it
 
 
 def default_scheme(uncertainty: str) -> str:
@@ -277,7 +278,8 @@ class FitResult:
 
         An Fo profile depends on D t, so an error in log10 D is the same error, with the
         sign changed, in log10 t; it is combined with the fit's range on each side in
-        log10 (`forster.uncertainty.widen_log10`).
+        log10 (`forster.uncertainty.widen_log10`). Where that holds and where it does
+        not: ``docs/references/law-uncertainty-limits.md``.
         """
         low = self.time_days + self.time_minus_days
         high = self.time_days + self.time_plus_days
@@ -288,7 +290,8 @@ class FitResult:
         if self.law_sigma_log10 is None:
             raise ValueError(
                 "no law uncertainty for this fit: its diffusivity has no covariance "
-                "(see forster.diffusivity.LawUncertainty), or the fit has growth stages"
+                "(see forster.diffusivity.LawUncertainty), or the fit has growth stages "
+                "or a rim value that changes in time (docs/references/law-uncertainty-limits.md)"
             )
         sigma = self.law_sigma_log10
         if include == "law_and_studies":
@@ -515,7 +518,9 @@ def _implicit_staged_prefix(
     D, _ = diffusivity.functions(conditions, orientation)
     stages, dt = history.stages, grid.dt_s
     firsts = history.first_nodes(model_x)
-    offset = math.ceil(stages[-1].start_s / dt - 1e-9)
+    # A start within STEP_TOLERANCE steps after a step counts as on it, here and in
+    # the loop below (floating-point products such as 6.37 * 86400 can sit one ulp off).
+    offset = math.ceil(stages[-1].start_s / dt - STEP_TOLERANCE)
     if offset >= grid.timesteps:
         raise ValueError(
             f"max_time_days ({grid.max_time_days}) must extend past the last stage "
@@ -543,7 +548,7 @@ def _implicit_staged_prefix(
             t = t_end
 
     for j in range(offset + 1):
-        while k + 1 < len(stages) and stages[k + 1].start_s <= j * dt:
+        while k + 1 < len(stages) and stages[k + 1].start_s / dt - STEP_TOLERANCE <= j:
             advance_to(stages[k + 1].start_s)
             k += 1
             _grow(state, model_x, firsts[k - 1], firsts[k], stages[k].zone_value or 0.0)
@@ -644,6 +649,38 @@ def _correlated_run(
     else:
         curves = advance(start, total_steps)
     return _fit_correlated_extending(curves, advance, total_steps, model_x, x, y)
+
+
+def _check_stable(
+    diffusivity: Diffusivity,
+    conditions: Conditions,
+    orientation: Orientation,
+    initial: InitialCondition,
+    history: BoundaryHistory | None,
+    rim_fo: Rim | None,
+    grid: Grid,
+    dx_um: float,
+) -> None:
+    """Explicit schemes: raise if D_max dt / dx^2 exceeds the stability limit, D_max over
+    every Fo the run holds (initial condition, each stage's zone and rim, a fixed
+    ``rim_fo``). `forster.grid` checks the initial condition's range only; a stage or rim
+    of lower Fo has a larger D."""
+    from forster.grid import UNSTABLE_RATIO
+
+    values = [initial.edge_fo, initial.core_fo]
+    values += [initial.step_fo] if initial.step_fo is not None else []
+    values += [float(rim_fo)] if isinstance(rim_fo, int | float) else []
+    for stage in history.stages if history is not None else ():
+        values += [stage.zone_value] if stage.zone_value is not None else []
+        values += [stage.held_value]
+    D, _ = diffusivity.functions(conditions, orientation)
+    ratio = float(np.max(D(np.array(values, dtype=float)))) * grid.dt_s / (dx_um * 1e-6) ** 2
+    if ratio > UNSTABLE_RATIO:
+        raise ValueError(
+            f"unstable grid: D_max dt / dx^2 = {ratio:.2f} > {UNSTABLE_RATIO} over Fo "
+            f"{min(values):.3f}-{max(values):.3f} (dx {dx_um:.4g} um, dt {grid.dt_s:.4g} s); "
+            'use a smaller dt or scheme="implicit"'
+        )
 
 
 def _check_options(
@@ -758,6 +795,8 @@ def fit_profile(
     x, y = profile.distance_um, profile.fo
     step_x, dx_um, (low_idx, high_idx) = scheme_grid(scheme, x, grid, domain, rims)
     model_x = step_x[low_idx : high_idx + 1]
+    if scheme in EXPLICIT_SCHEMES:
+        _check_stable(diffusivity, conditions, orientation, initial, history, rim_fo, grid, dx_um)
     # Only the legacy method fits a kriged profile; the correlated method fits the
     # measured points, so it skips kriging (and leaves the kriged fields empty).
     interp_x = interp_fo = interp_sigma = np.empty(0)
@@ -834,7 +873,9 @@ def fit_profile(
         if prefix is not None:
             curves = np.concatenate([prefix, curves])
             sum_chi2 = np.concatenate([np.full(offset, np.nan), sum_chi2])
-    law_sigma, between = _law_uncertainty(diffusivity, conditions, orientation, initial, stages)
+    law_sigma, between = _law_uncertainty(
+        diffusivity, conditions, orientation, initial, stages, rim_fo
+    )
     return FitResult(
         name=profile.name,
         time_s=float(time[0]),
@@ -879,6 +920,7 @@ def _law_uncertainty(
     orientation: Orientation,
     initial: InitialCondition,
     stages: Sequence[Stage],
+    rim_fo: Rim | None = None,
 ) -> tuple[float | None, float | None]:
     """The law's 1-sigma in log10 D and the between-study spread, for `FitResult`.
 
@@ -887,12 +929,14 @@ def _law_uncertainty(
     round) and 0.85-0.88 a change dn in its coefficient moved log10 time by
     -dn (fo_ref - X) with X there, to 0.0011 log for dn = 0.3 (the midpoint was off
     by up to 0.005). The choice hardly matters for `femg_refit2026`: its sigma varies by
-    0.0005 log over X = 0.80-0.90. None with growth stages, whose times are fixed in
-    seconds, so the fitted time no longer scales as 1/D.
+    0.0005 log over X = 0.80-0.90. None with growth stages or a rim value that changes
+    in time: their times are fixed in seconds, so the fitted time no longer scales as
+    1/D (measured: a stage or rim change halfway through moved log10 t by 0.6 of the
+    change in log10 D; ``docs/references/law-uncertainty-limits.md``).
     """
     if not isinstance(diffusivity, ArrheniusDiffusivity) or diffusivity.uncertainty is None:
         return None, None
-    if stages:
+    if stages or not (rim_fo is None or is_fixed(rim_fo)):
         return None, None
     x_fo = initial.edge_fo + (initial.core_fo - initial.edge_fo) / 3
     sigma = diffusivity.log10_sigma(conditions, orientation, x_fo)

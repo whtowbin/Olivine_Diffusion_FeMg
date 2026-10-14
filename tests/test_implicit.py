@@ -6,6 +6,7 @@ with the same on-node boundary for growth stages, and on a real profile against 
 fine-grid reference.
 """
 
+import itertools
 import math
 from dataclasses import replace
 
@@ -74,6 +75,48 @@ def test_fixed_rim_matches_erfc_and_converges_at_second_order():
     few, _ = _fixed_rim_error(length / 32, 25)
     many, _ = _fixed_rim_error(length / 32, 50)
     assert few / many > 3.0  # second order in time
+
+
+def test_time_order_with_an_fo_dependent_d():
+    """D frozen at the start of each stage makes TR-BDF2 first order in time when D
+    depends on Fo (the constant-D test above sees second order): halving dt halves the
+    error against a fine-dt run. Measured 2026-10-14: ratio 2.05."""
+    conditions = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
+    D, _ = DIFFUSIVITY_PRESETS["dohmen_chakraborty2007"].functions(
+        conditions, Orientation(90, 90, 0)
+    )
+    x = node_grid([0.0, 199.0], 0.5)
+    start = cell_average(x, [60.0], [0.80, 0.90])
+    t = 2 * DAY
+
+    def final(steps):
+        return stepper(D, 0.80, 0.90, t / steps, x)(start, steps)[-1]
+
+    reference = final(1280)
+    errors = [np.abs(final(n) - reference).max() for n in (10, 20, 40)]
+    assert errors[0] < 2e-4
+    for coarse, fine in itertools.pairwise(errors):
+        assert 1.7 < coarse / fine < 2.4
+
+
+def test_a_stage_starting_one_ulp_after_a_step():
+    """A stage start a rounding error past a time step counts as on it, as the offset
+    of the last stage does; it used to leave the new zone unfilled (NaN)."""
+    early = InitialCondition((40, 199), edge_fo=0.86, core_fo=0.90, steps_um=(40,))
+    x = np.arange(0.0, 200.0, 1.0)
+    dummy = Profile(x, np.full(len(x), 0.88) + 1e-4 * np.sin(x))
+    grid = Grid(1.0, 864.0, max_time_days=10)
+    on_step = 637 * grid.dt_s
+
+    def curves(start_s):
+        stage = Stage(start_s, rim_um=0.0, zone_value=0.82)
+        return fit_profile(
+            dummy, CONDITIONS, ALONG_001, early, grid, stop_early=False, stages=[stage]
+        ).curves
+
+    late = curves(float(np.nextafter(on_step, np.inf)))
+    assert np.isfinite(late[-1]).all()
+    assert np.allclose(late[-1], curves(on_step)[-1], rtol=0, atol=1e-12)
 
 
 def test_rim_rising_linearly_in_time_matches_the_closed_form():

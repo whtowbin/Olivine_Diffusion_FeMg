@@ -283,10 +283,14 @@ def widen_log10(time: float, low: float, high: float, sigma_log10: float) -> tup
 
     Each side's distance from ``time`` in log10 is combined in quadrature with
     ``sigma_log10``, so an asymmetric range stays asymmetric. A low end at zero (the
-    range reached time zero) stays at zero.
+    range reached time zero) stays at zero. With the best fit at time zero there is no
+    distance to combine: the high end is scaled by ``10**sigma_log10`` (the law's error
+    moves the bound, as it moves every time).
     """
-    if not (time > 0 and 0 <= low <= time <= high):
-        raise ValueError(f"need 0 <= low <= time <= high and time > 0, got {low}, {time}, {high}")
+    if not (0 <= low <= time <= high):
+        raise ValueError(f"need 0 <= low <= time <= high, got {low}, {time}, {high}")
+    if time == 0:
+        return 0.0, float(high * 10**sigma_log10)
     up = np.hypot(np.log10(high / time), sigma_log10)
     new_low = 0.0 if low == 0 else time * 10 ** -float(np.hypot(np.log10(time / low), sigma_log10))
     return float(new_low), float(time * 10**up)

@@ -224,7 +224,7 @@ def _coarse_time_days(
     span = initial.domain_um[1] - initial.domain_um[0]
     dx = min(span / COARSE_POINTS, narrowest_gap_um(initial) / MIN_NODES_PER_GAP)
     for _ in range(2):
-        actual = actual_dx_um(profile, dx, initial)
+        actual = actual_dx_um(profile, dx, initial, scheme)
         grid = Grid(dx, stable_dt(actual, species, conditions, orientation), max_time_days)
         result = fit_profile(
             profile,

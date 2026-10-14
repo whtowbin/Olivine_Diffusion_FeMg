@@ -46,6 +46,13 @@ import numpy as np
 import scipy.linalg as sla
 
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity
+from forster.grid import (
+    STABILITY_RATIO,
+    UNSTABLE_RATIO,
+    actual_dx_um,
+    stability_ratio,
+    stable_dt,
+)
 from forster.model import (
     DEFAULT_SCHEME,
     SECONDS_PER_DAY,
@@ -82,7 +89,7 @@ MAX_CANDIDATES = 2000  # refuse larger grids unless the caller raises the limit
 # Scan time step: raised until D_max dt / dx^2 reaches this (the explicit scheme is
 # unstable above 0.5). Raising dt to 0.4 changed the scan's best fit by under 0.2% on the
 # round robin and template profiles; coarsening dx instead moved it by up to 12%.
-SCAN_STABILITY = 0.4
+SCAN_STABILITY = STABILITY_RATIO
 
 
 @dataclass(frozen=True)
@@ -228,16 +235,16 @@ def scan_grid(
     diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY,
     stability: float = SCAN_STABILITY,
     profile: Profile | None = None,
+    scheme: str = "central",
 ) -> Grid:
     """``grid`` with dt set so D_max dt / dx^2 = ``stability``, D_max over every
     candidate's compositions (edge, core, plateau); dx and max time unchanged. One grid
     for every candidate, so their chi-squared values stay comparable. With ``profile``
-    the spacing `fit_profile` will actually use is taken (`forster.grid.actual_dx_um`)."""
-    from forster.grid import actual_dx_um, stable_dt
-
+    the spacing `fit_profile` will actually use with the explicit ``scheme`` is taken
+    (`forster.grid.actual_dx_um`)."""
     lo = min(min(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in candidates)
     hi = max(max(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in candidates)
-    dx = grid.dx_um if profile is None else actual_dx_um(profile, grid.dx_um, candidates[0])
+    dx = grid.dx_um if profile is None else actual_dx_um(profile, grid.dx_um, candidates[0], scheme)
     return replace(
         grid, dt_s=stable_dt(dx, [(diffusivity, (lo, hi))], conditions, orientation, stability)
     )
@@ -507,17 +514,18 @@ def scan_initial_conditions(
         prior, initials = None, tuple(candidates)
     explicit = scheme != "implicit"  # the implicit scheme is stable at any dt
     if explicit and stability is not None:
-        grid = scan_grid(grid, initials, conditions, orientation, diffusivity, stability, profile)
+        grid = scan_grid(
+            grid, initials, conditions, orientation, diffusivity, stability, profile, scheme
+        )
     elif explicit:
-        from forster.grid import actual_dx_um, stability_ratio
-
         lo = min(min(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in initials)
         hi = max(max(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in initials)
-        dx = actual_dx_um(profile, grid.dx_um, initials[0])
+        dx = actual_dx_um(profile, grid.dx_um, initials[0], scheme)
         ratio = stability_ratio(dx, grid.dt_s, [(diffusivity, (lo, hi))], conditions, orientation)
-        if ratio > 0.5:
+        if ratio > UNSTABLE_RATIO:
             raise ValueError(
-                f"scan grid unstable for some candidates: D_max dt / dx^2 = {ratio:.2f} > 0.5"
+                f"scan grid unstable for some candidates: D_max dt / dx^2 = {ratio:.2f} > "
+                f"{UNSTABLE_RATIO}"
             )
     runs = run_candidates(
         profile,

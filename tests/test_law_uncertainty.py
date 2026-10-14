@@ -146,6 +146,40 @@ def test_widen_log10():
         widen_log10(10.0, 11.0, 12.0, 0.1)
 
 
+def test_widen_log10_at_time_zero():
+    """No log distance to combine at time zero: the law's error scales the bound."""
+    assert widen_log10(0.0, 0.0, 2.0, 0.1) == pytest.approx((0.0, 2.0 * 10**0.1))
+    assert widen_log10(0.0, 0.0, 0.0, 0.1) == (0.0, 0.0)
+
+
+def test_summary_row_of_a_time_zero_fit_with_the_preset():
+    """A profile already at its initial condition fits at time zero; its summary row
+    used to raise once the law gave a sigma."""
+    initial = InitialCondition((0, 199), edge_fo=0.82, core_fo=0.90, steps_um=(40,))
+    x = np.arange(0.0, 199.0, 3.0)
+    flat = Profile(x, np.where(x < 40, 0.82, 0.90))
+    fit = fit_profile(
+        flat, KS20, ALONG_001, initial, Grid(1.0, 0.02 * 86400, 5), diffusivity="femg_refit2026"
+    )
+    assert fit.time_days == 0.0
+    row = summary_row(fit)
+    assert row["law_low_days"] == 0.0
+    assert row["law_high_days"] >= row["high_days"]
+
+
+def test_no_law_range_with_a_changing_rim():
+    """A rim value fixed in time keeps the D t argument; one that changes on a schedule
+    in seconds does not (measured: 0.6 of the shift, law-uncertainty-limits.md)."""
+    from forster.boundary import RimPath
+
+    initial = InitialCondition((0, 199), edge_fo=0.86, core_fo=0.90, steps_um=(40,))
+    path = RimPath((0.0, 3.0), (0.86, 0.82))
+    sigma, _ = _law_uncertainty(PRESET, KS20, ALONG_001, initial, (), 0.82)
+    assert sigma is not None
+    assert _law_uncertainty(PRESET, KS20, ALONG_001, initial, (), path) == (None, None)
+    assert _law_uncertainty(PRESET, KS20, ALONG_001, initial, (), lambda t: 0.84) == (None, None)
+
+
 @pytest.fixture(scope="module")
 def template_fits(tmp_path_factory):
     out = tmp_path_factory.mktemp("template")

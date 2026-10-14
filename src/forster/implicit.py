@@ -12,9 +12,13 @@ nearest node; both make the fitted time first order in dx (about 0.65 dx / l,
   a step between nodes is not moved to one;
 - time steps are TR-BDF2 (Bank et al. 1985; Hosea and Shampine 1996): a trapezoidal
   stage to t + gamma dt, then BDF2 to t + dt, with gamma = 2 - sqrt(2). It is
-  L-stable, so the steps of the initial condition do not ring, second order, and
-  one-step, so a run restarted from any row continues exactly. D is evaluated at the
-  start of each stage (linearly implicit), and each stage is one tridiagonal solve.
+  L-stable, so the steps of the initial condition do not ring, and one-step, so a run
+  restarted from any row continues exactly. D is evaluated at the start of each stage
+  (linearly implicit), and each stage is one tridiagonal solve. That makes it first
+  order in time when D depends on Fo (second order only for a constant D): with the
+  DC07 D on a 0.80/0.90 step the error halves with dt (9e-5 Fo at 10 steps over 2 days,
+  ``test_time_order_with_an_fo_dependent_d``). Its effect on the fitted time is
+  measured in the next paragraph.
 
 On six real profiles the fitted time is within 0.7% of the converged one at
 l / dx = 5 and 0.16% at l / dx = 8, and within 0.5% with 20 time steps up to the fit
