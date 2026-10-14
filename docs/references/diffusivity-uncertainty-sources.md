@@ -184,6 +184,13 @@ refit's fO2 term is an extrapolation at our conditions.
 
 ## Options for forster
 
+Status (2026-10-13): option 2 is done in a better form: `femg_refit2026`, a refit of
+all the TaMED data (not only DC07's Table 3) with a covariance and a between-study
+term, propagated analytically to the fitted time (`FitResult.time_range_days`); see
+`docs/plans/2026-10-13-law-uncertainty.md`. For Fo fits option 1 no longer needs a
+Monte Carlo: a law's covariance maps onto log time directly. The Mutch et al. (2019)
+covariances are still not transcribed.
+
 Ranked by what they buy for the work they cost:
 
 1. **Sample the Mutch regressions with their covariance** (repaired as above):

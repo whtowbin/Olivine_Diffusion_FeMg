@@ -17,6 +17,12 @@ Chakraborty (2007, with their erratum) as tabulated in DIPRA (Girona and Costa
 2013, Table 1), and it is computed by the same code as before (``engine.D_Fo``),
 so default results are unchanged. ``docs/references/diffusivity-literature.md``
 compares it with newer work.
+
+An equation may carry a `LawUncertainty`: a covariance over its parameters (and the
+spread between laboratories), which `ArrheniusDiffusivity.log10_sigma` turns into
+the 1-sigma of log10 D at given conditions. For an Fo fit the profile depends on
+D t, so that is also the 1-sigma of log10 of the fitted time
+(`forster.model.FitResult.time_range_days`).
 """
 
 from __future__ import annotations
@@ -77,6 +83,59 @@ class Diffusivity(Protocol):
     ) -> DiffusivityFunctions: ...
 
 
+# Parameters a `LawUncertainty` may cover. The anisotropy terms are log10 offsets of
+# [100] and [010] from [001], so a change in log10_D0_001 moves every axis.
+LAW_PARAMETERS = (
+    "log10_D0_001",
+    "activation_energy_J_mol",
+    "fO2_exponent",
+    "fo_coefficient",
+    "activation_volume_m3_mol",
+    "pressure_coefficient_per_Pa",
+    "log10_100_vs_001",
+    "log10_010_vs_001",
+)
+
+
+@dataclass(frozen=True)
+class LawUncertainty:
+    """Calibration uncertainty of an `ArrheniusDiffusivity`.
+
+    ``covariance`` is over ``parameters`` (names from `LAW_PARAMETERS`, in the
+    equation's own units); parameters not named are taken as exact.
+    ``between_study_log10`` is the standard deviation of a laboratory's offset in
+    log10 D (a random study effect): what one more experiment, or a crystal that
+    behaves like one, adds beyond the law's own uncertainty. Tuples keep the
+    dataclass hashable.
+    """
+
+    parameters: tuple[str, ...]
+    covariance: tuple[tuple[float, ...], ...]
+    between_study_log10: float = 0.0
+    source: str = ""
+
+    def __post_init__(self) -> None:
+        unknown = [p for p in self.parameters if p not in LAW_PARAMETERS]
+        if unknown or len(set(self.parameters)) != len(self.parameters):
+            raise ValueError(
+                f"law uncertainty: parameters must be distinct names from LAW_PARAMETERS, "
+                f"got {', '.join(self.parameters)}"
+            )
+        cov = np.array(self.covariance, dtype=float)
+        n = len(self.parameters)
+        if cov.shape != (n, n) or not np.all(np.isfinite(cov)):
+            raise ValueError(f"law uncertainty: covariance must be a finite {n} x {n} matrix")
+        if not np.allclose(cov, cov.T, rtol=1e-9, atol=0.0):
+            raise ValueError("law uncertainty: covariance must be symmetric")
+        sd = np.sqrt(np.clip(np.diag(cov), 1e-300, None))
+        if np.linalg.eigvalsh(cov / np.outer(sd, sd)).min() < -1e-9:
+            raise ValueError("law uncertainty: covariance must be positive semi-definite")
+        if not (math.isfinite(self.between_study_log10) and self.between_study_log10 >= 0):
+            raise ValueError("law uncertainty: between_study_log10 must be zero or more")
+        object.__setattr__(self, "parameters", tuple(self.parameters))
+        object.__setattr__(self, "covariance", tuple(tuple(map(float, row)) for row in cov))
+
+
 @dataclass(frozen=True)
 class ArrheniusDiffusivity:
     """One diffusivity equation in the form of the module docstring.
@@ -97,6 +156,7 @@ class ArrheniusDiffusivity:
     P_ref_Pa: float = 0.0
     pressure_coefficient_per_Pa: float = 0.0
     source: str = ""
+    uncertainty: LawUncertainty | None = None  # not in the diffusivities table
 
     def __post_init__(self) -> None:
         if not self.name or not str(self.name).strip():
@@ -146,6 +206,35 @@ class ArrheniusDiffusivity:
             + self.pressure_coefficient_per_Pa * (P - self.P_ref_Pa)
         )
         return 10.0**log10_D
+
+    def log10_sigma(
+        self, conditions: Conditions, orientation: Orientation, x_fo: float
+    ) -> float | None:
+        """1-sigma of log10 D along the profile at ``x_fo`` from the law's covariance
+        (without the between-study spread); None if the law has none."""
+        if self.uncertainty is None:
+            return None
+        cos2 = (
+            np.cos(np.deg2rad([orientation.alpha_deg, orientation.beta_deg, orientation.gamma_deg]))
+            ** 2
+        )
+        weights = self.axis_diffusivities(conditions, x_fo) * cos2
+        weights = weights / weights.sum()
+        T, dP = conditions.T_K, conditions.P_Pa - self.P_ref_Pa
+        per_rt = 1 / (math.log(10) * R_J_MOL_K * T)
+        gradient = {
+            "log10_D0_001": 1.0,
+            "activation_energy_J_mol": -per_rt,
+            "fO2_exponent": math.log10(conditions.fO2_Pa / self.fO2_ref_Pa),
+            "fo_coefficient": self.fo_ref - x_fo,
+            "activation_volume_m3_mol": -dP * per_rt,
+            "pressure_coefficient_per_Pa": dP,
+            "log10_100_vs_001": float(weights[0]),
+            "log10_010_vs_001": float(weights[1]),
+        }
+        g = np.array([gradient[p] for p in self.uncertainty.parameters])
+        variance = float(g @ np.array(self.uncertainty.covariance) @ g)
+        return math.sqrt(max(variance, 0.0))
 
     def functions(self, conditions: Conditions, orientation: Orientation) -> DiffusivityFunctions:
         """D(X_Fo) along the profile and dD/dX_Fo, for the model's time steppers."""
@@ -221,6 +310,16 @@ DOHMEN_CHAKRABORTY_2007 = _EngineFeMg(
 )
 
 
+_REFIT_2026 = (
+    "Refit of the TaMED Fe-Mg data (Chakraborty 1997; Dohmen et al. 2007; Petry et al. "
+    "2004; Holzapfel et al. 2007; Spandler and O'Neill 2010; fO2 > 1e-10 Pa, 135 points) "
+    "in the Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent, the "
+    "composition coefficient and both anisotropy factors fitted and V fixed at 7 cm3/mol; "
+    "least squares with a random offset per study (REML). analyses/femg_refit "
+    "(export_preset.py, method 'random study')."
+)
+
+
 def _mutch2019(
     name: str, data: str, a: float, b: float, c: float, q: float, j: float, h: float
 ) -> ArrheniusDiffusivity:
@@ -270,6 +369,84 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
             -26600,
             -4.15e-10,
             -1.54e-7,
+        ),
+        ArrheniusDiffusivity(
+            name="femg_refit2026",
+            element="Fe-Mg",
+            log10_D0_m2_s=(-9.677314758926688, -9.60438690990835, -8.881043670819627),
+            activation_energy_J_mol=(209065.7096358085, 209065.7096358085, 209065.7096358085),
+            fO2_exponent=0.2205869278236595,
+            fO2_ref_Pa=1e-7,
+            fo_coefficient=3.149590444033078,
+            fo_ref=0.9,
+            activation_volume_m3_mol=7e-6,
+            P_ref_Pa=1e5,
+            source=_REFIT_2026,
+            uncertainty=LawUncertainty(
+                parameters=(
+                    "log10_D0_001",
+                    "activation_energy_J_mol",
+                    "fO2_exponent",
+                    "fo_coefficient",
+                    "log10_100_vs_001",
+                    "log10_010_vs_001",
+                ),
+                covariance=(
+                    (
+                        0.10586999453551393,
+                        2258.268707941549,
+                        -0.00386461867716483,
+                        0.009823821136280109,
+                        -0.0024974720935901722,
+                        -0.0014324604807720133,
+                    ),
+                    (
+                        2258.268707941549,
+                        57206490.80527767,
+                        -73.45535410041933,
+                        260.68239096026286,
+                        -34.35607638985059,
+                        -5.069099711087935,
+                    ),
+                    (
+                        -0.00386461867716483,
+                        -73.45535410041933,
+                        0.00044889346117661953,
+                        -0.0002965303734359736,
+                        7.469428514669738e-05,
+                        5.397203784607948e-05,
+                    ),
+                    (
+                        0.009823821136280109,
+                        260.68239096026286,
+                        -0.0002965303734359736,
+                        0.023864178760478093,
+                        -0.00015874239539671317,
+                        -2.1445793945907992e-05,
+                    ),
+                    (
+                        -0.0024974720935901722,
+                        -34.35607638985059,
+                        7.469428514669738e-05,
+                        -0.00015874239539671317,
+                        0.005625807573495559,
+                        0.00273460672699624,
+                    ),
+                    (
+                        -0.0014324604807720133,
+                        -5.069099711087935,
+                        5.397203784607948e-05,
+                        -2.1445793945907992e-05,
+                        0.00273460672699624,
+                        0.006485361674099814,
+                    ),
+                ),
+                between_study_log10=0.25439783805203886,
+                source=(
+                    "Covariance of the law averaged over laboratories; between-study sd "
+                    "0.254 log10 (95% 0.11-0.66, five studies)."
+                ),
+            ),
         ),
         ArrheniusDiffusivity(
             name="girona_costa2013_mn",
@@ -394,7 +571,13 @@ def from_row(row: Mapping[str, Any]) -> ArrheniusDiffusivity:
         element=str(row["element"]).strip(),
         log10_D0_m2_s=tuple(float(row[c]) for c in TABLE_COLUMNS[2:5]),
         activation_energy_J_mol=tuple(float(row[c]) for c in TABLE_COLUMNS[5:8]),
-        **{c: float(row[c]) for c in _SCALARS},
+        fO2_exponent=float(row["fO2_exponent"]),
+        fO2_ref_Pa=float(row["fO2_ref_Pa"]),
+        fo_coefficient=float(row["fo_coefficient"]),
+        fo_ref=float(row["fo_ref"]),
+        activation_volume_m3_mol=float(row["activation_volume_m3_mol"]),
+        P_ref_Pa=float(row["P_ref_Pa"]),
+        pressure_coefficient_per_Pa=float(row["pressure_coefficient_per_Pa"]),
         source="" if source is None or pd.isna(source) else str(source),
     )
 

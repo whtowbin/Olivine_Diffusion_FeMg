@@ -542,6 +542,27 @@ def _steps_text(steps: tuple[float, ...]) -> str:
     return ", ".join(repr(float(s)).removesuffix(".0") for s in steps)
 
 
+def _law_columns(result: FitResult) -> dict[str, float]:
+    """The ranges with the diffusivity law's uncertainty (NaN without one)."""
+    if result.law_sigma_log10 is None:
+        names = ("law_low_days", "law_high_days", "all_low_days", "all_high_days")
+        return {
+            "law_sigma_log10": math.nan,
+            "between_study_log10": math.nan,
+            **dict.fromkeys(names, math.nan),
+        }
+    law = result.time_range_days("law")
+    both = result.time_range_days("law_and_studies")
+    return {
+        "law_sigma_log10": result.law_sigma_log10,
+        "between_study_log10": result.between_study_log10 or 0.0,
+        "law_low_days": law[0],
+        "law_high_days": law[1],
+        "all_low_days": both[0],
+        "all_high_days": both[1],
+    }
+
+
 def summary_row(result: FitResult) -> dict[str, Any]:
     """The fitted time and every input of one fit, as one table row.
 
@@ -562,6 +583,7 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "time_days": result.time_days,
         "low_days": result.time_days + result.time_minus_days,
         "high_days": result.time_days + result.time_plus_days,
+        **_law_columns(result),
         "reduced_chi2": float(result.reduced_chi2[result.indices[0]]),
         "points_fitted": n_fitted,
         "uncertainty": result.uncertainty,

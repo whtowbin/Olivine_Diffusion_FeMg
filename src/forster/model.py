@@ -23,13 +23,19 @@ import numpy as np
 
 from forster import compiled, dipra, engine, implicit, orientation
 from forster.boundary import BoundaryHistory, Rim, Stage, is_fixed, rim_at, settles_at_s
-from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
+from forster.diffusivity import (
+    DEFAULT_DIFFUSIVITY,
+    ArrheniusDiffusivity,
+    Diffusivity,
+    resolve,
+)
 from forster.uncertainty import (
     NoiseModel,
     chi2_per_step,
     fit_correlated,
     interpolation_matrix,
     points_in_domain,
+    widen_log10,
 )
 
 SECONDS_PER_DAY = 24 * 60 * 60
@@ -234,6 +240,11 @@ class FitResult:
     element: str = "Fe-Mg"
     # Start of the last growth stage (seconds after the first); 0 without stages.
     last_stage_s: float = 0.0
+    # 1-sigma of log10 D from the diffusivity law's covariance, and the spread between
+    # laboratories (`forster.diffusivity.LawUncertainty`), at the run's conditions; None
+    # when the law has no covariance or the fit has growth stages (`time_range_days`).
+    law_sigma_log10: float | None = None
+    between_study_log10: float | None = None
 
     @property
     def time_days(self) -> float:
@@ -253,6 +264,36 @@ class FitResult:
     @property
     def time_plus_days(self) -> float:
         return self.time_plus_s / SECONDS_PER_DAY
+
+    def time_range_days(self, include: str = "fit") -> tuple[float, float]:
+        """Low and high ends of the 1-sigma range of time (days).
+
+        - "fit": from the profile alone (``time_minus_days``, ``time_plus_days``). For
+          comparing crystals fitted with the same law, whose error is common to all.
+        - "law": also the diffusivity law's calibration uncertainty.
+        - "law_and_studies": also the spread between laboratories; for an absolute
+          time, if the crystal may sit off the laboratories' average as one more
+          experiment would.
+
+        An Fo profile depends on D t, so an error in log10 D is the same error, with the
+        sign changed, in log10 t; it is combined with the fit's range on each side in
+        log10 (`forster.uncertainty.widen_log10`).
+        """
+        low = self.time_days + self.time_minus_days
+        high = self.time_days + self.time_plus_days
+        if include == "fit":
+            return low, high
+        if include not in ("law", "law_and_studies"):
+            raise ValueError(f"include must be 'fit', 'law' or 'law_and_studies', not {include!r}")
+        if self.law_sigma_log10 is None:
+            raise ValueError(
+                "no law uncertainty for this fit: its diffusivity has no covariance "
+                "(see forster.diffusivity.LawUncertainty), or the fit has growth stages"
+            )
+        sigma = self.law_sigma_log10
+        if include == "law_and_studies":
+            sigma = math.hypot(sigma, self.between_study_log10 or 0.0)
+        return widen_log10(self.time_days, low, high, sigma)
 
     @property
     def reduced_chi2(self) -> np.ndarray:
@@ -793,6 +834,7 @@ def fit_profile(
         if prefix is not None:
             curves = np.concatenate([prefix, curves])
             sum_chi2 = np.concatenate([np.full(offset, np.nan), sum_chi2])
+    law_sigma, between = _law_uncertainty(diffusivity, conditions, orientation, initial, stages)
     return FitResult(
         name=profile.name,
         time_s=float(time[0]),
@@ -826,4 +868,32 @@ def fit_profile(
         fit_fo=fit_fo,
         noise=noise,
         last_stage_s=last_stage_s,
+        law_sigma_log10=law_sigma,
+        between_study_log10=between,
     )
+
+
+def _law_uncertainty(
+    diffusivity: Diffusivity,
+    conditions: Conditions,
+    orientation: Orientation,
+    initial: InitialCondition,
+    stages: Sequence[Stage],
+) -> tuple[float | None, float | None]:
+    """The law's 1-sigma in log10 D and the between-study spread, for `FitResult`.
+
+    Evaluated a third of the way from the edge Fo to the core Fo. The composition term
+    changes D's shape as well as its level; on fits over Fo 0.80-0.90 (either way
+    round) and 0.85-0.88 a change dn in its coefficient moved log10 time by
+    -dn (fo_ref - X) with X there, to 0.0011 log for dn = 0.3 (the midpoint was off
+    by up to 0.005). The choice hardly matters for `femg_refit2026`: its sigma varies by
+    0.0005 log over X = 0.80-0.90. None with growth stages, whose times are fixed in
+    seconds, so the fitted time no longer scales as 1/D.
+    """
+    if not isinstance(diffusivity, ArrheniusDiffusivity) or diffusivity.uncertainty is None:
+        return None, None
+    if stages:
+        return None, None
+    x_fo = initial.edge_fo + (initial.core_fo - initial.edge_fo) / 3
+    sigma = diffusivity.log10_sigma(conditions, orientation, x_fo)
+    return sigma, diffusivity.uncertainty.between_study_log10

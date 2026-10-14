@@ -109,7 +109,9 @@ PARAMETER_COLUMNS = (
         "",
         "optional",
         f"Fe-Mg diffusivity equation: a preset ({DEFAULT_DIFFUSIVITY}, the default and "
-        "DIPRA's, or mutch2019_tamed, mutch2019_global) or a name from diffusivities.csv "
+        "DIPRA's, or mutch2019_tamed, mutch2019_global, femg_refit2026: the only one with a "
+        "covariance, which adds the law_ and all_ ranges to summary.csv) or a name from "
+        "diffusivities.csv "
         "(then run forster fit with --diffusivities).",
     ),
     Column(
@@ -172,6 +174,37 @@ SUMMARY_COLUMNS = (
     Column("time_days", "days", "", "Best-fit time."),
     Column("low_days", "days", "", "Low end of the 1-sigma range."),
     Column("high_days", "days", "", "High end of the 1-sigma range."),
+    Column(
+        "law_sigma_log10",
+        "log10",
+        "",
+        "1-sigma of log10 D from the diffusivity law's covariance at the run's conditions "
+        "(and of log10 time, with the sign changed). Empty for laws without one (the "
+        "default) and for fits with growth stages.",
+    ),
+    Column(
+        "between_study_log10",
+        "log10",
+        "",
+        "Spread between laboratories of the law's calibration data (a random study offset).",
+    ),
+    Column(
+        "law_low_days",
+        "days",
+        "",
+        "Low end of the 1-sigma range with the law's uncertainty added. Use low_days and "
+        "high_days to compare crystals fitted with the same law (its error is common to "
+        "all of them); these for a time on its own.",
+    ),
+    Column("law_high_days", "days", "", "High end of that range."),
+    Column(
+        "all_low_days",
+        "days",
+        "",
+        "Low end with the spread between laboratories added as well: for an absolute time, "
+        "if the crystal may sit off the laboratories' average as one more experiment would.",
+    ),
+    Column("all_high_days", "days", "", "High end of that range."),
     Column(
         "reduced_chi2",
         "",

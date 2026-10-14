@@ -53,6 +53,11 @@ orientation are not recoverable.
   `uv run --with odrpack python analyses/femg_refit/bowties.py`.
 - `fo2_figures.py`: Figs. 5-6 below, on fO2 and the disagreement between studies.
   `uv run --with odrpack python analyses/femg_refit/fo2_figures.py`.
+- `export_preset.py`: writes the `femg_refit2026` preset (`dc07_free`, random study
+  offset, with its covariance and between-study spread) for
+  `src/forster/diffusivity.py`, and checks that the preset reproduces the refit's
+  log10 D and its 1-sigma on every axis at 22 conditions (largest difference 7e-15).
+  `uv run --with odrpack python analyses/femg_refit/export_preset.py`.
 - `compare_laws.py`: residuals of the published laws and our refits against the
   data, by study, and F tests of candidate missing terms.
   `uv run --with odrpack python analyses/femg_refit/compare_laws.py`.

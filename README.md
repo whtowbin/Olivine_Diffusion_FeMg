@@ -206,7 +206,7 @@ One row per model run. Fo is a fraction throughout.
 | `dt_s` | s | optional | Time step of the final fit. Leave empty to have it chosen: 1/400 of the fitted time (implicit), or the stable step D dt / dx² = 0.4 (central, dipra; above 0.5 is unstable and refused). |
 | `max_time_days` | days | optional | Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate of the time). |
 | `scheme` |  | optional | implicit (default since 2026-10-13: rim on the end node, steps not snapped to nodes, any time step), central (the engine's explicit scheme, used before) or dipra (Girona and Costa 2013). With uncertainty = legacy the default is central. |
-| `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or mutch2019_tamed, mutch2019_global) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
+| `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or mutch2019_tamed, mutch2019_global, femg_refit2026: the only one with a covariance, which adds the law_ and all_ ranges to summary.csv) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
 | `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule; reproduces old results). |
 | `steps_sd_um` | µm | optional | Uncertainty (1 sigma, Gaussian) on the step position(s): one value, or one per step ("2, 5"); 0 keeps a step fixed. Or give steps_range_um. |
 | `steps_range_um` | µm | optional | Uncertainty (± half-width, uniform) on the step position(s), as steps_sd_um. |
@@ -262,6 +262,12 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `time_days` | days | Best-fit time. |
 | `low_days` | days | Low end of the 1-sigma range. |
 | `high_days` | days | High end of the 1-sigma range. |
+| `law_sigma_log10` | log10 | 1-sigma of log10 D from the diffusivity law's covariance at the run's conditions (and of log10 time, with the sign changed). Empty for laws without one (the default) and for fits with growth stages. |
+| `between_study_log10` | log10 | Spread between laboratories of the law's calibration data (a random study offset). |
+| `law_low_days` | days | Low end of the 1-sigma range with the law's uncertainty added. Use low_days and high_days to compare crystals fitted with the same law (its error is common to all of them); these for a time on its own. |
+| `law_high_days` | days | High end of that range. |
+| `all_low_days` | days | Low end with the spread between laboratories added as well: for an absolute time, if the crystal may sit off the laboratories' average as one more experiment would. |
+| `all_high_days` | days | High end of that range. |
 | `reduced_chi2` |  | Chi-squared at the best fit over (points fitted - 1). Diagnostic only: about 1 by construction for the correlated method, whose noise model is fitted to the residuals; for legacy it is over the kriged grid points, so the two are not comparable. Judge correlated fits by the three noise columns. |
 | `points_fitted` |  | Measured points inside the model domain (legacy: kriged grid points). |
 | `white_sigma_fo` | fraction | Fitted scatter of the points (correlated method). Much larger than your analytical precision: outliers, or the precision is underestimated. |
@@ -316,6 +322,19 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   explains the method and how it was validated, and
   [docs/references/fit-uncertainty.md](docs/references/fit-uncertainty.md) how it
   differs from earlier versions.
+- The range does not include the diffusivity law's own uncertainty either, unless
+  the law carries a covariance. `femg_refit2026` does: our refit of the TaMED Fe-Mg
+  data (135 points, five studies) in the Dohmen and Chakraborty (2007) form, with a
+  random offset per study ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
+  profile depends on D t, so an error in log D is the same error in log time, and
+  no extra model runs are needed. Fits with it report three ranges:
+  `low_days`/`high_days` (the profile alone; use these to compare crystals fitted
+  with the same law, whose error is common to all of them), `law_low_days`/
+  `law_high_days` (plus the law's calibration, about ±0.12 log at 1200 °C), and
+  `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.25 log;
+  for an absolute time, if the crystal may sit off the laboratories' average as one
+  more experiment would). From Python: `result.time_range_days("fit" | "law" |
+  "law_and_studies")`. Not available for fits with growth stages or for element fits.
 - The default diffusivity, `dohmen_chakraborty2007`, is the Fe-Mg equation DIPRA
   uses (Dohmen and Chakraborty 2007; Girona and Costa 2013, Table 1). The presets
   `mutch2019_tamed` and `mutch2019_global` are the regressions of Mutch et al.
