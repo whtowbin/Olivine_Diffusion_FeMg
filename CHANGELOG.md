@@ -35,6 +35,8 @@
 
 ### Changed
 
+- **Kriging only for the legacy method (2026-10-13).** The default (correlated) method fits the measured points, so `fit_profile` no longer krigs the profile for it: `FitResult.interp_*` are empty and `forster fit` writes `<run>_kriged.csv` only for legacy runs. Fits are unchanged; kriging (pykrige's leave-one-out statistics, up to 0.45 s per profile) had been computed on every call, including the coarse fits that choose the grid.
+
 - **The implicit scheme is the default (2026-10-13).** `fit_profile`, `RunDefaults`, parameter tables without a `scheme` column, scans and `choose_grid` now use `implicit` (`forster.model.DEFAULT_SCHEME`); `central` is still the default with `uncertainty = "legacy"`, so legacy results reproduce exactly, and element fits keep `central`. Refitting the existing round robin and paper tables (their own grids, dx 1 and 0.5 um) moves fitted times by a median 2.7% and up to 8.1%, 28 of 35 shorter: on those grids `central` was off by a median 2.6% (up to 8.7%) against a converged reference and `implicit` by 0.05% (up to 0.5%). Those tables' small time steps (60-600 s, set for the explicit stability limit) make implicit fits slower there (`check_grid` warns that dt is smaller than needed); leave `dx_um` and `dt_s` empty to have them chosen. The template's worked example now leaves `dx_um`, `dt_s` and `scheme` empty.
   - The explicit grid rule is corrected: error about 2.4 dx / l (was 0.65, calibrated against a biased explicit reference), so `choose_grid(scheme="central")` gives l / dx = 240 (final) and 48 (scans), and `grid_error_pct` and the coarse-grid warnings for explicit fits are about 3.7x larger than before.
 

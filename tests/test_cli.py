@@ -37,8 +37,9 @@ def test_template_then_fit_writes_every_output(tmp_path, template):
     done = forster("fit", template / "profiles.csv", template / "parameters.csv", cwd=tmp_path)
     assert done.returncode == 0, done.stderr
     out = tmp_path / "results"
-    for suffix in ("fit.png", "curves.csv", "kriged.csv", "points.csv"):
+    for suffix in ("fit.png", "curves.csv", "points.csv"):
         assert (out / f"{STEM}_{suffix}").stat().st_size > 0
+    assert not (out / f"{STEM}_kriged.csv").exists()  # kriging: legacy method only
     summary = read_csv(out / "summary.csv")
     assert summary.run.tolist() == [EXAMPLE]
     expected = fit_run(

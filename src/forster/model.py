@@ -706,15 +706,18 @@ def fit_profile(
         rims = tuple(s.rim_um for s in history.stages)
     x, y = profile.distance_um, profile.fo
     step_x, dx_um, (low_idx, high_idx) = scheme_grid(scheme, x, grid, domain, rims)
-    interp_x, interp_fo, interp_sigma = engine.Krige_Interpolate(
-        x,
-        y,
-        step_x,
-        variogram_model=kriging.variogram_model,
-        variogram_parameters=kriging.variogram_parameters,
-    )
-
     model_x = step_x[low_idx : high_idx + 1]
+    # Only the legacy method fits a kriged profile; the correlated method fits the
+    # measured points, so it skips kriging (and leaves the kriged fields empty).
+    interp_x = interp_fo = interp_sigma = np.empty(0)
+    if uncertainty == "legacy":
+        interp_x, interp_fo, interp_sigma = engine.Krige_Interpolate(
+            x,
+            y,
+            step_x,
+            variogram_model=kriging.variogram_model,
+            variogram_parameters=kriging.variogram_parameters,
+        )
     data_interp = interp_fo[low_idx : high_idx + 1]
     sigma_interp = interp_sigma[low_idx : high_idx + 1] + kriging.uniform_uncertainty
 

@@ -46,7 +46,8 @@ For each run, `forster fit` writes into the output folder:
 - `<run>_fit.png`: the measured points, the initial profile, the best fit and the 1σ range;
 - `<run>_curves.csv`: the model profile at time zero, at the best fit, and at the two ends of the 1σ range;
 - `<run>_points.csv`: the measured points that were fitted, the best fit at each one and the residual;
-- `<run>_kriged.csv`: the kriged (interpolated) profile;
+- `<run>_kriged.csv`: the kriged (interpolated) profile, for `uncertainty = legacy` only
+  (the default method fits the measured points and does not krige);
 - `summary.csv`: one row per run with the time (`time_days`), its 1σ range (`low_days`, `high_days`), the fit statistics and every input;
 - `diffusivities.csv`: the diffusivity equations the runs used.
 

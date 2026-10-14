@@ -594,8 +594,8 @@ def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
 
     - "curves": the model on its grid at time zero, the best fit, and the time
       steps at the low and high ends of the 1-sigma range;
-    - "kriged": the kriged profile and its uncertainty (fitted only by the legacy
-      method);
+    - "kriged": the kriged profile and its uncertainty (legacy method only: the
+      correlated method fits the measured points and does not krige);
     - "points": the measured points that were fitted, with the best fit
       interpolated to them and the residual (legacy: the kriged grid points).
     """
@@ -603,7 +603,7 @@ def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
     x = result.fit_x_um if result.fit_x_um is not None else result.model_x_um
     fo = result.fit_fo if result.fit_fo is not None else result.interp_fo
     at_points = np.interp(x, result.model_x_um, result.best_fit)
-    return {
+    tables = {
         "curves": pd.DataFrame(
             {
                 "distance_um": result.model_x_um,
@@ -613,17 +613,19 @@ def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
                 "plus_1sigma_fo": result.curves[high],
             }
         ),
-        "kriged": pd.DataFrame(
+        "points": pd.DataFrame(
+            {"distance_um": x, "fo": fo, "best_fit_fo": at_points, "residual_fo": fo - at_points}
+        ),
+    }
+    if len(result.interp_x_um):
+        tables["kriged"] = pd.DataFrame(
             {
                 "distance_um": result.interp_x_um,
                 "fo": result.interp_fo,
                 "sigma_fo": result.interp_fo_sigma,
             }
-        ),
-        "points": pd.DataFrame(
-            {"distance_um": x, "fo": fo, "best_fit_fo": at_points, "residual_fo": fo - at_points}
-        ),
-    }
+        )
+    return tables
 
 
 def _profile(run: Run, profiles: Mapping[str, Profile]) -> Profile:
