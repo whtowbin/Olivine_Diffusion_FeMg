@@ -130,7 +130,10 @@ Sources (reviews by subagents, checked where it mattered):
   E = 220 kJ/mol from their all-data fit. Ni comes out 0.142 log units slower at
   1200 C than either consistent pairing (time 1.4x too long). The fO2 exponent
   1/4.25 and reference 1e-6 Pa match; our fO2 (1e-2.9 Pa) is 1.1 log units above
-  their highest (1e-4 Pa). Decision for Henry: a consistent `petry2004_ni` preset.
+  their highest (1e-4 Pa). Done (0710b88, approved by Henry): `petry2004_ni` pairs
+  3.84e-9 m2/s with E = 216 kJ/mol; `girona_costa2013_ni` stays the Ni default.
+  Pending: a Ni refit with a covariance from Petry's 17 Ni rows
+  (`analyses/femg_refit/data/petry2004.csv`), alongside the Fe-Mg refit.
 - Mn: no Mn law in Holzapfel et al. (2007) or Petry et al. (2004); both endorse the
   Fe-Mg law for Mn. Activation volumes: 7.1 cm3/mol at constant fO2 (Fe-Mg); Ni and
   Mn only along NNO (5.3-5.8); changing V changes log D by 0.02-0.04 at 0.5 GPa.

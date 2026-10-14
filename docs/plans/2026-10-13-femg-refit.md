@@ -43,6 +43,9 @@ README citing each; fit scripts; results).
 
 ## Open questions
 
+- Ni refit with a covariance (approved by Henry for later): Petry et al. (2004)'s
+  17 Ni rows are in `data/petry2004.csv`; `petry2004_ni` (0710b88) is the consistent
+  published pairing to compare against.
 - Which Spandler and O'Neill (2010) quantity Mutch used for Fe-Mg (Fe tracer or
   interdiffusion) and at which composition.
 - Whether Dohmen and Chakraborty (2007) Part II tabulates data Mutch could use (the
