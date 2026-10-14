@@ -222,3 +222,47 @@ up at our conditions.
 Fig. 7b also shows that DC07 normalised the series inconsistently (Chakraborty to
 Fo86 without an fO2 term, Part I high-fO2 points +0.12, Holzapfel not reproducible),
 and that the line drawn there is close to log D0 -9.28 and 198 kJ/mol.
+
+## fO2: what each study measures, and why they disagree (2026-10-13)
+
+`analyses/femg_refit/fo2_figures.py`, Figs. 5 and 6 (`figures/fig5_fo2.png`,
+`fig6_studies.png`). fO2 exponents (d log D / d log fO2, 1 sigma):
+
+| Source | Exponent |
+|---|---|
+| Dohmen 2007, 1080 C [001] series | 0.258 +- 0.060 |
+| Dohmen 2007, 1050 C [100] series | 0.183 +- 0.029 |
+| Dohmen 2007, all TaMED, T and axis removed | 0.190 +- 0.032 |
+| Petry 2004, T removed | 0.273 +- 0.038 |
+| joint fit, DC07 form: OLS / weighted / ODR | 0.200 / 0.217 / 0.246 (+- 0.01-0.02) |
+| joint fit, Mutch form: OLS / ODR | 0.258 +- 0.023 / 0.386 +- 0.030 |
+| `mutch_fT` (OLS) at 900 / 1200 / 1400 C | 0.185 / 0.265 / 0.302 (+- 0.02-0.035) |
+| DC07 (fixed) / Mutch 2019 TaMED | 1/6 / 0.224 |
+
+- **Only two studies vary fO2, and at different temperatures.** Dohmen's series are
+  at 1050-1080 C and give 0.18-0.26; Petry's reach 1400 C and give 0.27. An exponent
+  that rises with T, as `mutch_fT` fits (0.19 at 900 C to 0.30 at 1400 C), reconciles
+  them, and matches Dohmen et al.'s own remark that the exponent falls at low T. The
+  F test for that term is p = 0.008.
+- **The other three studies add level, not slope.** Chakraborty (1997) is at one fO2
+  (1e-7 Pa). Holzapfel (2007) did not measure fO2 (we assume Ni-NiO, 10^1-10^4 Pa)
+  and is alone at 6-12 GPa and 1350-1550 C, so its fO2 lever arm is confounded with
+  the pressure terms: its study offset swings from +0.07 (`dc07_fixed`) to -0.30
+  (`dc07_free`) to -0.50 (`mutch_aniso`) with the law's form. Spandler and O'Neill
+  (2010) is one fO2 (10^-3.3 Pa) in a melt-contact experiment and sits +0.44 to
+  +0.49 high in every form.
+- **So "the exponent" of a joint fit is a blend**, weighted by where the data sit:
+  least-squares fits give 0.20-0.26. The Mutch-form ODR's 0.39 is above every direct
+  measurement, so we do not trust it; its D at the round robin conditions (+0.85 log
+  against the default) should not be used.
+- **The laws agree where the data are and fan out away from them** (Fig. 5a): at
+  1e-7 Pa the least-squares forms and the two published laws span 0.12 log; at the
+  round robin and paper fO2 (10^-3.75 to 10^-2.1 Pa, at 1200 C, Fo90, 1 atm) they
+  span 0.29-0.46, all from the exponent (0.65-1.02 with the Mutch-form ODR). The
+  only 1-atm data there are Spandler's melt experiment.
+- Study offsets (Fig. 6b, centred, log): Chakraborty -0.24 to -0.05, Dohmen -0.27 to
+  -0.07, Petry -0.04 to +0.13, Holzapfel +0.07 to -0.50, Spandler +0.44 to +0.49.
+
+Bowtie update: points moved to a panel's conditions now carry a light bar for the
+uncertainty of the move (from the fit's covariance) and fade with the size of the
+move; see the analysis README.

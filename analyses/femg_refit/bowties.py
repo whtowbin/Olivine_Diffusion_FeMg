@@ -154,6 +154,20 @@ def _change(a: float, b: float) -> str:
     return f"{ratio:.1f}x wider" if ratio > 1 else f"{ratio:.1f}x as wide"
 
 
+# Opacity of a point by the 1-sigma uncertainty (log D) of the correction that moved it.
+MOVE_BINS = ((0.0, 0.03, 1.0), (0.03, 0.1, 0.55), (0.1, np.inf, 0.28))
+
+
+def _correction_sd(df: pd.DataFrame, form: F.Form, cov: np.ndarray, log_fo2, x_fo, p_pa):
+    """1-sigma (log D) of each point's move to the panel's conditions, from the fit's
+    covariance. One error in a coefficient moves all points the same way, so this
+    part is shared between points (and with the band), not independent scatter."""
+    v_own = F.Vars.of(df)
+    target = df.assign(log10_fO2_Pa=log_fo2, X_Fo=x_fo, P_Pa=p_pa, axis="[001]")
+    dg = form.design(F.Vars.of(target)) - form.design(v_own)
+    return np.sqrt(np.clip(np.einsum("ij,jk,ik->i", dg, cov, dg), 0, None)) / LN10
+
+
 def _summary(form: F.Form, fit: dict, band_a: float, band_b: float, at_ks20: float) -> str:
     p = dict(zip(form.params, fit["beta"], strict=True))
     se = dict(zip(form.params, np.sqrt(np.diag(fit["cov"])), strict=True))
@@ -218,20 +232,40 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
                 x, _published(name, t, log_fo2, x_fo, p_pa), color="0.2", lw=1.1, ls=ls, label=label
             )
         moved = _moved(df, form, fit["beta"], log_fo2, x_fo, p_pa)
+        corr = _correction_sd(df, form, fit["cov"], log_fo2, x_fo, p_pa)
+        total = np.sqrt(y_sigma**2 + corr**2)
         for src, (colour, marker, label) in STUDY_STYLE.items():
-            m = (df["source"] == src).to_numpy()
-            ax.errorbar(
-                1e4 / df["T_K"][m],
-                moved[m],
-                yerr=y_sigma[m],
-                fmt=marker,
-                color=colour,
-                mfc="none",
-                ms=4,
-                elinewidth=0.6,
-                capsize=0,
-                label=label,
-            )
+            labelled = False
+            for lo_c, hi_c, alpha in MOVE_BINS:
+                m = ((df["source"] == src) & (corr >= lo_c) & (corr < hi_c)).to_numpy()
+                if not m.any():
+                    continue
+                x_pts = 1e4 / df["T_K"][m]
+                # Light bar: measurement and correction combined; dark bar: measurement only.
+                ax.errorbar(
+                    x_pts,
+                    moved[m],
+                    yerr=total[m],
+                    fmt="none",
+                    ecolor=colour,
+                    elinewidth=2.2,
+                    alpha=0.18 * alpha / MOVE_BINS[0][2],
+                    capsize=0,
+                )
+                ax.errorbar(
+                    x_pts,
+                    moved[m],
+                    yerr=y_sigma[m],
+                    fmt=marker,
+                    color=colour,
+                    mfc="none",
+                    ms=4,
+                    elinewidth=0.6,
+                    capsize=0,
+                    alpha=alpha,
+                    label=None if labelled else label,
+                )
+                labelled = True
         i1200 = int(np.argmin(np.abs(t - 1200)))
         widths[key] = (hi68[i1200] - lo68[i1200]) / 2
         if key == "b":
@@ -266,6 +300,11 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
             FORM_TEXT[form.name],
             METHOD_TEXT[method],
             _summary(form, fit, widths["a"], widths["b"], at_ks20),
+            "Points are moved to each panel's conditions by this fit: dark bars are the "
+            "measurement error, light bars add the uncertainty of that move, and fainter points "
+            "were moved further (correction 1-sigma over 0.03 or 0.1 log). The move's "
+            "uncertainty is shared by all points moved the same way, so it shifts the whole cloud "
+            "with the line (the band) rather than adding scatter.",
         ]
     )
     fig.text(0.07, 0.27, textwrap.fill(body, 96), va="top", ha="left", fontsize=7.8)

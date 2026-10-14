@@ -51,6 +51,8 @@ orientation are not recoverable.
 - `bowties.py`: an Arrhenius plot with confidence bands for every form and method
   (`figures/bowties/`, listed in `index.csv`).
   `uv run --with odrpack python analyses/femg_refit/bowties.py`.
+- `fo2_figures.py`: Figs. 5-6 below, on fO2 and the disagreement between studies.
+  `uv run --with odrpack python analyses/femg_refit/fo2_figures.py`.
 - `compare_laws.py`: residuals of the published laws and our refits against the
   data, by study, and F tests of candidate missing terms.
   `uv run --with odrpack python analyses/femg_refit/compare_laws.py`.
@@ -110,6 +112,18 @@ Measurement errors (1 sigma) for `wls` and `odr`; stated in the paper or assumed
 4. `fig4_residuals.png`: observed minus fitted log10 D for `dc07_free` and
    `mutch_aniso` (OLS), by study, against T and fO2.
 
+5. `fig5_fo2.png`: (a) every Fe-Mg point moved to 1200 C, Fo90, 1 atm, [001] by the
+   `dc07_free` OLS fit and plotted against fO2 (points below the TaMED cut of 1e-10
+   Pa faded; light bars are the uncertainty of that move), with each form's line
+   and the published DC07 and Mutch TaMED laws; (b) the fO2 exponent
+   (d log D / d log fO2) from each study's own data (Dohmen's isothermal series,
+   all of Dohmen with T and axis removed, Petry with T removed) against the joint
+   fits and `mutch_fT`'s exponent at 900, 1200 and 1400 C.
+6. `fig6_studies.png`: (a) where each study's TaMED points sit in T and fO2, with its
+   method, composition and pressure in the legend and the round robin and paper
+   conditions as stars; (b) each study's offset (centred, 1 sigma) when an offset per
+   study is added to `dc07_fixed`, `dc07_free` and `mutch_aniso` (OLS).
+
 Each figure passes `figcheck` (no overlaps or clipping) and its title's numbers
 are computed from the data.
 
@@ -122,7 +136,16 @@ the data with their log D error bars, and the published Dohmen & Chakraborty (20
 and Mutch et al. (2019, TaMED) laws. Panel (a) is at the centre of the data (fO2
 1e-7 Pa, Fo90, 1 atm, [001]); panel (b) at the round robin KS20 conditions (fO2
 1.4e-3 Pa, Fo85, 42 MPa, [001]). The points are moved to each panel's conditions by
-that fit itself, so their scatter about the line is the fit's own residual. Under
+that fit itself, so their scatter about the line is the fit's own residual. That
+move has its own uncertainty, sqrt(dG' C dG) for the change dG in the design row and
+the fit's covariance C; it is drawn as a light bar outside the measurement bar
+(their quadrature sum), and points whose move is less certain (1 sigma 0.03-0.1
+and over 0.1 log) are drawn fainter. In panel (b) the move adds 0.07-0.16
+log (10th-90th percentile of the points) in the Mutch forms and 0.04-0.09 in
+`dc07_free`, against Chakraborty's 0.04 measurement bars; none in `dc07_fixed`,
+whose fO2, composition and pressure terms are fixed. It is shared with
+the band (the same covariance), not independent scatter, so the bars show why the
+points sit less certainly in (b), not extra error to add to the band. Under
 each figure a paragraph says what is particular to that form and method, with its
 fitted numbers.
 
