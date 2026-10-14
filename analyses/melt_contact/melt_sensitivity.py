@@ -185,6 +185,17 @@ def check_baseline(fit: dict) -> None:
             raise AssertionError(f"baseline {param} = {value} against {ref[param]} committed")
 
 
+def variant_fits(form: fm.Form, base: pd.DataFrame, both: pd.DataFrame) -> dict[str, dict]:
+    """The five variants of `form` (module docstring). ``both`` is ``base`` plus Shea's rows."""
+    return {
+        "baseline": fm.fit_random(form, base),
+        "no_spandler": fm.fit_random(form, base[base["source"] != SPANDLER]),
+        "melt_fixed_spandler": fm.fit_random(melt_form(form, base, (SPANDLER,)), base),
+        "shea_random": fm.fit_random(form, both),
+        "melt_fixed_both": fm.fit_random(melt_form(form, both, (SPANDLER, "shea2023")), both),
+    }
+
+
 def variants(shea_rows: pd.DataFrame) -> pd.DataFrame:
     base = fm.tamed()
     both = pd.concat([base, shea_rows], ignore_index=True)
@@ -192,13 +203,7 @@ def variants(shea_rows: pd.DataFrame) -> pd.DataFrame:
     for form_name in ("dc07_free", "mutch_x6"):
         form = fm.FORMS[form_name]
         n_base = len(form.params)
-        fits = {
-            "baseline": fm.fit_random(form, base),
-            "no_spandler": fm.fit_random(form, base[base["source"] != SPANDLER]),
-            "melt_fixed_spandler": fm.fit_random(melt_form(form, base, (SPANDLER,)), base),
-            "shea_random": fm.fit_random(form, both),
-            "melt_fixed_both": fm.fit_random(melt_form(form, both, (SPANDLER, "shea2023")), both),
-        }
+        fits = variant_fits(form, base, both)
         if form_name == "dc07_free":
             check_baseline(fits["baseline"])
         rows += [variant_row(form_name, k, fit, n_base) for k, fit in fits.items()]
