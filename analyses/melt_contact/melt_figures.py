@@ -99,9 +99,13 @@ def band(ax, x, sample, colour, label68, label95=None):
     return (hi68 - lo68) / 2
 
 
-def points(ax, x, y, sigma, both: pd.DataFrame, in_fit: np.ndarray, faded: float = 0.3):
+# Sources drawn with filled markers and kept in the legend when faded (not fitted).
+FILLED = {SHEA, "oeser2026", "oeser2026_linescan"}
+
+
+def points(ax, x, y, sigma, both: pd.DataFrame, in_fit: np.ndarray, faded=0.3, style=None):
     """Each study's points with their measurement error; points outside the fit faded."""
-    for src, (colour, marker, label) in STYLE.items():
+    for src, (colour, marker, label) in (style or STYLE).items():
         for fitted in (True, False):
             m = ((both["source"] == src).to_numpy()) & (in_fit == fitted)
             if not m.any():
@@ -112,16 +116,43 @@ def points(ax, x, y, sigma, both: pd.DataFrame, in_fit: np.ndarray, faded: float
                 yerr=sigma[m],
                 fmt=marker,
                 color=colour,
-                mfc=colour if src == SHEA else "none",
-                ms=4.5 if src == SHEA else 4,
+                mfc=colour if src in FILLED else "none",
+                ms=4.5 if src in FILLED else 4,
                 elinewidth=0.6,
                 capsize=0,
                 alpha=1.0 if fitted else faded,
-                label=label if fitted or src == SHEA else None,
+                label=label if fitted or src in FILLED else None,
             )
 
 
-def fig_bowties(base, both, sigma, fits, rng) -> pd.DataFrame:
+def melt_panels(both: pd.DataFrame, fits: dict) -> list[dict]:
+    """The three panels of fig1: which fit, its title, and which points it uses."""
+    out = []
+    for key, (variant, melt_src, title) in PANELS.items():
+        shea_in = SHEA in melt_src and variant != "baseline"
+        out.append(
+            {
+                "key": key,
+                "variant": variant,
+                "fit": fits[variant],
+                "title": title,
+                "in_fit": (both["source"] != SHEA).to_numpy() | shea_in,
+                "note": "faded crosses: Shea et al., not in this fit",
+            }
+        )
+    return out
+
+
+def melt_title(rows: list[dict]) -> str:
+    a, b = rows[0], rows[1]
+    return (
+        f"A melt term takes melt contact out of the lab spread: τ {a['tau_log10']:.2f} → "
+        f"{b['tau_log10']:.2f} log, and the solid-contact law at KS20, 1200 °C moves from "
+        f"{a['KS20_1200C_vs_dc07']:+.2f} to {b['KS20_1200C_vs_dc07']:+.2f} log above DC07"
+    )
+
+
+def fig_bowties(both, sigma, panels, rng, path=None, title=melt_title, style=None) -> pd.DataFrame:
     form = F.FORMS["dc07_free"]
     n = len(form.params)
     log_fo2, x_fo, p_pa = KS20
@@ -139,8 +170,8 @@ def fig_bowties(base, both, sigma, fits, rng) -> pd.DataFrame:
     i1200 = int(np.argmin(np.abs(T_GRID - 1200)))
     fig, axes = plt.subplots(1, 3, figsize=(12, 5.4), sharey=True, layout="constrained")
     rows = []
-    for ax, (key, (variant, melt_src, title)) in zip(axes, PANELS.items(), strict=True):
-        fit = fits[variant]
+    for ax, panel in zip(axes, panels, strict=True):
+        key, variant, fit, in_fit = panel["key"], panel["variant"], panel["fit"], panel["in_fit"]
         best, solid, melt = curves(form, fit, v, rng)
         half = band(ax, x, solid - dc07[:, None], SOLID, "law, 68%", "law, 95%")
         ax.plot(x, best - dc07, color=SOLID, lw=1.8, label="best fit (solid contact)")
@@ -164,13 +195,12 @@ def fig_bowties(base, both, sigma, fits, rng) -> pd.DataFrame:
             row |= {"melt_log10": m_best, "melt_se": m_se}
             melt_txt = f"\nmelt term {m_best:+.2f} ± {m_se:.2f}"
         moved = F.moved(both, form, fit["beta"][:n], **at)
-        in_fit = (both["source"] != SHEA).to_numpy() | (SHEA in melt_src and variant != "baseline")
-        points(ax, x_pts, moved - dc07_pts, sigma, both, in_fit)
+        points(ax, x_pts, moved - dc07_pts, sigma, both, in_fit, style=style)
         if not in_fit.all():
             ax.text(
                 0.98,
                 0.97,
-                "faded crosses: Shea et al., not in this fit",
+                panel["note"],
                 transform=ax.transAxes,
                 ha="right",
                 va="top",
@@ -180,7 +210,7 @@ def fig_bowties(base, both, sigma, fits, rng) -> pd.DataFrame:
         ax.axhline(0, color="0.2", lw=0.9, ls=":", label="DC07 (default law)")
         ax.axvline(x[i1200], color="0.6", lw=0.7, ls=":")
         ax.set_title(
-            f"({key}) {title}\nτ {tau:.2f}; at 1200 °C {row['KS20_1200C_vs_dc07']:+.2f}, "
+            f"({key}) {panel['title']}\nτ {tau:.2f}; at 1200 °C {row['KS20_1200C_vs_dc07']:+.2f}, "
             f"±{half[i1200]:.2f} law, ±{new_lab[i1200]:.2f} new lab{melt_txt}",
             loc="left",
         )
@@ -195,14 +225,8 @@ def fig_bowties(base, both, sigma, fits, rng) -> pd.DataFrame:
     axes[0].set_ylabel("log10 D[001] minus DC07 at the KS20 conditions")
     handles, labels = axes[2].get_legend_handles_labels()
     fig.legend(handles, labels, loc="outside lower center", ncol=6, fontsize=7, frameon=False)
-    a, b = rows[0], rows[1]
-    fig.suptitle(
-        f"A melt term takes melt contact out of the lab spread: τ {a['tau_log10']:.2f} → "
-        f"{b['tau_log10']:.2f} log, and the solid-contact law at KS20, 1200 °C moves from "
-        f"{a['KS20_1200C_vs_dc07']:+.2f} to {b['KS20_1200C_vs_dc07']:+.2f} log above DC07",
-        fontsize=10,
-    )
-    fig.savefig(OUT / "fig1_bowties.png", dpi=200)
+    fig.suptitle(title(rows), fontsize=10)
+    fig.savefig(path or OUT / "fig1_bowties.png", dpi=200)
     plt.close(fig)
     return pd.DataFrame(rows)
 
@@ -270,7 +294,27 @@ def fig_fo2(base, both, sigma, fit, ex: pd.DataFrame, rng) -> None:
     )
     a.legend(loc="upper left", fontsize=6.5, frameon=False, ncol=2)
 
-    # (b) the exponents, one row each.
+    exponent_panel(b, ex)
+    b.set_title("(b) fO2 exponent of each fit and study", loc="left")
+    base_m = ex[(ex.form == "dc07_free") & (ex.variant == "baseline")].exponent.iloc[0]
+    melt_m = ex[(ex.form == "dc07_free") & (ex.variant == "melt_fixed_both")].exponent.iloc[0]
+    one_atm = both[both["P_Pa"] < 2e5]
+    near = one_atm["log10_fO2_Pa"].between(lo_rr - NEAR, hi_rr + NEAR)
+    names = [STYLE[s][2].split(" (")[0] for s in STYLE if s in set(one_atm[near]["source"])]
+    melt = fit["melt_fixed_both"]["beta"][n]
+    fig.suptitle(
+        f"Separating melt contact moves the fO2 exponent only {base_m:.3f} → {melt_m:.3f}: "
+        f"the melt studies shift the level ({melt:+.2f} log), not the slope.\n"
+        f"1-atm data within {NEAR} log of our fO2: " + ", ".join(names),
+        fontsize=10,
+    )
+    fig.savefig(OUT / "fig2_fo2.png", dpi=200)
+    plt.close(fig)
+
+
+def exponent_panel(b, ex: pd.DataFrame, names=None) -> None:
+    """One row per fit or study: the fO2 exponent and its 1 sigma, against DC07 and Mutch."""
+    names = {**VARIANT_NAME, **(names or {})}
     colour = {"dc07_free": SOLID, "mutch_x6": "#E69F00", "study's own": "0.3"}
     marker = {"dc07_free": "o", "mutch_x6": "s", "study's own": "D"}
     labels = []
@@ -286,9 +330,7 @@ def fig_fo2(base, both, sigma, fit, ex: pd.DataFrame, rng) -> None:
             label=FORM_LEGEND[r.form] if r.form not in [lab for lab, _ in labels] else None,
         )
         labels.append((r.form, r.variant))
-    b.set_yticks(
-        range(len(ex)), [f"{FORM_NAME.get(f, '')}{VARIANT_NAME.get(v, v)}" for f, v in labels]
-    )
+    b.set_yticks(range(len(ex)), [f"{FORM_NAME.get(f, '')}{names.get(v, v)}" for f, v in labels])
     b.invert_yaxis()
     for value, ls, label in (
         (DIFFUSIVITY_PRESETS["dohmen_chakraborty2007"].fO2_exponent, ":", "DC07 1/6"),
@@ -296,22 +338,7 @@ def fig_fo2(base, both, sigma, fit, ex: pd.DataFrame, rng) -> None:
     ):
         b.axvline(value, color="0.15", ls=ls, lw=1.0, label=label)
     b.set_xlabel("fO2 exponent, d log D / d log fO2 (±1 sigma)")
-    b.set_title("(b) fO2 exponent of each fit and study", loc="left")
     b.legend(loc="upper right", fontsize=6.5, frameon=False)
-    base_m = ex[(ex.form == "dc07_free") & (ex.variant == "baseline")].exponent.iloc[0]
-    melt_m = ex[(ex.form == "dc07_free") & (ex.variant == "melt_fixed_both")].exponent.iloc[0]
-    one_atm = both[both["P_Pa"] < 2e5]
-    near = one_atm["log10_fO2_Pa"].between(lo_rr - NEAR, hi_rr + NEAR)
-    names = [STYLE[s][2].split(" (")[0] for s in STYLE if s in set(one_atm[near]["source"])]
-    melt = fit["melt_fixed_both"]["beta"][n]
-    fig.suptitle(
-        f"Separating melt contact moves the fO2 exponent only {base_m:.3f} → {melt_m:.3f}: "
-        f"the melt studies shift the level ({melt:+.2f} log), not the slope.\n"
-        f"1-atm data within {NEAR} log of our fO2: " + ", ".join(names),
-        fontsize=10,
-    )
-    fig.savefig(OUT / "fig2_fo2.png", dpi=200)
-    plt.close(fig)
 
 
 def offsets(base: pd.DataFrame) -> pd.DataFrame:
@@ -359,14 +386,20 @@ ROWS = (  # (source, set, label, melt contact)
 JW_STYLE = ("0.55", "s", "Jurewicz & Watson 1988")
 
 
-def fig_offsets(off: pd.DataFrame, rng) -> pd.DataFrame:
-    fig, ax = plt.subplots(figsize=(8.5, 4.6), layout="constrained")
+def fig_offsets(
+    off: pd.DataFrame, rng, rows_spec=ROWS, style=None, path=None, title=None
+) -> pd.DataFrame:
+    style = {**STYLE, "jurewicz_watson1988": JW_STYLE, **(style or {})}
+    height = round(0.55 * len(rows_spec) + 0.2, 2)  # 4.6 in for the 8 original rows
+    fig, ax = plt.subplots(figsize=(8.5, height), layout="constrained")
     rows = []
-    for i, (src, subset, _, melt) in enumerate(ROWS):
+    for i, (src, subset, _, melt) in enumerate(rows_spec):
         r = off[(off["source"] == src) & (off["set"] == subset)]["resid"].to_numpy()
-        colour, marker, _ = JW_STYLE if src == "jurewicz_watson1988" else STYLE[src]
+        colour, marker, _ = style[src]
         y = i + rng.uniform(-0.18, 0.18, len(r))
-        ax.plot(r, y, marker, color=colour, mfc="none" if src != SHEA else colour, ms=4, alpha=0.7)
+        ax.plot(
+            r, y, marker, color=colour, mfc=colour if src in FILLED else "none", ms=4, alpha=0.7
+        )
         m, sd = r.mean(), r.std(ddof=1)
         ax.errorbar(m, i, xerr=sd, fmt="|", color="0.1", ms=14, mew=2, elinewidth=1.4, capsize=0)
         ax.annotate(
@@ -378,13 +411,14 @@ def fig_offsets(off: pd.DataFrame, rng) -> pd.DataFrame:
             fontsize=7.5,
         )
         rows.append({"source": src, "set": subset, "mean": m, "sd": sd, "n": len(r), "melt": melt})
-    labels = [label for _, _, label, _ in ROWS]
-    ax.set_yticks(range(len(ROWS)), labels)
-    for tick, (*_, melt) in zip(ax.get_yticklabels(), ROWS, strict=True):
+    labels = [label for _, _, label, _ in rows_spec]
+    ax.set_yticks(range(len(rows_spec)), labels)
+    for tick, (*_, melt) in zip(ax.get_yticklabels(), rows_spec, strict=True):
         tick.set_color(MELT if melt else "0.1")
     ax.invert_yaxis()
     ax.axvline(0, color="0.2", lw=0.9, ls=":")
-    ax.axhline(3.5, color="0.7", lw=0.8)
+    first_melt = next(i for i, (*_, melt) in enumerate(rows_spec) if melt)
+    ax.axhline(first_melt - 0.5, color="0.7", lw=0.8)
     ax.set_xlim(right=ax.get_xlim()[1] + 0.45)
     ax.set_xlabel("log10 D measured minus DC07 at the experiment's own conditions")
     summary = pd.DataFrame(rows)
@@ -393,13 +427,12 @@ def fig_offsets(off: pd.DataFrame, rng) -> pd.DataFrame:
         summary[summary["melt"] & (summary["set"] != "8 axis rows")],
     )
     lo, hi = melt["mean"].min(), melt["mean"].max()
-    ax.set_title(
+    text = (
         f"Melt-contact studies sit {lo:+.2f} to {hi:+.2f} log above DC07;\n"
-        f"solid-source studies {solid['mean'].min():+.2f} to {solid['mean'].max():+.2f}",
-        loc="left",
-        fontsize=10,
+        f"solid-source studies {solid['mean'].min():+.2f} to {solid['mean'].max():+.2f}"
     )
-    fig.savefig(OUT / "fig3_offsets.png", dpi=200)
+    ax.set_title(title(summary) if title else text, loc="left", fontsize=10)
+    fig.savefig(path or OUT / "fig3_offsets.png", dpi=200)
     plt.close(fig)
     return summary
 
@@ -409,7 +442,8 @@ def main() -> None:
     rng = np.random.default_rng(SEED)
     base, both, sigma = data()
     fits = M.variant_fits(F.FORMS["dc07_free"], base, both)
-    fig_bowties(base, both, sigma, fits, rng).to_csv(OUT / "fig1_bowties.csv", index=False)
+    table = fig_bowties(both, sigma, melt_panels(both, fits), rng)
+    table.to_csv(OUT / "fig1_bowties.csv", index=False)
     ex = exponents(base, both)
     ex.to_csv(OUT / "fig2_fo2_exponents.csv", index=False)
     fig_fo2(base, both, sigma, fits, ex, rng)
