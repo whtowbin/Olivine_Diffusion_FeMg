@@ -180,7 +180,8 @@ SUMMARY_COLUMNS = (
         "",
         "1-sigma of log10 D from the diffusivity law's covariance at the run's conditions "
         "(and of log10 time, with the sign changed). Empty for laws without one (the "
-        "default) and for fits with growth stages.",
+        "default) and for fits with growth stages or a rim value that changes in time "
+        "(docs/references/law-uncertainty-limits.md).",
     ),
     Column(
         "between_study_log10",

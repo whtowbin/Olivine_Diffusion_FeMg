@@ -2,8 +2,8 @@
 
 The explicit schemes (`forster.engine`, `forster.dipra`) hold the rim and core values
 one node outside the profile and snap each step of the initial condition to the
-nearest node; both make the fitted time first order in dx (about 0.65 dx / l,
-``docs/references/grid-choice.md``). Here
+nearest node; both make the fitted time first order in dx (about 2.4 dx / l
+against a converged reference, ``docs/references/grid-choice.md``). Here
 
 - the grid has nodes exactly on both ends of the model domain and on every growth
   stage's rim (`node_grid`; uniform between those nodes), and the rim and core values

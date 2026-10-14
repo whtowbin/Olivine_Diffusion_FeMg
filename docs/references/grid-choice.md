@@ -136,7 +136,8 @@ The parameter tables use dx = 1 µm (round robin) and 0.5 µm (paper). For the
 six profiles above that is k = 29 and 36 (KS20-527_2-transect-1,
 KS20-527-8_transect-2), 22 and 18 (Ol_63, bigol1), 6 (SH63olv066-1) and 5
 (Xenocryst_ol6_prof_1, whose time is about 7% off its converged value). The
-first four meet the scan tolerance by the 0.65 / k rule, but not the final one.
+first four met the scan tolerance by the original 0.65 / k rule, but not the final
+one; by the corrected 2.4 / k rule none meets even the scan tolerance (k = 48).
 
 ## The implicit scheme
 

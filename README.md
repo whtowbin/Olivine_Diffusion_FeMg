@@ -98,17 +98,20 @@ or without tables, from arrays:
 
 ```python
 from forster import (
-    Conditions, Grid, InitialCondition, Orientation, Profile, fit_profile,
+    Conditions, InitialCondition, Orientation, Profile, choose_grid, fit_profile,
 )
 
-result = fit_profile(
-    Profile(distance_um, fo, name="my profile"),        # Fo as a fraction
-    Conditions.from_buffer(T_C=1250, P_Pa=5e8, delta_log=0.3, buffer="QFM"),
-    Orientation.from_euler(77.0, 61.2, 334.2, profile_angle_deg=-80),
-    InitialCondition(domain_um=(2.5, 72), edge_fo=0.9146, core_fo=0.8985, steps_um=(24,)),
-    Grid(dx_um=0.5, dt_s=60, max_time_days=40),
-)
+profile = Profile(distance_um, fo, name="my profile")  # Fo as a fraction
+conditions = Conditions.from_buffer(T_C=1250, P_Pa=5e8, delta_log=0.3, buffer="QFM")
+orientation = Orientation.from_euler(77.0, 61.2, 334.2, profile_angle_deg=-80)
+initial = InitialCondition(domain_um=(2.5, 72), edge_fo=0.9146, core_fo=0.8985, steps_um=(24,))
+grid = choose_grid(profile, conditions, orientation, initial).grid
+result = fit_profile(profile, conditions, orientation, initial, grid)
 ```
+
+`choose_grid` picks dx, dt and the longest modelled time for the implicit scheme
+(`docs/references/grid-choice.md`); give your own with
+`forster.Grid(dx_um, dt_s, max_time_days)`.
 
 `Conditions(T_C, P_Pa, fO2_Pa)` and `Orientation(alpha_deg, beta_deg, gamma_deg)`
 take the conditions and angles directly. `fit_profile(..., diffusivity=...)` takes
@@ -262,7 +265,7 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `time_days` | days | Best-fit time. |
 | `low_days` | days | Low end of the 1-sigma range. |
 | `high_days` | days | High end of the 1-sigma range. |
-| `law_sigma_log10` | log10 | 1-sigma of log10 D from the diffusivity law's covariance at the run's conditions (and of log10 time, with the sign changed). Empty for laws without one (the default) and for fits with growth stages. |
+| `law_sigma_log10` | log10 | 1-sigma of log10 D from the diffusivity law's covariance at the run's conditions (and of log10 time, with the sign changed). Empty for laws without one (the default) and for fits with growth stages or a rim value that changes in time (docs/references/law-uncertainty-limits.md). |
 | `between_study_log10` | log10 | Spread between laboratories of the law's calibration data (a random study offset). |
 | `law_low_days` | days | Low end of the 1-sigma range with the law's uncertainty added. Use low_days and high_days to compare crystals fitted with the same law (its error is common to all of them); these for a time on its own. |
 | `law_high_days` | days | High end of that range. |
@@ -292,8 +295,8 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
 
 ## How the fit works
 
-- The model is explicit finite differences for Fe-Mg interdiffusion with a
-  diffusivity that depends on Fo, oxygen fugacity, temperature and pressure, and
+- The model is finite differences (implicit by default, explicit on request; see
+  `scheme` below) for Fe-Mg interdiffusion with a diffusivity that depends on Fo, oxygen fugacity, temperature and pressure, and
   on the angles between the profile and the crystal axes. The ends of the model
   domain are held at `edge_fo` and `core_fo`.
 - Every time step is compared with the measured points. The best fit is the time
@@ -334,7 +337,11 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.25 log;
   for an absolute time, if the crystal may sit off the laboratories' average as one
   more experiment would). From Python: `result.time_range_days("fit" | "law" |
-  "law_and_studies")`. Not available for fits with growth stages or for element fits.
+  "law_and_studies")`. Not available for fits with growth stages, a rim value that
+  changes in time or element fits, where the time no longer scales as 1/D; the
+  initial-condition scan's range is not widened yet. What the range assumes, where it
+  was measured to hold and where not:
+  [docs/references/law-uncertainty-limits.md](docs/references/law-uncertainty-limits.md).
 - The default diffusivity, `dohmen_chakraborty2007`, is the Fe-Mg equation DIPRA
   uses (Dohmen and Chakraborty 2007; Girona and Costa 2013, Table 1). The presets
   `mutch2019_tamed` and `mutch2019_global` are the regressions of Mutch et al.

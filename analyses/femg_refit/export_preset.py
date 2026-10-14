@@ -2,10 +2,11 @@
 
 The DC07 form with log D0, E, the fO2 exponent, the composition coefficient and
 both anisotropy factors fitted (V fixed at 7 cm3/mol), with a random offset per
-study (`fit_models.fit_random`). Prints the `ArrheniusDiffusivity` for
-`src/forster/diffusivity.py`, then checks that the preset reproduces the refit's
-log10 D and its 1-sigma (`fit_models.predict`) on every axis at the round robin
-and paper conditions and over a spread of others. Run:
+study (`fit_models.fit_random`). Checks that the law reproduces the refit's log10 D
+and its 1-sigma (`fit_models.predict`) on every axis at the round robin and paper
+conditions and over a spread of others, and that it equals the preset shipped in
+`src/forster/diffusivity.py`; if not (the data or the fit changed), prints the
+values to paste there and exits with status 1. Run:
 uv run --with odrpack python analyses/femg_refit/export_preset.py
 """
 
@@ -15,8 +16,8 @@ import warnings
 import fit_models as F
 import numpy as np
 
-from forster import Conditions, Orientation
-from forster.diffusivity import ArrheniusDiffusivity, LawUncertainty
+from forster import DIFFUSIVITY_PRESETS, Conditions, Orientation
+from forster.diffusivity import _REFIT_2026, ArrheniusDiffusivity, LawUncertainty
 
 warnings.simplefilter("ignore")
 LN10 = math.log(10)
@@ -54,13 +55,7 @@ def preset(fit: dict) -> ArrheniusDiffusivity:
         fo_ref=0.9,
         activation_volume_m3_mol=F.V_DC07,
         P_ref_Pa=1e5,
-        source=(
-            "Refit of the TaMED Fe-Mg data (Chakraborty 1997; Dohmen et al. 2007; Petry et "
-            "al. 2004; Holzapfel et al. 2007; Spandler and O'Neill 2010; fO2 > 1e-10 Pa, "
-            "135 points) in the Dohmen and Chakraborty (2007) form, V fixed at 7 cm3/mol, "
-            "least squares with a random offset per study (REML). analyses/femg_refit, "
-            "method 'random study'."
-        ),
+        source=_REFIT_2026,
         uncertainty=LawUncertainty(
             parameters=PARAMETERS,
             covariance=tuple(map(tuple, cov)),
@@ -115,9 +110,12 @@ def main() -> None:
     fit = F.fit_random(F.FORMS["dc07_free"], F.tamed())
     law = preset(fit)
     print(f"worst difference, preset vs refit (log10 D and its sigma): {check(law, fit):.2e}")
+    if law == DIFFUSIVITY_PRESETS["femg_refit2026"]:
+        print("the preset in src/forster/diffusivity.py is this law, exactly")
+        return
     u = law.uncertainty
     assert u is not None
-    print("\n# --- for src/forster/diffusivity.py ---")
+    print("\n# --- the preset differs: paste into src/forster/diffusivity.py ---")
     print(f"log10_D0_m2_s={law.log10_D0_m2_s!r},")
     print(f"activation_energy_J_mol={law.activation_energy_J_mol!r},")
     print(f"fO2_exponent={law.fO2_exponent!r},")
@@ -129,6 +127,7 @@ def main() -> None:
     print("),")
     print(f"between_study_log10={u.between_study_log10!r},")
     print(f"source={u.source!r},")
+    raise SystemExit(1)
 
 
 if __name__ == "__main__":

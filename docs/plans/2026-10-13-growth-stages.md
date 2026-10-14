@@ -27,7 +27,8 @@ crystal at a given time are inactive (NaN in the stored curves). The explicit
 steppers run on the active slice with the stage's rim value as the boundary, so
 with no stages every number is identical to now.
 
-Shared with session github-drafts-68 (its implicit scheme will extend it):
+Shared with the implicit scheme (built 2026-10-13, `forster.implicit`; staged runs in
+`model._implicit_staged_prefix`):
 `forster/boundary.py` with `Stage(start_s, rim_um, rim_value=None, zone_value=None)`
 and `BoundaryHistory(stages)` (active node range and rim value at a time).
 

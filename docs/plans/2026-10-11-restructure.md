@@ -1,6 +1,6 @@
 # Restructure Olivine_Diffusion_FeMg so others can run the models
 
-Status (2026-10-12): phase 1 done and committed locally (999a40f engine fix, 9108a99 move, de3bfd3 package, d3ce564 rename to `forster`). Fit-uncertainty work committed as 8a46492 (session github-drafts-68), phase 2 as dec3f59 (see "Phase 2 tasks"). Phases 3-4 not started. `master` is 8 commits ahead of GitHub (not pushed).
+Status (2026-10-14): superseded as a running log; the package has moved on well past it (the implicit scheme, growth stages, element fits, the law uncertainty: see `CHANGELOG.md` and the later plans in `docs/plans/`). Kept for the phase plan and the decisions recorded below. As of 2026-10-12: phase 1 done and committed locally (999a40f engine fix, 9108a99 move, de3bfd3 package, d3ce564 rename to `forster`). Fit-uncertainty work committed as 8a46492 (session github-drafts-68), phase 2 as dec3f59 (see "Phase 2 tasks"). Phases 3-4 not started. `master` is 8 commits ahead of GitHub (not pushed).
 
 ## Next session: start here
 

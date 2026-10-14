@@ -1,11 +1,12 @@
 """Fit a diffusion model to one olivine Fo profile.
 
 `fit_profile` is the user-facing form of `model_diffusion` from the round robin
-script (``Round_Robin_Diffusion_Modeling Part 2.py``). With the default scheme it
-makes the same engine calls in the same order (those of ``engine.Diffusion_call``),
-but takes its inputs as arguments instead of looking them up by name in global
-spreadsheets. ``tests/test_differential.py`` checks that both give identical
-results.
+script (``Round_Robin_Diffusion_Modeling Part 2.py``), taking its inputs as arguments
+instead of looking them up by name in global spreadsheets. With the legacy
+uncertainty method (whose default scheme is "central") it makes the same engine calls
+in the same order (those of ``engine.Diffusion_call``); ``tests/test_differential.py``
+checks that both give identical results. The default scheme is "implicit" (since
+2026-10-13).
 
 Units are in the names: micrometres (``_um``), seconds (``_s``), days (``_days``),
 pascals (``_Pa``), degrees Celsius (``_C``). Fo is a fraction (0.88, not 88).
@@ -733,10 +734,10 @@ def fit_profile(
     (the rim exactly at ``domain_um[0]``), averages the start over each node's cell
     instead of moving its steps, and steps in time with TR-BDF2. On 35 real profiles
     its chosen grid (dx = l / 8, l = sqrt(D t); 400 steps up to the fit) gave times
-    within 0.3% of a converged reference, where the explicit chosen grid (dx = l / 65)
-    was off by up to 3.6%. The same inputs put the rim one node apart in the two kinds
-    of scheme, so at coarse grids they give slightly different fits; both converge to
-    the same answer. Correlated uncertainty only.
+    within 0.3% of a converged reference, where the explicit grid then chosen
+    (dx = l / 65; l / 240 since) was off by up to 3.6%. The same inputs put the rim
+    one node apart in the two kinds of scheme, so at coarse grids they give slightly
+    different fits; both converge to the same answer. Correlated uncertainty only.
 
     ``diffusivity`` is the Fe-Mg diffusivity equation: a preset name from
     `forster.diffusivity.DIFFUSIVITY_PRESETS` or an equation object (an

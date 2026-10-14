@@ -19,8 +19,8 @@ Three parameter-table layouts are recognised from their columns:
 The last two give the initial condition as ``edge_x1``, ``edge_x2`` (model domain, um),
 ``inflection_x`` (step positions, um; one number or text such as ``"0, 31"``),
 ``edge_c``, ``center_c`` and ``inflection_c`` (Fo in percent). An optional
-``scheme`` column picks the finite-difference scheme per run ("central" or
-"dipra"), an optional ``uncertainty`` column the uncertainty method
+``scheme`` column picks the finite-difference scheme per run ("implicit", the
+default, "central" or "dipra"), an optional ``uncertainty`` column the uncertainty method
 ("correlated" or "legacy"), and an optional ``diffusivity`` column the
 diffusivity equation (a preset, or a row of a diffusivities table read with
 `read_diffusivities`); see `fit_profile`.

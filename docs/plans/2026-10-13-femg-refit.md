@@ -1,6 +1,6 @@
 # Fe-Mg diffusivity refit with a covariance
 
-Status (2026-10-13): data compiled and checked; Mutch et al. (2019) reproduced within ~1 standard error; four law forms fitted five ways, with figures (`analyses/femg_refit/`). Presets with covariance not yet added (decision for Henry, below).
+Status (2026-10-13): data compiled and checked; Mutch et al. (2019) reproduced within ~1 standard error; five law forms fitted six ways, with figures (`analyses/femg_refit/`). Preset with a covariance added 2026-10-13: `femg_refit2026` (the DC07 form, V fixed, random study offset; `docs/plans/2026-10-13-law-uncertainty.md`, limits in `docs/references/law-uncertainty-limits.md`).
 
 ## Goal
 

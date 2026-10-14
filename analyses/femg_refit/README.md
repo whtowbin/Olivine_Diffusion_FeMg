@@ -56,7 +56,9 @@ orientation are not recoverable.
 - `export_preset.py`: writes the `femg_refit2026` preset (`dc07_free`, random study
   offset, with its covariance and between-study spread) for
   `src/forster/diffusivity.py`, and checks that the preset reproduces the refit's
-  log10 D and its 1-sigma on every axis at 22 conditions (largest difference 7e-15).
+  log10 D and its 1-sigma on every axis at 22 conditions (largest difference 7e-15)
+  and equals the preset shipped there (otherwise it prints the values to paste and
+  exits with status 1).
   `uv run --with odrpack python analyses/femg_refit/export_preset.py`.
 - `compare_laws.py`: residuals of the published laws and our refits against the
   data, by study, and F tests of candidate missing terms.

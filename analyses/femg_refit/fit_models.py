@@ -1,4 +1,4 @@
-"""Fe-Mg diffusivity refits: four law forms, five ways of fitting them.
+"""Fe-Mg diffusivity refits: five law forms, six ways of fitting them.
 
 Data: the TaMED set (fO2 > 1e-10 Pa) of `fit_ols.load`, each D on its own axis.
 Forms (ln D on the measured axis):
@@ -15,7 +15,8 @@ Forms (ln D on the measured axis):
 
 Methods: ols (unweighted, as Mutch et al. 2019), wls (weighted by the y errors),
 odr (errors in T, fO2, X_Fo and P as well; odrpack, after Henry's odr_bootstrap),
-bootstrap (resampling whole runs, OLS each), loso (leave one study out, OLS).
+bootstrap (resampling whole runs, OLS each), random study (a random offset per study,
+tau by REML), loso (leave one study out, OLS).
 
 Run: uv run --with odrpack python analyses/femg_refit/fit_models.py
 Writes results/ (coefficients, covariances, predictions at the round robin and

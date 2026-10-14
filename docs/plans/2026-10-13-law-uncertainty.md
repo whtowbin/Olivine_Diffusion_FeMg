@@ -83,3 +83,11 @@ Verify: `uv run pytest -q`, with and without `FORSTER_NO_NUMBA=1`; `ruff check`,
 ## Status
 
 - [x] 1-5 (2026-10-13). Verified: full suite with and without Numba, ruff, ty, complexipy.
+
+## Follow-up (2026-10-14)
+
+The review found the law range also attached to fits with a rim value that changes
+in time, where the D t argument fails as it does for growth stages (measured: the
+fitted time moved by 0.57-0.66 of -delta); it is now withheld there too, and a
+time-zero fit no longer makes `summary_row` raise. Limits of the method, measured:
+`docs/references/law-uncertainty-limits.md`.

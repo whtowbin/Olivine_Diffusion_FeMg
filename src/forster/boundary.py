@@ -15,8 +15,8 @@ through given times) or any function of the time in seconds since stage 0 began.
 Changing values need the implicit scheme (`forster.implicit`).
 
 The model grid covers the final crystal; nodes outside the crystal at a given time
-are inactive. Shared by the explicit steppers (`forster.model`) and, later, the
-implicit scheme of session github-drafts-68. Plan:
+are inactive. Shared by the explicit steppers (`forster.model`) and the implicit
+scheme (`forster.implicit`, `model._implicit_staged_prefix`). Plan:
 ``docs/plans/2026-10-13-growth-stages.md``.
 """
 
