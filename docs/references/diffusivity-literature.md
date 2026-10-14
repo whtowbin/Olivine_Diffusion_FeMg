@@ -171,6 +171,8 @@ Error bars on each diffusivity span 0.6 log units.
   melt interface by Al or H from the basalt.
 - The authors call for more melt-bearing experiments with controlled geometry
   before published diffusivities are revised.
+- Against the refit's study offsets, the between-study term and the fO2 exponent:
+  `melt-contact-diffusion.md` (2026-10-14).
 
 ## Where the studies disagree with each other
 

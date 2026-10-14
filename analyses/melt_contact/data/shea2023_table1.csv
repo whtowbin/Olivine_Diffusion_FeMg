@@ -1,0 +1,27 @@
+source,table_row,run,seed,T_start_C,dwell_start_h,T_C,dwell_end_h,D_Fo,D_Ni,D_Ca,D_Mn,D_Cr,axis,angle_to_c_deg,axis_basis,X_Fo,X_Fo_basis,t_model_FeMg_h,t_model_Ni_h,t_model_Ca_h,t_model_Mn_h,t_model_Cr_h,notes
+shea2023,1,k1820-ol4,,1290,24,1255,48,1.7e-15,8.3e-16,6.2e-16,1.6e-15,,,,,,,,,,,,
+shea2023,2,k1820-ol15,Kilauea phenocryst,1290,24,1255,84,7.9e-16,3.1e-16,2.9e-16,3.4e-16,,[100],89,"Fig 2c: 89 deg from c; [100] or [010] not stated, taken as [100]",0.864,Fig 2c Fo 84.0-88.7 (midpoint),775.2,252,,324,,Fig 2c: Fe-Mg 32.3 d; Ni 10.5 d; Mn 13.5 d; true 3.5 d
+shea2023,3,k1820-ol16,Kilauea phenocryst,1290,24,1255,6,1.3e-15,1.2e-15,3.3e-15,1.8e-15,,,58,Fig 2a: 58 deg from c; not a principal axis,0.872,Fig 2a Fo 85.6-88.8 (midpoint),62,47,,86,,Fig 2a: the only 6 h run at 1255 C
+shea2023,4,k1820-ol18,Kilauea phenocryst,1290,24,1255,12.33,1.6e-15,9.0e-16,1.1e-15,9.2e-16,,[100],86,"Fig 2b: 86 deg from c; [100] or [010] not stated, taken as [100]",0.807,"Fig 2b Fo 76.8-84.6 (midpoint), reversely zoned",132,441.6,,79.2,,"Fig 2b assigned to this ol18 row: only one with Fe, Ni and Mn; Mn/Fe 0.58 against time ratio 0.60. Ni profile marked less well resolved"
+shea2023,5,k1820-ol18,,1290,24,1255,12.33,1.4e-15,1.9e-15,2.8e-15,,,,,,,,,,,,,
+shea2023,6,k1820-ol18,,1290,24,1255,12.33,1.1e-15,,2.6e-15,7.3e-16,2.3e-16,,,,,,,,,,,
+shea2023,7,k1820-ol20,Kilauea seed,1290,24,1220,6,9.5e-16,4.5e-16,8.5e-16,,,[010],,Fig 3 profile 1 'parallel to b',0.856,Fig 3 profile 1 Fo 84.4-86.8 (midpoint),130,53,,,,"Fig 3 assigned by ratio: Fe-Mg D_c/D_b = (88/130) x 6 = 4.06 against 3.9/0.95 = 4.1; Ni (125/53) x 6 = 14.2 against 6.3/0.45 = 14"
+shea2023,8,k1820-ol20,Kilauea seed,1290,24,1220,6,3.9e-15,6.3e-15,,,,[001],,Fig 3 profile 2 'parallel to c',0.851,Fig 3 profile 2 Fo 83.8-86.4 (midpoint),88,125,,,,
+shea2023,9,k1820-ol20,,1290,24,1220,6,8.9e-16,7.0e-16,2.1e-15,1.1e-15,,,,,,,,,,,,
+shea2023,10,k1820-ol23,,1290,24,1290,0,3.5e-15,2.6e-15,,,,,,,,,,,,,,"Quenched after the superliquidus anneal (dissolving, no rim): diffusion over 24 h at 1290 C"
+shea2023,11,k1820-ol25,San Carlos seed,1290,8,1240,48,4.4e-15,3.9e-15,5.1e-16,2.3e-15,6.0e-15,[001],,Fig 4 profile 1 'parallel to c',0.875,Fig 4 Fo 84.5-90.5 (midpoint),880.8,614.4,379.2,482.4,27792,"Fig 4 profile order matches Table 1 order by Ni, Ca and Mn time ratios; Fe-Mg rows 1 and 2 are reversed (36.7 and 37.7 d against 4.4 and 4.3e-15)"
+shea2023,12,k1820-ol25,San Carlos seed,1290,8,1240,48,4.3e-15,5.3e-15,6.3e-16,3.6e-15,5.7e-15,[001],,Fig 4 profile 2 'parallel to c',0.875,Fig 4 Fo 84.5-90.5 (midpoint),904.8,844.8,472.8,744,27072,
+shea2023,13,k1820-ol25,San Carlos seed,1290,8,1240,48,3.3e-16,2.6e-16,2.6e-16,5.6e-16,1.9e-16,[100],,Fig 4 profile 3 'parallel to a',0.875,Fig 4 Fo 84.5-90.5 (midpoint),415.2,230.4,355.2,727.2,2697.6,
+shea2023,14,k1820-ol25,San Carlos seed,1290,8,1240,48,4.8e-16,4.2e-16,2.9e-16,4.5e-16,3.4e-16,[100],,Fig 4 profile 4 'parallel to a',0.875,Fig 4 Fo 84.5-90.5 (midpoint),612,376.8,410.4,547.2,2400,
+shea2023,15,k1820-ol26,,1290,8,1240,48,5.8e-16,4.4e-16,,,,,,,,,,,,,,
+shea2023,16,k1820-ol26,,1290,8,1240,48,5.8e-16,3.6e-16,2.8e-16,,,,,,,,,,,,,
+shea2023,17,k1820-ol26,,1290,8,1240,48,2.8e-15,1.6e-15,3.6e-16,,,,,,,,,,,,,
+shea2023,18,k1820-ol26,,1290,8,1240,48,2.7e-15,2.1e-15,5.8e-16,2.0e-15,,,,,,,,,,,,
+shea2023,19,k1820-ol27,San Carlos seed,1287,24,1287,0,1.2e-15,,2.9e-16,1.6e-15,1.7e-15,,,,,,,,,,,"Quenched after the superliquidus anneal; the San Carlos benchmark used for the 2-step models"
+shea2023,20,k1820-ol27,,1287,24,1287,0,,,,,,,,,,,,,,,,
+shea2023,21,k1820-ol27,,1287,24,1287,0,,,,,,,,,,,,,,,,
+shea2023,22,k1820-ol27,,1287,24,1287,0,,,,,,,,,,,,,,,,
+shea2023,23,k1820-ol31,,1290,24,1200,48,3.1e-16,2.5e-16,1.7e-16,,,,,,,,,,,,,
+shea2023,24,k1820-ol31,,1290,24,1200,48,1.9e-15,1.6e-15,,,,,,,,,,,,,,
+shea2023,25,k1820-ol31,,1290,24,1200,48,2.9e-16,,2.8e-16,,,,,,,,,,,,,
+shea2023,26,k1820-ol31,,1290,24,1200,48,1.2e-15,9.1e-16,3.5e-16,,,,,,,,,,,,,
