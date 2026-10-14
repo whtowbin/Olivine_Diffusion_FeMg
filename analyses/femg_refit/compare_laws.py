@@ -14,8 +14,6 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from forster import DIFFUSIVITY_PRESETS, Conditions
-
 warnings.simplefilter("ignore")
 df = F.tamed()
 LN10 = math.log(10)
@@ -23,13 +21,13 @@ obs = df["log10_D_m2s"].to_numpy()
 
 
 def preset_log_d(name):
-    d = DIFFUSIVITY_PRESETS[name]
-    out = []
-    for r in df.itertuples():
-        c = Conditions(r.T_C, r.P_Pa, 10**r.log10_fO2_Pa)
-        axis = {"[100]": 0, "[010]": 1, "[001]": 2}[r.axis]
-        out.append(np.log10(d.axis_diffusivities(c, r.X_Fo)[axis]))
-    return np.array(out)
+    axes = {"[100]": 0, "[010]": 1, "[001]": 2}
+    return np.array(
+        [
+            F.preset_log10_d(name, r.T_C, r.P_Pa, r.log10_fO2_Pa, r.X_Fo, axes[r.axis])
+            for r in df.itertuples()
+        ]
+    )
 
 
 print("Residuals of each law against the 135 TaMED points (observed - law, log10):")

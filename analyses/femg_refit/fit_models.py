@@ -384,17 +384,42 @@ def predict(form: Form, beta: np.ndarray, cov: np.ndarray, v: Vars) -> tuple[flo
     return ln_d / LN10, float(math.sqrt(max(g @ cov @ g, 0.0))) / LN10
 
 
-def _dc07_preset(v: Vars) -> float:
+def preset_log10_d(
+    name: str, T_C: float, P_Pa: float, log10_fO2_Pa: float, x_fo: float, axis: int = 2
+) -> float:
+    """log10 D of a `forster` preset along ``axis`` (0 [100], 1 [010], 2 [001])."""
     from forster import DIFFUSIVITY_PRESETS, Conditions
 
-    c = Conditions(
-        T_C=float(v.T[0]) - 273.15, P_Pa=float(v.P[0]), fO2_Pa=10 ** float(v.log_fo2_pa[0])
+    c = Conditions(T_C, P_Pa, 10**log10_fO2_Pa)
+    return float(np.log10(DIFFUSIVITY_PRESETS[name].axis_diffusivities(c, x_fo)[axis]))
+
+
+def _dc07_preset(v: Vars) -> float:
+    return preset_log10_d(
+        "dohmen_chakraborty2007",
+        float(v.T[0]) - 273.15,
+        float(v.P[0]),
+        float(v.log_fo2_pa[0]),
+        float(v.x_fo[0]),
     )
-    return float(
-        np.log10(
-            DIFFUSIVITY_PRESETS["dohmen_chakraborty2007"].axis_diffusivities(c, float(v.x_fo[0]))[2]
-        )
-    )
+
+
+def moved(df: pd.DataFrame, form: Form, beta: np.ndarray, **fixed) -> np.ndarray:
+    """log10 D moved from each point's own conditions to ``fixed`` (columns of ``df``,
+    such as log10_fO2_Pa, X_Fo, P_Pa, T_K, axis) by the fitted law."""
+    v_own = Vars.of(df)
+    v_t = Vars.of(df.assign(**fixed))
+    own = form.offset(v_own) + form.design(v_own) @ beta
+    to = form.offset(v_t) + form.design(v_t) @ beta
+    return (df["ln_D"].to_numpy() + to - own) / LN10
+
+
+def move_sd(df: pd.DataFrame, form: Form, cov: np.ndarray, **fixed) -> np.ndarray:
+    """1-sigma (log10 D) of each point's move by `moved`, from the fit's covariance. One
+    error in a coefficient moves all points the same way: shared, not independent."""
+    v_own = Vars.of(df)
+    dg = form.design(Vars.of(df.assign(**fixed))) - form.design(v_own)
+    return np.sqrt(np.clip(np.einsum("ij,jk,ik->i", dg, cov, dg), 0, None)) / LN10
 
 
 def _volumes(form: Form, method: str, fit: dict) -> list[dict]:
@@ -424,19 +449,35 @@ def _volumes(form: Form, method: str, fit: dict) -> list[dict]:
     return rows
 
 
+METHODS = ("ols", "wls", "odr", "bootstrap (runs)", "random study")  # fit_all's
+# Okabe-Ito colour, a marker and a label per study, for every figure.
+STUDY_STYLE = {
+    "chakraborty1997": ("#E69F00", "o", "Chakraborty 1997"),
+    "dohmen2007_part1": ("#56B4E9", "s", "Dohmen et al. 2007"),
+    "petry2004": ("#009E73", "^", "Petry et al. 2004"),
+    "holzapfel2007": ("#D55E00", "D", "Holzapfel et al. 2007"),
+    "spandler_oneill2010": ("#CC79A7", "v", "Spandler & O'Neill 2010"),
+}
+
+
+def fit_all(form: Form, df: pd.DataFrame) -> dict[str, dict]:
+    """``form`` fitted to all of ``df`` by each of `METHODS` (not leave-one-study-out)."""
+    return {
+        "ols": fit_ls(form, df, weighted=False),
+        "wls": fit_ls(form, df, weighted=True),
+        "odr": fit_odr(form, df),
+        "bootstrap (runs)": fit_bootstrap(form, df),
+        "random study": fit_random(form, df),
+    }
+
+
 def main() -> None:
     RESULTS.mkdir(exist_ok=True)
     df = tamed()
     conditions = _conditions()
     coef_rows, pred_rows = [], []
     for form in FORMS.values():
-        fits = {
-            "ols": fit_ls(form, df, weighted=False),
-            "wls": fit_ls(form, df, weighted=True),
-            "odr": fit_odr(form, df),
-            "bootstrap (runs)": fit_bootstrap(form, df),
-            "random study": fit_random(form, df),
-        }
+        fits = fit_all(form, df)
         for study, fit in fit_loso(form, df).items():
             fits[f"without {study}"] = fit
         for method, fit in fits.items():

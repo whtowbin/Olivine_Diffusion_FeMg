@@ -30,20 +30,14 @@ RESULTS = HERE / "results"
 LN10 = math.log(10)
 plt.rcParams.update({"pdf.fonttype": 42, "font.size": 9, "axes.titlesize": 9.5})
 
-STUDY_STYLE = {  # Okabe-Ito colour and a marker per study
-    "chakraborty1997": ("#E69F00", "o", "Chakraborty 1997"),
-    "dohmen2007_part1": ("#56B4E9", "s", "Dohmen et al. 2007"),
-    "petry2004": ("#009E73", "^", "Petry et al. 2004"),
-    "holzapfel2007": ("#D55E00", "D", "Holzapfel et al. 2007"),
-    "spandler_oneill2010": ("#CC79A7", "v", "Spandler & O'Neill 2010"),
-}
+STUDY_STYLE = F.STUDY_STYLE
 FORM_STYLE = {
     "dc07_fixed": ("#D55E00", "DC07 form, only D0 and E fitted"),
     "dc07_free": ("#E69F00", "DC07 form, V fixed at 7 cm3/mol"),
     "mutch_x6": ("#0072B2", "Mutch form, 6x anisotropy"),
     "mutch_aniso": ("#56B4E9", "Mutch form, anisotropy fitted"),
 }
-METHODS = ["ols", "wls", "odr", "bootstrap (runs)", "random study"]
+METHODS = F.METHODS
 METHOD_MARKER = {"ols": "o", "wls": "s", "odr": "D", "bootstrap (runs)": "^", "random study": "P"}
 METHOD_LABEL = {
     "ols": "least squares",
@@ -56,17 +50,12 @@ METHOD_LABEL = {
 
 def _preset_offsets() -> dict[str, dict[str, float]]:
     """log10 D[001] of the Mutch et al. (2019) presets minus the default, per condition."""
-    from forster import DIFFUSIVITY_PRESETS, Conditions
-
     out = {}
     for cname, v in F._conditions().items():
-        c = Conditions(float(v.T[0]) - 273.15, float(v.P[0]), 10 ** float(v.log_fo2_pa[0]))
+        at = (float(v.T[0]) - 273.15, float(v.P[0]), float(v.log_fo2_pa[0]), float(v.x_fo[0]))
         ref = F._dc07_preset(v)
         out[cname] = {
-            name: float(
-                np.log10(DIFFUSIVITY_PRESETS[name].axis_diffusivities(c, float(v.x_fo[0]))[2])
-            )
-            - ref
+            name: F.preset_log10_d(name, *at) - ref
             for name in ("mutch2019_tamed", "mutch2019_global")
         }
     return out
@@ -241,25 +230,13 @@ def fig_coefficients(coef: pd.DataFrame) -> None:
     plt.close(fig)
 
 
-def _normalised(df: pd.DataFrame, form: F.Form, beta: np.ndarray, **fixed) -> np.ndarray:
-    """log10 D moved from each point's own conditions to ``fixed`` by the fitted law."""
-    v_own = F.Vars.of(df)
-    target = df.copy()
-    for col, val in fixed.items():
-        target[col] = val
-    v_t = F.Vars.of(target)
-    own = form.offset(v_own) + form.design(v_own) @ beta
-    to = form.offset(v_t) + form.design(v_t) @ beta
-    return (df["ln_D"].to_numpy() + to - own) / LN10
-
-
 def fig_data(df: pd.DataFrame) -> None:
     form = F.FORMS["dc07_free"]
     beta = F.fit_ls(form, df, weighted=False)["beta"]
     conds = F._conditions()
     fig, (a, b) = plt.subplots(1, 2, figsize=(10, 4.4), layout="constrained")
     ref = {"log10_fO2_Pa": -7.0, "X_Fo": 0.9, "P_Pa": 1e5, "axis": "[001]"}
-    y_t = _normalised(df, form, beta, **ref)
+    y_t = F.moved(df, form, beta, **ref)
     for src, (colour, marker, label) in STUDY_STYLE.items():
         m = (df.source == src).to_numpy()
         a.plot(
@@ -285,7 +262,7 @@ def fig_data(df: pd.DataFrame) -> None:
     top.set_xticks([1e4 / (c + 273.15) for c in celsius], [str(c) for c in celsius])
     top.set_xlabel("T (C)")
     # fO2 dependence at 1200 C, Fo90, 1 atm, [001].
-    y_f = _normalised(df, form, beta, T_K=1473.15, X_Fo=0.9, P_Pa=1e5, axis="[001]")
+    y_f = F.moved(df, form, beta, T_K=1473.15, X_Fo=0.9, P_Pa=1e5, axis="[001]")
     for src, (colour, marker, _label) in STUDY_STYLE.items():
         m = (df.source == src).to_numpy()
         b.plot(df.log10_fO2_Pa[m], y_f[m], marker, color=colour, mfc="none", ms=4.5, ls="")

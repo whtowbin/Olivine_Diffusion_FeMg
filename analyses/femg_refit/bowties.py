@@ -33,13 +33,7 @@ DRAWS = 4000
 SEED = 20261014
 plt.rcParams.update({"pdf.fonttype": 42, "font.size": 9, "axes.titlesize": 9.5})
 
-STUDY_STYLE = {
-    "chakraborty1997": ("#E69F00", "o", "Chakraborty 1997"),
-    "dohmen2007_part1": ("#56B4E9", "s", "Dohmen et al. 2007"),
-    "petry2004": ("#009E73", "^", "Petry et al. 2004"),
-    "holzapfel2007": ("#D55E00", "D", "Holzapfel et al. 2007"),
-    "spandler_oneill2010": ("#CC79A7", "v", "Spandler & O'Neill 2010"),
-}
+STUDY_STYLE = F.STUDY_STYLE
 BAND = "#0072B2"
 
 FORM_TEXT = {
@@ -100,7 +94,6 @@ METHOD_TEXT = {
         "over labs; dashed lines add tau, the 68% range for what one new lab would measure."
     ),
 }
-METHODS = ("ols", "wls", "odr", "bootstrap (runs)", "random study")
 
 PANELS = {
     "a": ("centre of the data: fO2 1e-7 Pa, Fo90, 1 atm", -7.0, 0.90, 1e5),
@@ -134,22 +127,7 @@ def _grid(t_c: np.ndarray, log_fo2: float, x_fo: float, p_pa: float) -> F.Vars:
 
 
 def _published(name: str, t_c: np.ndarray, log_fo2: float, x_fo: float, p_pa: float) -> np.ndarray:
-    from forster import DIFFUSIVITY_PRESETS, Conditions
-
-    d = DIFFUSIVITY_PRESETS[name]
-    return np.array(
-        [np.log10(d.axis_diffusivities(Conditions(t, p_pa, 10**log_fo2), x_fo)[2]) for t in t_c]
-    )
-
-
-def _moved(df: pd.DataFrame, form: F.Form, beta: np.ndarray, log_fo2, x_fo, p_pa) -> np.ndarray:
-    """Each point's log10 D moved to the panel's fO2, composition, P and [001] by the fit."""
-    v_own = F.Vars.of(df)
-    target = df.assign(log10_fO2_Pa=log_fo2, X_Fo=x_fo, P_Pa=p_pa, axis="[001]")
-    v_t = F.Vars.of(target)
-    own = form.offset(v_own) + form.design(v_own) @ beta
-    to = form.offset(v_t) + form.design(v_t) @ beta
-    return (df["ln_D"].to_numpy() + to - own) / LN10
+    return np.array([F.preset_log10_d(name, t, p_pa, log_fo2, x_fo) for t in t_c])
 
 
 def _change(a: float, b: float) -> str:
@@ -162,16 +140,6 @@ def _change(a: float, b: float) -> str:
 
 # Opacity of a point by the 1-sigma uncertainty (log D) of the correction that moved it.
 MOVE_BINS = ((0.0, 0.03, 1.0), (0.03, 0.1, 0.55), (0.1, np.inf, 0.28))
-
-
-def _correction_sd(df: pd.DataFrame, form: F.Form, cov: np.ndarray, log_fo2, x_fo, p_pa):
-    """1-sigma (log D) of each point's move to the panel's conditions, from the fit's
-    covariance. One error in a coefficient moves all points the same way, so this
-    part is shared between points (and with the band), not independent scatter."""
-    v_own = F.Vars.of(df)
-    target = df.assign(log10_fO2_Pa=log_fo2, X_Fo=x_fo, P_Pa=p_pa, axis="[001]")
-    dg = form.design(F.Vars.of(target)) - form.design(v_own)
-    return np.sqrt(np.clip(np.einsum("ij,jk,ik->i", dg, cov, dg), 0, None)) / LN10
 
 
 def _summary(form: F.Form, fit: dict, band_a: float, band_b: float, at_ks20: float) -> str:
@@ -247,8 +215,11 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
             ax.plot(
                 x, _published(name, t, log_fo2, x_fo, p_pa), color="0.2", lw=1.1, ls=ls, label=label
             )
-        moved = _moved(df, form, fit["beta"], log_fo2, x_fo, p_pa)
-        corr = _correction_sd(df, form, fit["cov"], log_fo2, x_fo, p_pa)
+        # Each point moved to the panel's fO2, composition, P and [001] by the fit, and the
+        # 1-sigma of that move (shared between points and with the band).
+        at = {"log10_fO2_Pa": log_fo2, "X_Fo": x_fo, "P_Pa": p_pa, "axis": "[001]"}
+        moved = F.moved(df, form, fit["beta"], **at)
+        corr = F.move_sd(df, form, fit["cov"], **at)
         total = np.sqrt(y_sigma**2 + corr**2)
         for src, (colour, marker, label) in STUDY_STYLE.items():
             labelled = False
@@ -343,14 +314,8 @@ def main() -> None:
     df = F.tamed()
     rows = []
     for form in F.FORMS.values():
-        fits = {
-            "ols": F.fit_ls(form, df, weighted=False),
-            "wls": F.fit_ls(form, df, weighted=True),
-            "odr": F.fit_odr(form, df),
-            "bootstrap (runs)": F.fit_bootstrap(form, df),
-            "random study": F.fit_random(form, df),
-        }
-        for method in METHODS:
+        fits = F.fit_all(form, df)
+        for method in F.METHODS:
             name, d, wa, wb = figure(form, method, fits[method], df, rng)
             rows.append(
                 {

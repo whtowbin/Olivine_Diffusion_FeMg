@@ -25,16 +25,10 @@ from fit_ols import load
 
 HERE = Path(__file__).parent
 OUT = HERE / "figures"
-LN10, R = math.log(10), 8.3145
+LN10 = math.log(10)
 plt.rcParams.update({"pdf.fonttype": 42, "font.size": 9, "axes.titlesize": 9.5})
 
-STUDY_STYLE = {
-    "chakraborty1997": ("#E69F00", "o", "Chakraborty 1997"),
-    "dohmen2007_part1": ("#56B4E9", "s", "Dohmen et al. 2007"),
-    "petry2004": ("#009E73", "^", "Petry et al. 2004"),
-    "holzapfel2007": ("#D55E00", "D", "Holzapfel et al. 2007"),
-    "spandler_oneill2010": ("#CC79A7", "v", "Spandler & O'Neill 2010"),
-}
+STUDY_STYLE = F.STUDY_STYLE
 STUDY_NOTE = {
     "chakraborty1997": "EPMA, Fo25-97 couples, one fO2 (1e-7 Pa)",
     "dohmen2007_part1": "thin films, RBS (nm), Fo86, 1e-12 to 1e-5 Pa",
@@ -53,16 +47,15 @@ LABEL_OFFSET = {"KS20": (-45, 28), "SH63": (-70, -10), "Paper": (30, 26)}
 CONDITIONS_FO2 = {"SH63": None, "KS20": math.log10(0.00138), "Paper": math.log10(8.3e-3)}
 
 
-def _move(df, form, beta, cov, **fixed):
-    """log10 D moved to ``fixed`` conditions by a fit, and the 1-sigma of that move."""
+def _moved_log10(df, form, beta, **fixed):
+    """`fit_models.moved`, computed from log10 D rather than ln D (``df`` here also has
+    the PED points; kept so the figure's points are unchanged to the last bit)."""
     v_own = F.Vars.of(df)
     v_t = F.Vars.of(df.assign(**fixed))
     shift = (form.offset(v_t) + form.design(v_t) @ beta) - (
         form.offset(v_own) + form.design(v_own) @ beta
     )
-    dg = form.design(v_t) - form.design(v_own)
-    sd = np.sqrt(np.clip(np.einsum("ij,jk,ik->i", dg, cov, dg), 0, None)) / LN10
-    return df["log10_D_m2s"].to_numpy() + shift / LN10, sd
+    return df["log10_D_m2s"].to_numpy() + shift / LN10
 
 
 def _series_slope(sub: pd.DataFrame) -> tuple[float, float]:
@@ -96,7 +89,8 @@ def fig_fo2(df: pd.DataFrame) -> None:
     norm_form = F.FORMS["dc07_free"]
     norm = F.fit_ls(norm_form, df, weighted=False)
     ref = {"T_K": 1473.15, "X_Fo": 0.9, "P_Pa": 1e5, "axis": "[001]"}
-    y_n, corr = _move(every, norm_form, norm["beta"], norm["cov"], **ref)
+    y_n = _moved_log10(every, norm_form, norm["beta"], **ref)
+    corr = F.move_sd(every, norm_form, norm["cov"], **ref)
     meas = np.full(len(every), 0.2)
     fig, (a, b) = plt.subplots(
         1, 2, figsize=(10.5, 4.8), layout="constrained", width_ratios=[1.35, 1]

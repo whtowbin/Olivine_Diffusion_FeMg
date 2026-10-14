@@ -139,4 +139,15 @@ plus a control. Verify 14: rerun every script; `results/*.csv` and
   several runs); guarded the hand-written preset list and `DIFFUSIVITY_COLUMNS` with
   tests instead of generating them; `mplstereonet` moved to the analysis group (the
   archived `old Xenolith Code` copy still imports it).
-- [ ] Group C, task 14
+- [x] Group C, task 14 (2026-10-14): `fit_models` gains `STUDY_STYLE`, `METHODS`,
+  `fit_all`, `moved`, `move_sd`, `preset_log10_d` (`_dc07_preset` and every name the
+  melt-contact analysis imports are unchanged). Every script rerun: all `results/*.csv`
+  and `figures/bowties/index.csv` unchanged in git, every script's stdout and all 31
+  PNGs byte-identical to a run before the change (two runs before it were identical to
+  each other). `fo2_figures` keeps its own arithmetic for the moved value: the shared one
+  (from ln D) changed 861 of 2 million pixels by up to 2/255. Kept per figure:
+  `FORM_STYLE` (the figures show different forms and legend lengths on purpose), the
+  `Vars` builders and `fit_ols.ols` (`fit_ols` is imported by `fit_models`).
+  Found, not changed: the committed fig1, fig2, fig5 and fig6 PNGs are not what the
+  committed code draws (fig5: 861 pixels; same bytes on every rerun since); regenerating
+  them is a one-line commit for Henry to approve.
