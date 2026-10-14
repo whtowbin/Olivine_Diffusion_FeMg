@@ -10,7 +10,7 @@ How the melt-olivine experiments of Shea et al. (2023) compare with the study of
     -   Spandler: +0.73.
     -   Shea's full set: +0.96 ± 0.17 (20 points).
 
-    The Jurewicz and Watson and full-Shea values are read from Shea's Fig. 6. **Our 8 axis rows run about 0.17 log above Shea's full set**, so a melt term fitted on them is biased high by about that much.
+    The Jurewicz and Watson and full-Shea values are read from Shea's Fig. 6. **The 8 Shea profiles with a known axis (the Table 1 rows whose crystal axis Shea's Figs 2-4 state; the only Shea rows we can fit) run about 0.17 log above Shea's full set**, so a melt term fitted on them is biased high by about that much.
 -   **The between-study term in `femg_refit2026` is mostly one melt experiment.** τ = 0.254 log with Spandler; 0.105 without it, or 0.107 with melt contact as a fixed term (+0.57 ± 0.18 log). With Shea's rows added as a second melt study, the melt term is +0.83 ± 0.17 and τ 0.174. The `mutch_x6` form gives the same numbers to within 0.02.
 -   **For solid contact the level and its uncertainty both drop.** At KS20 the law is +0.16 above DC07 instead of +0.27, with 1σ 0.06 (law) and 0.12 (one new lab) instead of 0.12 and 0.28.
 -   **The fO2 exponent hardly moves**: 0.221 → 0.207-0.213, about 0.05 log at our fO2. The melt studies set the level near our fO2, not the slope.
@@ -50,7 +50,7 @@ From our transcribed D, the mean against the refit is +0.92.
 
 ## The between-study term
 
-`fit_random` (REML, a random offset per study) on the 135 TaMED points, then with Spandler removed, with melt contact as a fixed term, and with Shea's 8 axis rows added. These are `dc07_free` results; `mutch_x6` is in `variants.csv` and agrees to within 0.02 on τ and the KS20 level.
+`fit_random` (REML, a random offset per study) on the 135 TaMED points, then with Spandler removed, with melt contact as a fixed term, and with Shea's 8 profiles with a known axis added. These are `dc07_free` results; `mutch_x6` is in `variants.csv` and agrees to within 0.02 on τ and the KS20 level.
 
 | Variant | n | τ (95%) | fO2 exponent | E (kJ/mol) | Melt term | KS20 vs DC07 | KS20 1σ law / new lab |
 |---------|---------|---------|---------|---------|---------|---------|---------|
@@ -154,7 +154,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
 -   **Blue (solid contact):** 68% and 95% bands are quantiles over 4000 draws from the fit's covariance. The dashed lines add τ (the 68% range for one new lab).
 -   **Wine (melt contact):** the solid-contact law plus the melt term, with its 68% band.
 -   **Points:** each is moved to the panel's conditions by that panel's fit. A melt term does not move them, so melt points keep their offset. Bars are the measurement error (Shea ±0.3 log, their 0.6-log error bars).
--   **Shea's 8 axis rows** are faded in (a) and (b), which leave them out of the fit.
+-   **Shea's 8 profiles with a known axis** are faded in (a) and (b), which leave them out of the fit.
 -   Numbers are in `figures/fig1_bowties.csv`.
 
 ![fO2 dependence with and without a melt term](../../analyses/melt_contact/figures/fig2_fo2.png)
@@ -174,7 +174,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
 -   **Rows:** solid-source studies above the line, melt-contact studies (pink labels) below. Bars are the mean ± 1 sd.
 -   **Solid-source residuals** are computed from the compiled data (Holzapfel at Ni-NiO, assumed). Their means reproduce the refit's `compare_laws` table.
 -   **Jurewicz and Watson, and Shea's full set,** are Shea et al.'s own residuals, read from the vector graphics of their Fig. 6 (`extract_shea2023_figs.py`).
--   **Shea's 8 axis rows** are residuals from Shea et al.'s modelled times (Figs. 2-4).
+-   **Shea's 8 profiles with a known axis** are residuals from Shea et al.'s modelled times (Figs. 2-4).
 -   All of the figure-read values are listed for checking in `figure-extracted-data.md`.
 -   Numbers are in `figures/fig3_offsets.csv`.
 

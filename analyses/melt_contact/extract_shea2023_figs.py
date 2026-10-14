@@ -10,7 +10,8 @@ coefficients twice, as vector graphics in the accepted manuscript:
 
 The grey squares (fill 0.82, 0.83, 0.83) are Jurewicz and Watson; in Fig 6 the
 orange-red circles (fill 0.94, 0.35, 0.16) are Shea et al.'s own Fe-Mg points, read too
-as the full-set check on our 8 axis rows (data/shea2023_table1.csv). Each marker's centre
+as the full-set check on the 8 profiles with a known axis (data/shea2023_table1.csv).
+Each marker's centre
 is mapped through a linear fit to that panel's labelled ticks. Fig 6 gives each
 point's residual against DC07 as Shea et al. computed it, without our knowing the fO2,
 Fo or orientation they used. The two figures do not plot the same set (18 points in

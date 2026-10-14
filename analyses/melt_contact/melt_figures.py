@@ -14,7 +14,7 @@ from the vector graphics by extract_shea2023_figs.py).
 
 Bands are quantiles over draws from each fit's covariance (bowties.py). Points are
 moved to a panel's conditions by that panel's fit; a melt term does not move them
-(each point keeps its own contact). Shea et al.'s 8 axis rows are shown in every
+(each point keeps its own contact). Shea et al.'s 8 profiles with a known axis are shown in every
 panel, fainter where the fit leaves them out. Each figure's numbers are saved beside it.
 
 Run: uv run python analyses/melt_contact/melt_figures.py
@@ -48,7 +48,7 @@ LN10 = math.log(10)
 SEED = 20261014
 SHEA = "shea2023"
 SHEA_SIGMA = 0.3  # log10: Shea et al.'s error bars span 0.6 log units
-STYLE = {**F.STUDY_STYLE, SHEA: ("#000000", "P", "Shea et al. 2023 (8 axis rows)")}
+STYLE = {**F.STUDY_STYLE, SHEA: ("#000000", "P", "Shea et al. 2023 (8 profiles with a known axis)")}
 SOLID, MELT, BASE = "#0072B2", "#882255", "0.45"
 T_GRID = np.linspace(700, 1600, 91)
 KS20 = B.PANELS["b"][1:]  # log10 fO2 (Pa), X_Fo, P (Pa)
@@ -73,7 +73,7 @@ plt.rcParams.update({"pdf.fonttype": 42, "font.size": 9, "axes.titlesize": 9})
 
 
 def data() -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
-    """The TaMED set, it plus Shea's axis rows, and each row's log10 D error."""
+    """The TaMED set, it plus Shea's 8 profiles with a known axis, and each row's log10 D error."""
     base = F.tamed()
     both = pd.concat([base, M.shea_femg_rows(M.load_shea())], ignore_index=True)
     sigma = F._y_sigma_ln(both) / LN10
@@ -255,7 +255,7 @@ def fig_fo2(base, both, sigma, fit, ex: pd.DataFrame, rng) -> None:
     form = F.FORMS["dc07_free"]
     n = len(form.params)
     fig, (a, b) = plt.subplots(
-        1, 2, figsize=(11.5, 5.2), layout="constrained", width_ratios=[1.3, 1]
+        1, 2, figsize=(11.5, 6.2), layout="constrained", width_ratios=[1.3, 1]
     )
     fo2 = np.linspace(-10, 4, 71)
     v = F.Vars.of(pd.DataFrame({"log10_fO2_Pa": fo2, **AT_1200}))
@@ -292,7 +292,8 @@ def fig_fo2(base, both, sigma, fit, ex: pd.DataFrame, rng) -> None:
     a.set_title(
         "(a) points moved in T, Fo, P and axis by the Spandler + Shea melt-term fit", loc="left"
     )
-    a.legend(loc="upper left", fontsize=6.5, frameon=False, ncol=2)
+    handles, labels = a.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", fontsize=6.5, frameon=False, ncol=5)
 
     exponent_panel(b, ex)
     b.set_title("(b) fO2 exponent of each fit and study", loc="left")
@@ -380,8 +381,8 @@ ROWS = (  # (source, set, label, melt contact)
     ("holzapfel2007", "", "Holzapfel et al. 2007 (6-12 GPa)", False),
     ("spandler_oneill2010", "", "Spandler & O'Neill 2010", True),
     ("jurewicz_watson1988", "all, Shea Fig 6", "Jurewicz & Watson 1988 (Shea Fig 6)", True),
-    (SHEA, "all, Shea Fig 6", "Shea et al. 2023, all (Fig 6)", True),
-    (SHEA, "8 axis rows", "Shea et al. 2023, our 8 axis rows", True),
+    (SHEA, "all, Shea Fig 6", "Shea et al. 2023, all 20 (Fig 6; not fittable)", True),
+    (SHEA, "8 axis rows", "Shea et al. 2023, 8 profiles with a known axis (used in fits)", True),
 )
 JW_STYLE = ("0.55", "s", "Jurewicz & Watson 1988")
 
@@ -391,7 +392,7 @@ def fig_offsets(
 ) -> pd.DataFrame:
     style = {**STYLE, "jurewicz_watson1988": JW_STYLE, **(style or {})}
     height = round(0.55 * len(rows_spec) + 0.2, 2)  # 4.6 in for the 8 original rows
-    fig, ax = plt.subplots(figsize=(8.5, height), layout="constrained")
+    fig, ax = plt.subplots(figsize=(9.5, height), layout="constrained")
     rows = []
     for i, (src, subset, _, melt) in enumerate(rows_spec):
         r = off[(off["source"] == src) & (off["set"] == subset)]["resid"].to_numpy()
@@ -419,7 +420,7 @@ def fig_offsets(
     ax.axvline(0, color="0.2", lw=0.9, ls=":")
     first_melt = next(i for i, (*_, melt) in enumerate(rows_spec) if melt)
     ax.axhline(first_melt - 0.5, color="0.7", lw=0.8)
-    ax.set_xlim(right=ax.get_xlim()[1] + 0.45)
+    ax.set_xlim(right=ax.get_xlim()[1] + 0.6)  # room for the mean labels
     ax.set_xlabel("log10 D measured minus DC07 at the experiment's own conditions")
     summary = pd.DataFrame(rows)
     solid, melt = (

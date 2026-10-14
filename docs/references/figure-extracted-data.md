@@ -45,7 +45,7 @@ run a point belongs to, and how the plotted values were normalised.
 
 -   **File:** the same CSV (`source` = `shea2023`): 20 circles. The legend swatches are excluded; with them the mean was wrongly +0.83.
 -   **What was read:** log D measured against log D predicted by DC07. The residual is +0.96 ± 0.17 log, which agrees with the paper's "about 10x".
--   **Used in:** `fig3_offsets.png`, as Shea's full-set offset beside our 8 axis rows (+1.13).
+-   **Used in:** `fig3_offsets.png`, as Shea's full-set offset beside the 8 profiles with a known axis (+1.13).
 -   **To confirm:**
     -   Match each point to its Table 1 row. Table 1 has 23 Fe-Mg values and Fig. 6 shows 20, so 3 are missing or hidden behind others.
     -   The orientation and Fo that Shea et al. used for each prediction (their supplementary table).
@@ -61,7 +61,7 @@ run a point belongs to, and how the plotted values were normalised.
     -   **By eye from the plotted axes** (about ±0.5 mol%): the Fo range of each profile; X_Fo is its midpoint.
     -   **Inferred, not printed:** which Table 1 row each figure profile is. Fig. 2b is taken as ol18 row 4, and Fig. 3 as ol20 rows 7 and 8, from time and D ratios.
     -   **Assumed:** a or b for the profiles at 86° and 89° (taken as [100]).
--   **Used in:** the melt-term fits (`melt_sensitivity.py`, Shea's 8 axis rows), `fig1_bowties.png` and `fig2_fo2.png`.
+-   **Used in:** the melt-term fits (`melt_sensitivity.py`, Shea's 8 profiles with a known axis), `fig1_bowties.png` and `fig2_fo2.png`.
 -   **To confirm:** against Shea et al.'s supplementary table, which gives the traverse-to-axis angles and the profile data. In particular: the Fo of each profile, the a/b choice, and the row assignments.
 -   **Status:** not confirmed; the supplement is not in hand.
 
