@@ -181,6 +181,11 @@ The composition is Fo91.5. A first look (`oeser_first_look.py`, not a fit; numbe
   or flat (-0.22 to +0.08). The "more complex" fO2 dependence above 1250 C may therefore
   be partly a measurement effect. Flag these rows in any fit.
 
+**Fitted with the compilation (2026-10-14).** See `docs/plans/2026-10-14-oeser-additive.md`.
+The depth-profile runs leave the refit's level at KS20 unchanged (+0.01) and narrow its
+1 sigma from 0.12 to 0.10. A two-mechanism law fits the PED points too, but changes
+nothing at our fO2 and does not reproduce the steepening.
+
 ### Shea et al. (2023): melt makes diffusion about 10x faster
 
 Natural Kilauea and San Carlos olivine seeds in Kilauea basalt, superliquidus
