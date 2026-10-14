@@ -26,6 +26,16 @@ flagged rows (Holzapfel's 11 GPa runs; Chakraborty's errors of 50% or more).
 
 Dohmen and Chakraborty (2007) Part II tabulates no diffusion coefficients; the
 Meissner (2000) data it uses appear only in its Fig. 7b.
+`dohmen_chakraborty2007_fig7b_extracted.csv` holds all 109 points of that figure,
+read exactly from the PDF's vector graphics (axis map from 8 x and 5 y tick labels,
+residuals < 6e-4; temperatures to about +-1 C), Meissner's 7 first (900-1200 C). The
+caption says every point is normalised to 1e5 Pa, fO2 1e-7 Pa and Fo90, but checked
+against our tables the series were treated differently: Petry matches that
+(+-0.005 log), Chakraborty is normalised to Fo86 with no fO2 term, Part I's
+high-fO2 points carry an extra +0.12, Part I's low-fO2 points are unnormalised, and
+Holzapfel's could not be reproduced. Which treatment Meissner's points received is
+unknown. These are normalised values; Meissner's own fO2, composition and
+orientation are not recoverable.
 
 ## Scripts
 
@@ -36,8 +46,14 @@ Meissner (2000) data it uses appear only in its Fig. 7b.
   its 1-sigma), `cov_<form>_<method>.csv` (parameter covariances) and
   `predictions.csv` (log10 D[001] at the round robin and paper conditions, and its
   difference from the current default law).
-- `figures.py`: the four figures below, from `results/` and the data.
+- `figures.py`: the four comparison figures below, from `results/` and the data.
   `uv run --with odrpack python analyses/femg_refit/figures.py`.
+- `bowties.py`: an Arrhenius plot with confidence bands for every form and method
+  (`figures/bowties/`, listed in `index.csv`).
+  `uv run --with odrpack python analyses/femg_refit/bowties.py`.
+- `compare_laws.py`: residuals of the published laws and our refits against the
+  data, by study, and F tests of candidate missing terms.
+  `uv run --with odrpack python analyses/femg_refit/compare_laws.py`.
 
 Data used: the TaMED set, fO2 above 1e-10 Pa (135 of 166 points; Holzapfel's fO2
 computed at Ni-NiO for each run's P and T; 1 atm and 1 bar rows both at 1e5 Pa).
@@ -50,6 +66,7 @@ computed at Ni-NiO for each run's P and T; 1 atm and 1 bar rows both at 1e5 Pa).
 | `mutch_aniso` | the six, plus the [100] and [010] offsets | |
 | `dc07_fixed` | log D0, E | fO2 exponent 1/6, composition 3 (0.9 - X_Fo), V 7 cm3/mol, x6 anisotropy |
 | `dc07_free` | log D0, E, fO2 exponent, composition coefficient, both offsets | V 7 cm3/mol |
+| `mutch_fT` | `mutch_aniso` plus g ln fO2 / T (an fO2 exponent b + g/T that changes with T) | |
 
 ### Methods
 
@@ -95,3 +112,47 @@ Measurement errors (1 sigma) for `wls` and `odr`; stated in the paper or assumed
 
 Each figure passes `figcheck` (no overlaps or clipping) and its title's numbers
 are computed from the data.
+
+## Bowtie plots (`figures/bowties/`)
+
+One figure per law form and method, in the style of `odr_bootstrap`'s
+`plot_regression`: the best fit with 68% and 95% bands (quantiles of the predicted
+log D over the bootstrap resamples, or over 4000 draws from the fit's covariance),
+the data with their log D error bars, and the published Dohmen & Chakraborty (2007)
+and Mutch et al. (2019, TaMED) laws. Panel (a) is at the centre of the data (fO2
+1e-7 Pa, Fo90, 1 atm, [001]); panel (b) at the round robin KS20 conditions (fO2
+1.4e-3 Pa, Fo85, 42 MPa, [001]). The points are moved to each panel's conditions by
+that fit itself, so their scatter about the line is the fit's own residual. Under
+each figure a paragraph says what is particular to that form and method, with its
+fitted numbers.
+
+| Figure | Form | Method | D at 1200 C, KS20, vs default (log) | 68% band at the data's centre | 68% band at KS20 fO2 |
+|---|---|---|---|---|---|
+| [mutch_x6__ols.png](figures/bowties/mutch_x6__ols.png) | mutch_x6 | ols | +0.37 | +-0.03 | +-0.08 |
+| [mutch_x6__wls.png](figures/bowties/mutch_x6__wls.png) | mutch_x6 | wls | +0.53 | +-0.02 | +-0.16 |
+| [mutch_x6__odr.png](figures/bowties/mutch_x6__odr.png) | mutch_x6 | odr | +0.85 | +-0.03 | +-0.12 |
+| [mutch_x6__bootstrap.png](figures/bowties/mutch_x6__bootstrap.png) | mutch_x6 | bootstrap (runs) | +0.37 | +-0.06 | +-0.15 |
+| [mutch_aniso__ols.png](figures/bowties/mutch_aniso__ols.png) | mutch_aniso | ols | +0.37 | +-0.03 | +-0.08 |
+| [mutch_aniso__wls.png](figures/bowties/mutch_aniso__wls.png) | mutch_aniso | wls | +0.45 | +-0.02 | +-0.17 |
+| [mutch_aniso__odr.png](figures/bowties/mutch_aniso__odr.png) | mutch_aniso | odr | +0.81 | +-0.03 | +-0.13 |
+| [mutch_aniso__bootstrap.png](figures/bowties/mutch_aniso__bootstrap.png) | mutch_aniso | bootstrap (runs) | +0.37 | +-0.06 | +-0.14 |
+| [mutch_fT__ols.png](figures/bowties/mutch_fT__ols.png) | mutch_fT | ols | +0.39 | +-0.03 | +-0.08 |
+| [mutch_fT__wls.png](figures/bowties/mutch_fT__wls.png) | mutch_fT | wls | +0.46 | +-0.02 | +-0.16 |
+| [mutch_fT__odr.png](figures/bowties/mutch_fT__odr.png) | mutch_fT | odr | +0.83 | +-0.02 | +-0.12 |
+| [mutch_fT__bootstrap.png](figures/bowties/mutch_fT__bootstrap.png) | mutch_fT | bootstrap (runs) | +0.39 | +-0.06 | +-0.13 |
+| [dc07_fixed__ols.png](figures/bowties/dc07_fixed__ols.png) | dc07_fixed | ols | +0.10 | +-0.02 | +-0.02 |
+| [dc07_fixed__wls.png](figures/bowties/dc07_fixed__wls.png) | dc07_fixed | wls | -0.01 | +-0.02 | +-0.02 |
+| [dc07_fixed__odr.png](figures/bowties/dc07_fixed__odr.png) | dc07_fixed | odr | +0.01 | +-0.02 | +-0.02 |
+| [dc07_fixed__bootstrap.png](figures/bowties/dc07_fixed__bootstrap.png) | dc07_fixed | bootstrap (runs) | +0.10 | +-0.04 | +-0.04 |
+| [dc07_free__ols.png](figures/bowties/dc07_free__ols.png) | dc07_free | ols | +0.15 | +-0.04 | +-0.03 |
+| [dc07_free__wls.png](figures/bowties/dc07_free__wls.png) | dc07_free | wls | +0.18 | +-0.02 | +-0.08 |
+| [dc07_free__odr.png](figures/bowties/dc07_free__odr.png) | dc07_free | odr | +0.30 | +-0.02 | +-0.07 |
+| [dc07_free__bootstrap.png](figures/bowties/dc07_free__bootstrap.png) | dc07_free | bootstrap (runs) | +0.15 | +-0.06 | +-0.04 |
+
+Reading them: `dc07_fixed`, which holds the fO2 exponent at the point-defect value,
+keeps the band the same width at the KS20 fO2 as at the data's centre, because the
+model, not the data, sets how D scales with fO2 (its band is conditional on that
+model). Forms that fit the exponent widen when extrapolated there: the Mutch forms
+2.3-7.3x; `dc07_free` 3.1-3.5x when weighted or by ODR, but not by OLS or the run
+bootstrap (0.7-0.9x), where its log D0, defined at the reference fO2 and Fo90, is
+anticorrelated with the exponent.

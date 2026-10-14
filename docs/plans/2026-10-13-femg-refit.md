@@ -151,3 +151,74 @@ Recommendations (for Henry):
   extrapolation-sensitive; the free forms' fO2 exponent is the open question.
 - The fO2 dependence between 10^-4 and 10^0 Pa is what would most reduce the
   uncertainty: no experiment constrains it at 1 atm.
+
+## Is our calibration different, or missing something? (2026-10-14)
+
+Residuals (observed - law, log10 D) against the 135 TaMED points, `compare_laws.py`:
+
+| Law | rms | Chakraborty | Dohmen | Holzapfel | Petry | Spandler |
+|---|---|---|---|---|---|---|
+| Dohmen & Chakraborty 2007 (published) | 0.29 | -0.06 | -0.13 | +0.34 | +0.17 | +0.73 |
+| Mutch et al. 2019 TaMED (published) | 0.24 | -0.06 | -0.03 | +0.06 | +0.10 | +0.43 |
+| Mutch et al. 2019 Global (published) | 0.24 | -0.05 | -0.03 | +0.09 | +0.15 | +0.59 |
+| refit, DC07 form, D0 and E free | 0.25 | -0.07 | -0.01 | +0.09 | +0.09 | +0.55 |
+| refit, DC07 form, all but V free | 0.24 | -0.03 | -0.03 | -0.05 | +0.15 | +0.54 |
+| refit, Mutch form, anisotropy fitted | 0.23 | -0.03 | -0.03 | -0.02 | +0.12 | +0.37 |
+
+- **Where the data are, our refits and Mutch et al.'s laws agree** (rms 0.23-0.25
+  against 0.24). The large parameter differences (E 223-236 against 201) are mostly
+  the D0-E trade-off (correlation 0.993). The published DC07 law is the outlier: it
+  is slow for the high-pressure (Holzapfel, +0.34) and high-fO2 data (Petry +0.17,
+  Spandler +0.73), which it was not fitted to directly (its form comes from the
+  point-defect model, its pre-factor from a subset of data).
+- **The laws diverge only away from the data**, mostly in fO2: our DC07-form refit
+  minus the published DC07 averages +0.01 log at the data's own conditions (range
+  -0.35 to +0.49), but +0.15 at the KS20 conditions.
+- **Missing terms (F tests on the Mutch form with fitted anisotropy):** an fO2 x 1/T
+  interaction is significant (F = 7.3, p = 0.008), consistent with Dohmen et al.
+  (2007)'s observation that the fO2 exponent falls at low temperature; added as form
+  `mutch_fT`: g = -459 +- 170 (bootstrap +-227); effective E 216 kJ/mol at 1e-7 Pa and
+  252 at the KS20 fO2; at KS20 it predicts +0.39 against +0.37 without it, so it does
+  not explain the spread there. X_Fo x 1/T (p = 0.76), (ln fO2)^2 (p = 0.10) and
+  X_Fo^2 (p = 0.54) are not supported.
+- **Study offsets are significant** (F = 5.9, p = 0.0002): the studies disagree with
+  each other by more than their internal scatter. Study effects (log, centred):
+  Spandler +0.44 to +0.49, Petry -0.04 to +0.13, Chakraborty and Dohmen -0.05 to
+  -0.27, Holzapfel -0.50 to +0.07 (confounded with the pressure terms, which only it
+  constrains). Between-study sd by method of moments: 0.24-0.36 log (five studies, so
+  rough). No fit here includes a between-study term; a covariance used for sampling
+  should, since that spread is 5-10x the 0.02-0.05 log statistical errors of the
+  DC07-form fits.
+- **The only 1-atm data near our fO2 come from a melt-contact experiment.** Spandler
+  and O'Neill (2010) diffused San Carlos olivine against basaltic melt (10^-3.3 Pa,
+  1300 C) and sit 0.4-0.7 log above every law. Shea et al. (2023) report Fe-Mg about
+  10x faster next to melt. So the constraint closest to the round robin and paper
+  conditions may carry a melt effect the solid-source experiments do not.
+
+Bowtie plots for all 20 form x method configurations: `analyses/femg_refit/figures/bowties/`
+(index and band widths in the analysis README).
+
+## The unpublished Meissner data (2026-10-14)
+
+Dohmen and Chakraborty (2007) Part II mentions Meissner (2000, Bayreuth
+dissertation, TEM-EDX) only in its Fig. 7b legend and reference list; Part I (p. 402)
+and Chakraborty (2010, p. 615) say Meissner et al. (1998, Am Mineral 83, 546-552)
+obtained the same results as Chakraborty (1997) on similar couples. Fig. 7b is
+vector graphics, so its 7 Meissner points were read exactly
+(`analyses/femg_refit/data/dohmen_chakraborty2007_fig7b_extracted.csv`): 900-1200 C,
+log D -16.48 to -18.14 as plotted. They sit -0.10 +- 0.21 log from the DC07 equation
+(-0.22 if normalised like Chakraborty's points, which Fig. 7b puts at Fo86), and 0.2
+log below Chakraborty (1997) at the same temperatures.
+
+Adding them to our fits (as plotted, at fO2 1e-7 Pa and either Fo90 or Fo86, [001],
+1 atm) moves D at the KS20 conditions by at most 0.007 log and E by at most 2 kJ/mol
+in every form. **The missing Meissner data do not explain why our refits differ
+from the published DC07 law.** That difference comes from how DC07 was built: its
+fO2 and composition terms are fixed by the point-defect model and its pre-factor and
+E by a subset at 1e-7 Pa, while the high-fO2 (Petry, Spandler) and high-temperature
+(Holzapfel) data, which it fits worst (residuals +0.17, +0.73, +0.34), pull free fits
+up at our conditions.
+
+Fig. 7b also shows that DC07 normalised the series inconsistently (Chakraborty to
+Fo86 without an fO2 term, Part I high-fO2 points +0.12, Holzapfel not reproducible),
+and that the line drawn there is close to log D0 -9.28 and 198 kJ/mol.

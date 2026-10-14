@@ -10,6 +10,8 @@ Forms (ln D on the measured axis):
                only log D0 and E free
 - dc07_free:   that form with log D0, E, the fO2 exponent m, the composition
                coefficient n and both anisotropy offsets free (V fixed at 7e-6)
+- mutch_fT:    mutch_aniso plus g ln fO2 / T, an fO2 exponent that changes with T
+               (b + g/T); the term an F test finds missing (p = 0.008)
 
 Methods: ols (unweighted, as Mutch et al. 2019), wls (weighted by the y errors),
 odr (errors in T, fO2, X_Fo and P as well; odrpack, after Henry's odr_bootstrap),
@@ -147,6 +149,12 @@ FORMS = {
         "mutch_aniso",
         ("a", "b", "c", "q", "j", "h", "k100", "k010"),
         lambda v: _mutch_design(v, True),
+        lambda v: np.zeros_like(v.T),
+    ),
+    "mutch_fT": Form(
+        "mutch_fT",
+        ("a", "b", "c", "q", "j", "h", "k100", "k010", "g_fT"),
+        lambda v: np.column_stack([_mutch_design(v, True), _ln_fo2_bar(v) / v.T]),
         lambda v: np.zeros_like(v.T),
     ),
     "dc07_fixed": Form(
