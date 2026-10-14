@@ -53,7 +53,7 @@ for name, r in rows.items():
 # Where do the laws diverge? Refit (dc07_free) minus the published DC07 at the data's points.
 dd = rows["dohmen_chakraborty2007"] - rows["refit dc07_free"]
 print(
-    "\nRefit (DC07 form, all but V free) minus published DC07 at the data's own conditions: "
+    "\nRefit (DC07 form, V fixed at 7 cm3/mol) minus published DC07 at the data's own conditions: "
     f"mean {dd.mean():+.3f}, range {dd.min():+.2f} to {dd.max():+.2f} log"
 )
 

@@ -83,7 +83,7 @@ and assumed errors in `analyses/femg_refit/README.md`; figures in `figures/`).
 
 Coefficients (OLS, 1-sigma OLS / run bootstrap):
 
-| Quantity | DC07 form, D0 and E free | DC07 form, all but V free | Mutch form | Published |
+| Quantity | DC07 form, only D0 and E fitted | DC07 form, V fixed at 7 cm3/mol | Mutch form | Published |
 |---|---|---|---|---|
 | E (kJ/mol) | 236 (5 / 6); 223 weighted, 228 ODR | 220 (7 / 10) | 214 (7 / 9) | 201 +- 8 (DC07); 222 +- 7.5 (Mutch TaMED) |
 | log10 D0 | -7.89 (0.19 / 0.26) | -8.52 (0.27 / 0.40) | | -9.21 |
@@ -98,8 +98,8 @@ minus the current default (time multiplier = 10^-difference):
 
 | Form | OLS | weighted | ODR | run bootstrap 1-sigma |
 |---|---|---|---|---|
-| DC07, D0 and E free | +0.10 | -0.01 | +0.01 | 0.04 |
-| DC07, all but V free | +0.15 | +0.18 | +0.30 | 0.05 |
+| DC07, only D0 and E fitted | +0.10 | -0.01 | +0.01 | 0.04 |
+| DC07, V fixed at 7 cm3/mol | +0.15 | +0.18 | +0.30 | 0.05 |
 | Mutch, 6x | +0.37 | +0.53 | +0.85 | 0.14 |
 | Mutch, anisotropy fitted | +0.37 | +0.45 | +0.81 | 0.13 |
 | Mutch et al. 2019 TaMED (published) | +0.28 | | | |
@@ -121,7 +121,7 @@ What the fits show:
    log units barely changes that (+0.85 to +0.84). A control with near-zero
    predictor errors reproduces the weighted fit exactly.
 3. **With the point-defect fO2 and composition terms kept, the data want a higher
-   activation energy:** E = 223-236 kJ/mol (D0 and E free), against 201. The two
+   activation energy:** E = 223-236 kJ/mol (only D0 and E fitted), against 201. The two
    are correlated at 0.993, so E +- 8 kJ/mol alone (pre-factor fixed) overstates the
    uncertainty of D near the middle of the data by far; the covariance here does
    not. At our conditions this form stays within 0.1 log of the default.
@@ -143,14 +143,14 @@ What the fits show:
    -0.20 and -0.10); without Holzapfel
    the free DC07 form moves +0.25 to +0.36; without Spandler and O'Neill the Mutch
    forms move -0.11 to -0.17. Every other single study moves any prediction by
-   0.12 log or less, and the DC07 form with D0 and E free by 0.06 or less.
+   0.12 log or less, and the DC07 form with only D0 and E fitted by 0.06 or less.
 
 Recommendations (for Henry):
 
 - Report the calibration as a systematic: the default and a refit bracket the
   answer at our fO2 better than any single covariance.
 - If one refit becomes a preset with covariance for the phase 3 Monte Carlo, the
-  DC07 form with D0 and E free (OLS or run bootstrap covariance) is the least
+  DC07 form with only D0 and E fitted (OLS or run bootstrap covariance) is the least
   extrapolation-sensitive; the free forms' fO2 exponent is the open question.
 - The fO2 dependence between 10^-4 and 10^0 Pa is what would most reduce the
   uncertainty: no experiment constrains it at 1 atm.
@@ -164,8 +164,8 @@ Residuals (observed - law, log10 D) against the 135 TaMED points, `compare_laws.
 | Dohmen & Chakraborty 2007 (published) | 0.29 | -0.06 | -0.13 | +0.34 | +0.17 | +0.73 |
 | Mutch et al. 2019 TaMED (published) | 0.24 | -0.06 | -0.03 | +0.06 | +0.10 | +0.43 |
 | Mutch et al. 2019 Global (published) | 0.24 | -0.05 | -0.03 | +0.09 | +0.15 | +0.59 |
-| refit, DC07 form, D0 and E free | 0.25 | -0.07 | -0.01 | +0.09 | +0.09 | +0.55 |
-| refit, DC07 form, all but V free | 0.24 | -0.03 | -0.03 | -0.05 | +0.15 | +0.54 |
+| refit, DC07 form, only D0 and E fitted | 0.25 | -0.07 | -0.01 | +0.09 | +0.09 | +0.55 |
+| refit, DC07 form, V fixed at 7 cm3/mol | 0.24 | -0.03 | -0.03 | -0.05 | +0.15 | +0.54 |
 | refit, Mutch form, anisotropy fitted | 0.23 | -0.03 | -0.03 | -0.02 | +0.12 | +0.37 |
 
 - **Where the data are, our refits and Mutch et al.'s laws agree** (rms 0.23-0.25
@@ -310,3 +310,11 @@ lab (or, if the spread is real variability, one new crystal) would show.
   assumes offsets unrelated to the conditions, which fails for Holzapfel (alone at
   high P) and Spandler (alone at 1 atm, high fO2); and whether to add tau for a
   natural crystal is a judgment about what the spread is.
+
+**Decision (Henry, 2026-10-13): report both uncertainties, for different questions.**
+The lab-averaged covariance (`se`) is for comparing crystals from one system (which
+is older, whether populations differ): the unknown study offset is common to every
+crystal and largely cancels. Lab-averaged plus tau (`se_new_lab`) is for absolute
+timescales, stated as a systematic, since nothing shows natural olivine follows the
+average of five labs rather than any one of them. A preset built from this refit
+should therefore carry the lab-averaged covariance and tau as a separate term.

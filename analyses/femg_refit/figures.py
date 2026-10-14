@@ -38,8 +38,8 @@ STUDY_STYLE = {  # Okabe-Ito colour and a marker per study
     "spandler_oneill2010": ("#CC79A7", "v", "Spandler & O'Neill 2010"),
 }
 FORM_STYLE = {
-    "dc07_fixed": ("#D55E00", "DC07 form, D0 and E free"),
-    "dc07_free": ("#E69F00", "DC07 form, all but V free"),
+    "dc07_fixed": ("#D55E00", "DC07 form, only D0 and E fitted"),
+    "dc07_free": ("#E69F00", "DC07 form, V fixed at 7 cm3/mol"),
     "mutch_x6": ("#0072B2", "Mutch form, 6x anisotropy"),
     "mutch_aniso": ("#56B4E9", "Mutch form, anisotropy fitted"),
 }
@@ -121,7 +121,7 @@ def fig_predictions(pred: pd.DataFrame) -> None:
             ax.plot(presets[cname][name], len(rows) + j, "kx", ms=6)
         ax.axvline(0, color="0.4", lw=1, ls="--")
         ax.set_title(cname)
-        ax.set_xlabel("log10 D[001] minus default (DC07)")
+        ax.set_xlabel("log10 D[001] - default")
         _time_axis(ax)
         ax.grid(axis="x", color="0.9", lw=0.6)
     labels = [f"{FORM_STYLE[f][1]}: {METHOD_LABEL[m]}" for f, m in rows] + [
@@ -135,7 +135,7 @@ def fig_predictions(pred: pd.DataFrame) -> None:
     ks = ks[ks.form.isin(FORM_STYLE)]
     fig.suptitle(
         f"Refitted laws put Fe-Mg diffusion {lo:+.2f} to {hi:+.2f} log units from the default "
-        "at these conditions.\nWith a random offset per study (+; light bars: one new lab) "
+        "(DC07) at these conditions.\nWith a random offset per study (+; light bars: one new lab) "
         f"the forms agree at KS20 ({ks.minus_dc07_preset.min():+.2f} to "
         f"{ks.minus_dc07_preset.max():+.2f}),\nand their 1-sigma bars "
         f"(+-{ks.se.min():.2f}-{ks.se.max():.2f}) are as wide as the spread between forms",
@@ -230,10 +230,10 @@ def fig_coefficients(coef: pd.DataFrame) -> None:
     fig.legend(handles=handles, loc="outside lower center", ncol=4, frameon=False, fontsize=8)
     e = d[(d.quantity == "E (kJ/mol)") & (d.form == "dc07_fixed")].set_index("method").value
     fig.suptitle(
-        f"With only D0 and E free, the data give E = {e['ols']:.0f}-{e['wls']:.0f} kJ/mol, "
+        f"With only D0 and E fitted, the data give E = {e['ols']:.0f}-{e['wls']:.0f} kJ/mol, "
         "above the published 201; other terms agree with the published values within their errors"
         if e["wls"] > e["ols"]
-        else f"With only D0 and E free, the data give E = {min(e):.0f}-{max(e):.0f} kJ/mol "
+        else f"With only D0 and E fitted, the data give E = {min(e):.0f}-{max(e):.0f} kJ/mol "
         "(published: 201)",
         fontsize=10,
     )

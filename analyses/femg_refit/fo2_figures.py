@@ -43,8 +43,8 @@ STUDY_NOTE = {
     "spandler_oneill2010": "olivine against basaltic melt, 1300 C",
 }
 FORM_STYLE = {
-    "dc07_fixed": ("#D55E00", "-", "DC07 form, D0 and E free"),
-    "dc07_free": ("#E69F00", "-", "DC07 form, all but V free"),
+    "dc07_fixed": ("#D55E00", "-", "DC07 form, only D0 and E fitted"),
+    "dc07_free": ("#E69F00", "-", "DC07 form, V fixed at 7 cm3/mol"),
     "mutch_x6": ("#0072B2", "-", "Mutch form, 6x"),
     "mutch_fT": ("#56B4E9", "-", "Mutch form + fO2 x 1/T"),
 }
@@ -304,8 +304,8 @@ def fig_studies(df: pd.DataFrame) -> None:
     forms = ("dc07_fixed", "dc07_free", "mutch_aniso")
     colours = {"dc07_fixed": "#D55E00", "dc07_free": "#E69F00", "mutch_aniso": "#0072B2"}
     labels = {
-        "dc07_fixed": "DC07 form, D0 and E free",
-        "dc07_free": "DC07 form, all but V free",
+        "dc07_fixed": "DC07 form, only D0 and E fitted",
+        "dc07_free": "DC07 form, V fixed at 7 cm3/mol",
         "mutch_aniso": "Mutch form, anisotropy fitted",
     }
     effects = {}

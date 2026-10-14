@@ -7,7 +7,7 @@ Forms (ln D on the measured axis):
 - mutch_aniso: the same with the [100] and [010] offsets fitted
 - dc07_fixed:  Dohmen and Chakraborty (2007): log D0 + (1/6) log(fO2/1e-7 Pa)
                + 3 (0.9 - X_Fo) - (E + (P - 1e5) 7e-6)/(ln10 R T), x6 anisotropy;
-               only log D0 and E free
+               only log D0 and E fitted
 - dc07_free:   that form with log D0, E, the fO2 exponent m, the composition
                coefficient n and both anisotropy offsets free (V fixed at 7e-6)
 - mutch_fT:    mutch_aniso plus g ln fO2 / T, an fO2 exponent that changes with T
