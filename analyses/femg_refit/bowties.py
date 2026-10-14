@@ -93,8 +93,14 @@ METHOD_TEXT = {
         "one Chakraborty couple move together). Band: quantiles of the resampled fits, as in "
         "odr_bootstrap."
     ),
+    "random study": (
+        "Least squares with a random offset per study (tau, fitted by REML): points from one "
+        "study share their offset, so a study counts for less than its number of points and "
+        "the two low, data-rich studies (Chakraborty, Dohmen) pull less. Band: the law averaged "
+        "over labs; dashed lines add tau, the 68% range for what one new lab would measure."
+    ),
 }
-METHODS = ("ols", "wls", "odr", "bootstrap (runs)")
+METHODS = ("ols", "wls", "odr", "bootstrap (runs)", "random study")
 
 PANELS = {
     "a": ("centre of the data: fO2 1e-7 Pa, Fo90, 1 atm", -7.0, 0.90, 1e5),
@@ -195,6 +201,12 @@ def _summary(form: F.Form, fit: dict, band_a: float, band_b: float, at_ks20: flo
         bits.append(f"fO2 exponent {label}{b_eff:.3f}")
     if "k100" in p:
         bits.append(f"anisotropy {math.exp(-p['k100']):.1f}x, {math.exp(-p['k010']):.1f}x")
+    if "tau" in fit:
+        lo, hi = (t / LN10 for t in fit["tau_range"])
+        bits.append(
+            f"between-study sd {fit['tau'] / LN10:.2f} log (95% {lo:.2f}-{hi:.2f}) against "
+            f"{fit['sd'] / LN10:.2f} within a study"
+        )
     return (
         "; ".join(bits)
         + f". At 1200 C, D[001] is {at_ks20:+.2f} log units from the default (Dohmen & Chakraborty"
@@ -224,6 +236,10 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
         ax.fill_between(x, lo95, hi95, color=BAND, alpha=0.15, lw=0, label="95% band")
         ax.fill_between(x, lo68, hi68, color=BAND, alpha=0.35, lw=0, label="68% band")
         ax.plot(x, best, color=BAND, lw=1.8, label="best fit")
+        if "tau" in fit:
+            half = np.hypot((hi68 - lo68) / 2, fit["tau"] / LN10)
+            ax.plot(x, best + half, color=BAND, lw=0.9, ls="--", label="68%, one new lab")
+            ax.plot(x, best - half, color=BAND, lw=0.9, ls="--")
         for name, ls, label in (
             ("dohmen_chakraborty2007", "--", "Dohmen & Chakraborty 2007"),
             ("mutch2019_tamed", ":", "Mutch et al. 2019, TaMED"),
@@ -332,6 +348,7 @@ def main() -> None:
             "wls": F.fit_ls(form, df, weighted=True),
             "odr": F.fit_odr(form, df),
             "bootstrap (runs)": F.fit_bootstrap(form, df),
+            "random study": F.fit_random(form, df),
         }
         for method in METHODS:
             name, d, wa, wb = figure(form, method, fits[method], df, rng)

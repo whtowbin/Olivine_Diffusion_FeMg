@@ -186,9 +186,9 @@ Residuals (observed - law, log10 D) against the 135 TaMED points, `compare_laws.
   Spandler +0.44 to +0.49, Petry -0.04 to +0.13, Chakraborty and Dohmen -0.05 to
   -0.27, Holzapfel -0.50 to +0.07 (confounded with the pressure terms, which only it
   constrains). Between-study sd by method of moments: 0.24-0.36 log (five studies, so
-  rough). No fit here includes a between-study term; a covariance used for sampling
-  should, since that spread is 5-10x the 0.02-0.05 log statistical errors of the
-  DC07-form fits.
+  rough). A covariance used for sampling should include a between-study term,
+  since that spread is 5-10x the 0.02-0.05 log statistical errors of the DC07-form
+  fits; added below as the `random study` method.
 - **The only 1-atm data near our fO2 come from a melt-contact experiment.** Spandler
   and O'Neill (2010) diffused San Carlos olivine against basaltic melt (10^-3.3 Pa,
   1300 C) and sit 0.4-0.7 log above every law. Shea et al. (2023) report Fe-Mg about
@@ -266,3 +266,44 @@ and that the line drawn there is close to log D0 -9.28 and 198 kJ/mol.
 Bowtie update: points moved to a panel's conditions now carry a light bar for the
 uncertainty of the move (from the fit's covariance) and fade with the size of the
 move; see the analysis README.
+
+## A between-study term: the `random study` method (2026-10-13)
+
+`fit_random` in `fit_models.py`: ln D = law + u_study + e, with u ~ N(0, tau^2) and
+e ~ N(0, sigma^2), tau by REML. It is one fitted parameter (tau), not an adjustment
+to any study's data; the study offsets come out shrunk toward zero, not fitted
+freely. Points of one study share u, so the fit is generalised least squares with a
+block covariance, and a study counts for less than its number of points. Its
+covariance is for the law averaged over labs; `se_new_lab` adds tau for what one new
+lab (or, if the spread is real variability, one new crystal) would show.
+
+| Form | sigma within / tau between (95%), log | KS20 vs default: OLS -> random | 1-sigma: OLS -> random (one new lab) |
+|---|---|---|---|
+| dc07_fixed | 0.22 / 0.27 (0.12-0.70) | +0.10 -> +0.20 | 0.025 -> 0.124 (0.30) |
+| dc07_free | 0.22 / 0.25 (0.11-0.66) | +0.15 -> +0.27 | 0.029 -> 0.122 (0.28) |
+| mutch_x6 | 0.22 / 0.26 (0.08-0.76) | +0.37 -> +0.29 | 0.082 -> 0.141 (0.30) |
+| mutch_aniso | 0.22 / 0.26 (0.08-0.75) | +0.37 -> +0.29 | 0.085 -> 0.141 (0.29) |
+| mutch_fT | 0.22 / 0.29 (0.04-0.92) | +0.39 -> +0.30 | 0.083 -> 0.152 (0.32) |
+
+- **The forms converge.** At KS20 they span +0.10 to +0.39 under OLS and +0.20 to
+  +0.30 with the random offset, and the 1-sigma bars (0.12-0.15) are now as wide as
+  that spread. OLS let Chakraborty and Dohmen, 99 of the 135 points and both low,
+  set the level; with a random offset each study counts closer to once.
+- **The fO2 exponents converge on Mutch et al.'s 0.224:** `dc07_free` 0.200 -> 0.221,
+  `mutch_x6` 0.258 -> 0.225.
+- **E falls** (the D0-E trade-off): `dc07_fixed` 236 -> 216 kJ/mol, `dc07_free`
+  220 -> 209, `mutch_x6` (-R q) 213 -> 209. V at 1250 C in the Mutch forms 7.9 -> 6.5
+  cm3/mol.
+- **The fO2 x 1/T term weakens:** g = -459 +- 170 (OLS, 2.7 sigma) -> -324 +- 190
+  (1.7 sigma). Petry (high T, high fO2) sits above Dohmen, so a T-dependent
+  exponent and a Petry offset explain the same points; with offsets allowed, the
+  data no longer separate the two.
+- **Shrunken study offsets** (log): Spandler +0.36 to +0.40, Petry -0.02 to +0.09,
+  Chakraborty and Dohmen -0.10 to -0.23, Holzapfel +0.07 to -0.23. Spandler stays
+  high, so most of its melt-contact offset is absorbed, not all.
+- **The bands no longer widen toward KS20** (0.9-1.0x): the spread between studies
+  sets the level everywhere and outweighs the fO2 extrapolation.
+- Caveats: tau rests on five studies (95% range roughly 0.1-0.7 log); the model
+  assumes offsets unrelated to the conditions, which fails for Holzapfel (alone at
+  high P) and Spandler (alone at 1 atm, high fO2); and whether to add tau for a
+  natural crystal is a judgment about what the spread is.

@@ -43,13 +43,14 @@ FORM_STYLE = {
     "mutch_x6": ("#0072B2", "Mutch form, 6x anisotropy"),
     "mutch_aniso": ("#56B4E9", "Mutch form, anisotropy fitted"),
 }
-METHODS = ["ols", "wls", "odr", "bootstrap (runs)"]
-METHOD_MARKER = {"ols": "o", "wls": "s", "odr": "D", "bootstrap (runs)": "^"}
+METHODS = ["ols", "wls", "odr", "bootstrap (runs)", "random study"]
+METHOD_MARKER = {"ols": "o", "wls": "s", "odr": "D", "bootstrap (runs)": "^", "random study": "P"}
 METHOD_LABEL = {
     "ols": "least squares",
     "wls": "weighted",
     "odr": "ODR (errors in T, fO2, X, P)",
     "bootstrap (runs)": "bootstrap over runs",
+    "random study": "random study offset",
 }
 
 
@@ -85,13 +86,24 @@ def fig_predictions(pred: pd.DataFrame) -> None:
     rows = [(f, m) for f in FORM_STYLE for m in METHODS]
     conds = list(F.CONDITIONS)
     presets = _preset_offsets()
-    fig, axes = plt.subplots(1, 3, figsize=(10, 6.2), sharey=True, layout="constrained")
+    fig, axes = plt.subplots(1, 3, figsize=(10, 7.5), sharey=True, layout="constrained")
     span = []
     for ax, cname in zip(axes, conds, strict=True):
         sub = pred[pred.condition == cname].set_index(["form", "method"])
         for i, (form, method) in enumerate(rows):
             r = sub.loc[(form, method)]
             colour = FORM_STYLE[form][0]
+            if np.isfinite(r.se_new_lab):  # light: one new lab (adds the study spread)
+                ax.errorbar(
+                    r.minus_dc07_preset,
+                    i,
+                    xerr=r.se_new_lab,
+                    fmt="none",
+                    ecolor=colour,
+                    alpha=0.35,
+                    lw=2.5,
+                    capsize=0,
+                )
             ax.errorbar(
                 r.minus_dc07_preset,
                 i,
@@ -119,10 +131,14 @@ def fig_predictions(pred: pd.DataFrame) -> None:
     axes[0].set_yticks(range(len(labels)), labels, fontsize=7.5)
     axes[0].invert_yaxis()
     lo, hi = min(span), max(span)
+    ks = pred[(pred.condition == conds[0]) & (pred.method == "random study")]
+    ks = ks[ks.form.isin(FORM_STYLE)]
     fig.suptitle(
         f"Refitted laws put Fe-Mg diffusion {lo:+.2f} to {hi:+.2f} log units from the default "
-        "at these conditions;\nthe spread comes from the law's form and the fitting method more "
-        "than from the 1-sigma bars",
+        "at these conditions.\nWith a random offset per study (+; light bars: one new lab) "
+        f"the forms agree at KS20 ({ks.minus_dc07_preset.min():+.2f} to "
+        f"{ks.minus_dc07_preset.max():+.2f}),\nand their 1-sigma bars "
+        f"(+-{ks.se.min():.2f}-{ks.se.max():.2f}) are as wide as the spread between forms",
         fontsize=10,
     )
     fig.savefig(OUT / "fig1_predictions.png", dpi=200)
@@ -175,7 +191,7 @@ PUBLISHED = {  # Dohmen and Chakraborty (2007); Mutch et al. (2019) TaMED
 def fig_coefficients(coef: pd.DataFrame) -> None:
     d = _derived(coef)
     quantities = list(PUBLISHED)
-    fig, axes = plt.subplots(2, 3, figsize=(10, 6.4), layout="constrained")
+    fig, axes = plt.subplots(2, 3, figsize=(10, 7.0), layout="constrained")
     rows = [(f, m) for f in FORM_STYLE for m in METHODS]
     for ax, q in zip(axes.flat, quantities, strict=True):
         sub = d[d.quantity == q].set_index(["form", "method"])

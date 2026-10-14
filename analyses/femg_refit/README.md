@@ -80,6 +80,13 @@ computed at Ni-NiO for each run's P and T; 1 atm and 1 bar rows both at 1e5 Pa).
   reproduces `wls` exactly.
 - `bootstrap (runs)`: 2000 resamples of whole experimental runs (rows of one run,
   such as Chakraborty's several compositions per couple, move together), OLS each.
+- `random study`: least squares with a random offset per study, u ~ N(0, tau^2),
+  tau fitted by REML (profiled over tau^2/sigma^2 on a grid of 400 values; 95% range
+  from the profile likelihood). Points of one study share their offset, so they are
+  correlated and a study counts for less than its number of points (Chakraborty and
+  Dohmen hold 99 of the 135). Covariance: the law averaged over labs.
+  `predictions.csv` column `se_new_lab` adds tau for one new lab;
+  `coefficients.csv` rows `tau_log10` (and `_lo95`, `_hi95`).
 - `without <study>`: leave one study out, OLS; skipped where the remaining data
   cannot identify a form (no pressure terms without Holzapfel's 6-12 GPa runs).
 
@@ -98,8 +105,9 @@ Measurement errors (1 sigma) for `wls` and `odr`; stated in the paper or assumed
 1. `fig1_predictions.png`: log10 D[001] at the round robin (KS20, 1200 C; SH63,
    1102 C) and paper (1250 C) conditions from every form and method, minus the
    current default (`dohmen_chakraborty2007`), with 1-sigma bars (the bootstrap
-   rows use the OLS estimate with the bootstrap spread); the published Mutch et
-   al. (2019) regressions for reference. The top axis is the fitted time as a
+   rows use the OLS estimate with the bootstrap spread; the random study rows add a
+   light bar for one new lab); the published Mutch et al. (2019) regressions for
+   reference. The top axis is the fitted time as a
    multiple of the default's (time scales as 1/D).
 2. `fig2_coefficients.png`: activation energy, fO2 exponent, composition term (log10
    D per unit X_Fe), activation volume at 1250 C (Mutch forms: V = -R (j T + h)) and
@@ -155,27 +163,35 @@ fitted numbers.
 | [mutch_x6__wls.png](figures/bowties/mutch_x6__wls.png) | mutch_x6 | wls | +0.53 | +-0.02 | +-0.16 |
 | [mutch_x6__odr.png](figures/bowties/mutch_x6__odr.png) | mutch_x6 | odr | +0.85 | +-0.03 | +-0.12 |
 | [mutch_x6__bootstrap.png](figures/bowties/mutch_x6__bootstrap.png) | mutch_x6 | bootstrap (runs) | +0.37 | +-0.06 | +-0.15 |
-| [mutch_aniso__ols.png](figures/bowties/mutch_aniso__ols.png) | mutch_aniso | ols | +0.37 | +-0.03 | +-0.08 |
-| [mutch_aniso__wls.png](figures/bowties/mutch_aniso__wls.png) | mutch_aniso | wls | +0.45 | +-0.02 | +-0.17 |
-| [mutch_aniso__odr.png](figures/bowties/mutch_aniso__odr.png) | mutch_aniso | odr | +0.81 | +-0.03 | +-0.13 |
+| [mutch_x6__random.png](figures/bowties/mutch_x6__random.png) | mutch_x6 | random study | +0.29 | +-0.14 | +-0.14 |
+| [mutch_aniso__ols.png](figures/bowties/mutch_aniso__ols.png) | mutch_aniso | ols | +0.37 | +-0.04 | +-0.08 |
+| [mutch_aniso__wls.png](figures/bowties/mutch_aniso__wls.png) | mutch_aniso | wls | +0.45 | +-0.02 | +-0.16 |
+| [mutch_aniso__odr.png](figures/bowties/mutch_aniso__odr.png) | mutch_aniso | odr | +0.81 | +-0.03 | +-0.12 |
 | [mutch_aniso__bootstrap.png](figures/bowties/mutch_aniso__bootstrap.png) | mutch_aniso | bootstrap (runs) | +0.37 | +-0.06 | +-0.14 |
+| [mutch_aniso__random.png](figures/bowties/mutch_aniso__random.png) | mutch_aniso | random study | +0.29 | +-0.13 | +-0.14 |
 | [mutch_fT__ols.png](figures/bowties/mutch_fT__ols.png) | mutch_fT | ols | +0.39 | +-0.03 | +-0.08 |
 | [mutch_fT__wls.png](figures/bowties/mutch_fT__wls.png) | mutch_fT | wls | +0.46 | +-0.02 | +-0.16 |
-| [mutch_fT__odr.png](figures/bowties/mutch_fT__odr.png) | mutch_fT | odr | +0.83 | +-0.02 | +-0.12 |
+| [mutch_fT__odr.png](figures/bowties/mutch_fT__odr.png) | mutch_fT | odr | +0.83 | +-0.03 | +-0.12 |
 | [mutch_fT__bootstrap.png](figures/bowties/mutch_fT__bootstrap.png) | mutch_fT | bootstrap (runs) | +0.39 | +-0.06 | +-0.13 |
+| [mutch_fT__random.png](figures/bowties/mutch_fT__random.png) | mutch_fT | random study | +0.30 | +-0.15 | +-0.15 |
 | [dc07_fixed__ols.png](figures/bowties/dc07_fixed__ols.png) | dc07_fixed | ols | +0.10 | +-0.02 | +-0.02 |
 | [dc07_fixed__wls.png](figures/bowties/dc07_fixed__wls.png) | dc07_fixed | wls | -0.01 | +-0.02 | +-0.02 |
 | [dc07_fixed__odr.png](figures/bowties/dc07_fixed__odr.png) | dc07_fixed | odr | +0.01 | +-0.02 | +-0.02 |
 | [dc07_fixed__bootstrap.png](figures/bowties/dc07_fixed__bootstrap.png) | dc07_fixed | bootstrap (runs) | +0.10 | +-0.04 | +-0.04 |
+| [dc07_fixed__random.png](figures/bowties/dc07_fixed__random.png) | dc07_fixed | random study | +0.20 | +-0.12 | +-0.12 |
 | [dc07_free__ols.png](figures/bowties/dc07_free__ols.png) | dc07_free | ols | +0.15 | +-0.04 | +-0.03 |
 | [dc07_free__wls.png](figures/bowties/dc07_free__wls.png) | dc07_free | wls | +0.18 | +-0.02 | +-0.08 |
 | [dc07_free__odr.png](figures/bowties/dc07_free__odr.png) | dc07_free | odr | +0.30 | +-0.02 | +-0.07 |
 | [dc07_free__bootstrap.png](figures/bowties/dc07_free__bootstrap.png) | dc07_free | bootstrap (runs) | +0.15 | +-0.06 | +-0.04 |
+| [dc07_free__random.png](figures/bowties/dc07_free__random.png) | dc07_free | random study | +0.27 | +-0.14 | +-0.12 |
 
 Reading them: `dc07_fixed`, which holds the fO2 exponent at the point-defect value,
 keeps the band the same width at the KS20 fO2 as at the data's centre, because the
 model, not the data, sets how D scales with fO2 (its band is conditional on that
 model). Forms that fit the exponent widen when extrapolated there: the Mutch forms
-2.3-7.3x; `dc07_free` 3.1-3.5x when weighted or by ODR, but not by OLS or the run
-bootstrap (0.7-0.9x), where its log D0, defined at the reference fO2 and Fo90, is
-anticorrelated with the exponent.
+2.2-7.3x; `dc07_free` 3.0-3.4x when weighted or by ODR, but not by OLS or the run
+bootstrap (0.7-0.8x), where its log D0, defined at the reference fO2 and Fo90, is
+anticorrelated with the exponent. With a random study offset every form's band is
+about the same width at both (0.9-1.0x, +-0.12-0.15 log): the spread between studies
+sets the level everywhere and outweighs the extrapolation in fO2. Those figures also
+draw a dashed 68% line for one new lab (the band plus tau).

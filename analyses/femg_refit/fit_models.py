@@ -38,6 +38,7 @@ V_DC07 = 7e-6  # m3/mol, Dohmen and Chakraborty (2007)
 RESULTS = Path(__file__).parent / "results"
 BOOTSTRAP_DRAWS = 2000
 SEED = 20261013
+RANDOM_GRID = 400  # tau^2 / sigma^2 values searched by fit_random
 
 # Measurement errors (1 sigma) for ODR and WLS. "stated" = given in the paper;
 # "assumed" = our judgement where the paper gives none (see README).
@@ -274,6 +275,59 @@ def fit_bootstrap(form: Form, df: pd.DataFrame) -> dict:
     }
 
 
+def _reml(A: np.ndarray, y: np.ndarray, Z: np.ndarray, lam: float):
+    """GLS with covariance s^2 (I + lam Z Z') on scaled columns, and its REML log
+    likelihood (s^2 profiled out). Returns (log lik, beta, s^2, covariance)."""
+    n, p = A.shape
+    scale = np.abs(A).max(axis=0)
+    L = np.linalg.cholesky(np.eye(n) + lam * Z @ Z.T)
+    Aw = np.linalg.solve(L, A / scale)
+    yw = np.linalg.solve(L, y)
+    beta_s, *_ = np.linalg.lstsq(Aw, yw, rcond=None)
+    r = yw - Aw @ beta_s
+    s2 = float(r @ r) / (n - p)
+    info = Aw.T @ Aw
+    loglik = -0.5 * (
+        2 * np.log(np.diag(L)).sum() + np.linalg.slogdet(info)[1] + (n - p) * math.log(s2)
+    )
+    cov = s2 * np.linalg.inv(info) / np.outer(scale, scale)
+    return loglik, beta_s / scale, s2, cov
+
+
+def fit_random(form: Form, df: pd.DataFrame) -> dict:
+    """Least squares with a random offset per study, u ~ N(0, tau^2), by REML.
+
+    Points of one study share their offset, so they count for less than as many
+    independent points. The covariance is that of the law averaged over labs; a
+    prediction for one new lab adds tau^2. tau is in ln units; its 95% range is from
+    the profile likelihood (five studies, so wide)."""
+    from scipy import stats
+
+    v = Vars.of(df)
+    A = form.design(v)
+    y = df["ln_D"].to_numpy() - form.offset(v)
+    studies = pd.get_dummies(df["source"])
+    Z = studies.to_numpy(float)
+    lams = np.concatenate([[0.0], np.logspace(-4, 3, RANDOM_GRID)])
+    fits = [_reml(A, y, Z, lam) for lam in lams]
+    loglik = np.array([f[0] for f in fits])
+    tau = np.sqrt(lams * np.array([f[2] for f in fits]))
+    k = int(loglik.argmax())
+    inside = tau[loglik >= loglik[k] - stats.chi2.ppf(0.95, 1) / 2]
+    _, beta, s2, cov = fits[k]
+    V = np.eye(len(y)) + lams[k] * Z @ Z.T
+    effects = lams[k] * Z.T @ np.linalg.solve(V, y - A @ beta)  # shrunken (BLUP)
+    return {
+        "beta": beta,
+        "cov": cov,
+        "sd": math.sqrt(s2),
+        "n": len(df),
+        "tau": float(tau[k]),
+        "tau_range": (float(inside.min()), float(inside.max())),
+        "study_effects": dict(zip(studies.columns, effects, strict=True)),
+    }
+
+
 def _identifiable(form: Form, sub: pd.DataFrame) -> bool:
     """Full rank, and pressure terms only with high-pressure data present."""
     if "j" in form.params and sub["P_Pa"].max() < 1e8:
@@ -380,11 +434,29 @@ def main() -> None:
             "wls": fit_ls(form, df, weighted=True),
             "odr": fit_odr(form, df),
             "bootstrap (runs)": fit_bootstrap(form, df),
+            "random study": fit_random(form, df),
         }
         for study, fit in fit_loso(form, df).items():
             fits[f"without {study}"] = fit
         for method, fit in fits.items():
             coef_rows += _volumes(form, method, fit)
+            if "tau" in fit:
+                lo, hi = fit["tau_range"]
+                for p, val in (
+                    ("tau_log10", fit["tau"]),
+                    ("tau_log10_lo95", lo),
+                    ("tau_log10_hi95", hi),
+                ):
+                    coef_rows.append(
+                        {
+                            "form": form.name,
+                            "method": method,
+                            "n": fit["n"],
+                            "param": p,
+                            "value": val / LN10,
+                            "se": np.nan,
+                        }
+                    )
             se = np.sqrt(np.diag(fit["cov"]))
             for p, b, s in zip(form.params, fit["beta"], se, strict=True):
                 coef_rows.append(
@@ -413,6 +485,10 @@ def main() -> None:
                         "condition": cname,
                         "log10_D001": logd,
                         "se": se_logd,
+                        # One new lab: the law's spread plus a study offset (random study only).
+                        "se_new_lab": math.hypot(se_logd, fit["tau"] / LN10)
+                        if "tau" in fit
+                        else np.nan,
                         "minus_dc07_preset": logd - _dc07_preset(v),
                     }
                 )
