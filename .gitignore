@@ -18,3 +18,9 @@ wheels/
 *_data_interp.csv
 *_model_bestfits.csv
 /*_model.png
+
+# Quarto previews of the Markdown docs
+docs/**/*.html
+docs/**/*_files/
+analyses/**/*.html
+analyses/**/*_files/
