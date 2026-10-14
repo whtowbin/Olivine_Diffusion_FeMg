@@ -67,14 +67,14 @@ Where the argument holds, the fitted log10 t moves by -delta
 
 | case | shift of log10 t, delta = 0.122 | delta = 0.301 | fraction of -delta |
 |---|---|---|---|
-| fixed rim (control) | -0.1213 | -0.3003 | 0.99-1.00 |
-| fixed `rim_fo`, not the edge Fo | -0.1223 | -0.3018 | 1.00 |
-| rim changing (`RimPath` 0.86 to 0.82) over days 0-0.5 | -0.1166 | -0.2847 | 0.95 |
+| fixed rim (control) | -0.1221 | -0.3010 | 1.00 |
+| fixed `rim_fo`, not the edge Fo | -0.1216 | -0.3010 | 1.00 |
+| rim changing (`RimPath` 0.86 to 0.82) over days 0-0.5 | -0.1158 | -0.2825 | 0.94-0.95 |
 | rim changing (`RimPath` 0.86 to 0.82) over days 0-3 | -0.0803 | -0.1714 | 0.57-0.66 |
-| growth stage (Fo 0.82 zone) at day 3 | -0.0723 | -0.1477 | 0.49-0.59 |
+| growth stage (Fo 0.82 zone) at day 3 | -0.0723 | -0.1487 | 0.49-0.59 |
 
-The control misses by 0.0007 log, the time-step resolution of the fit (dt 0.01 d
-on 6 d). So the argument is exact, to the grid's resolution, for every fit whose
+The control and the fixed `rim_fo` miss by at most 0.0004 log, within the time-step
+resolution of the fit (dt 0.01 d on 6 d). So the argument is exact, to the grid's resolution, for every fit whose
 boundary values are fixed in time: any initial condition built from steps and
 plateaus, any fixed rim value, normal or reverse zoning, any orientation and any
 conditions. The grid (dx) and the scheme do not enter: the profile on a fixed grid
@@ -89,7 +89,7 @@ to 0.66 of it when the rim changes over the first half of the run). The range fr
 the shortcut would be too wide by up to 1.75x in the law term. `forster` reports
 **no law range** for these fits (`law_sigma_log10` is None, the summary columns are
 empty, `time_range_days("law")` raises). A rim that settles early in the run comes
-close to the D t result (0.95 of it when the change ends at 1/12 of the time), but
+close to the D t result (0.94-0.95 of it when the change ends at 1/12 of the time), but
 `forster` does not try to judge "early enough".
 
 **2. Growth stages** (`fit_profile(..., stages=...)`). The same reason: stage times

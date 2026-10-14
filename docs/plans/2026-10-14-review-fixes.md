@@ -20,6 +20,10 @@ validation of `Conditions` / `Orientation` (a separate design question).
 
 ## Measurements behind the decisions (2026-10-14)
 
+Taken with `femg_refit2026` as first exported; it was refitted to the verified data
+in 1278566 and `law_limits.py` rerun (current numbers in the limits note; the D t
+fractions are unchanged).
+
 - D t scaling (synthetic profile, `femg_refit2026`, KS20 conditions, fit with D and
   with D x 10^delta; expected shift -delta in log10 t):
 
