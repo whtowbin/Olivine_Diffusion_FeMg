@@ -94,6 +94,25 @@ def test_dipra_ni_mn_ca_presets_match_the_engine_and_table_1():
         np.testing.assert_allclose(ca.functions(c, o)[0](FO), ca_engine, rtol=1e-12)
 
 
+def test_petry2004_ni_is_petry_s_constant_fo2_fit():
+    """Written out from Petry et al. (2004), p. 4184: D[001] = 3.84e-9 (fO2 / 1e-6 Pa)^(1/4.25)
+    10^(1.5 (X_Fe - 0.1)) exp(-(216 kJ/mol + P V) / RT); [100] and [010] 6x slower."""
+    petry = DIFFUSIVITY_PRESETS["petry2004_ni"]
+    T_K, P_Pa, fO2_Pa, fo = 1473.15, 1e5, 1e-6, 0.9
+    c = Conditions(T_K - 273.15, P_Pa, fO2_Pa)
+    along_001 = Orientation(90, 90, 0)
+    by_hand = 3.84e-9 * math.exp(-216_000 / (8.3145 * T_K))
+    D, _ = petry.functions(c, along_001)
+    assert D(np.array([fo]))[0] == pytest.approx(by_hand, rel=1e-4)  # R to 5 figures
+    D_100, _ = petry.functions(c, Orientation(0, 90, 90))
+    assert D_100(np.array([fo]))[0] == pytest.approx(by_hand / 6, rel=1e-4)
+    # DIPRA's preset differs only by E = 220 kJ/mol: 0.142 log units slower at 1200 C.
+    dipra_ni, _ = DIFFUSIVITY_PRESETS["girona_costa2013_ni"].functions(c, along_001)
+    offset = math.log10(D(np.array([fo]))[0] / dipra_ni(np.array([fo]))[0])
+    assert offset == pytest.approx(4000 / (8.3145 * T_K * math.log(10)), rel=1e-3)
+    assert offset == pytest.approx(0.142, abs=0.001)
+
+
 @pytest.mark.parametrize(
     ("name", "coefficients"),
     [

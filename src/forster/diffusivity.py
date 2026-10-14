@@ -298,6 +298,26 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
             source=_DIPRA_TABLE_1,
         ),
         ArrheniusDiffusivity(
+            name="petry2004_ni",
+            element="Ni",
+            log10_D0_m2_s=(math.log10(3.84e-9) - LOG10_6,) * 2 + (math.log10(3.84e-9),),
+            activation_energy_J_mol=(216_000.0,) * 3,
+            fO2_exponent=1 / 4.25,
+            fO2_ref_Pa=1e-6,
+            fo_coefficient=1.5,
+            fo_ref=0.9,
+            activation_volume_m3_mol=7e-6,
+            P_ref_Pa=1e5,
+            source=(
+                "Petry, Chakraborty and Palme (2004), GCA 68, 4179-4188: pre-factor and "
+                "E = 216 kJ/mol of their constant-fO2 fit (p. 4184), a consistent pair. "
+                f"girona_costa2013_ni ({_DIPRA_TABLE_1}) pairs this pre-factor with "
+                "E = 220 kJ/mol from their all-data fit, 0.14 log units slower at 1200 C. "
+                "Anisotropy and activation volume as in DIPRA; Petry measured at 1 atm "
+                "and fO2 up to 1e-4 Pa."
+            ),
+        ),
+        ArrheniusDiffusivity(
             name="girona_costa2013_ca",
             element="Ca",
             log10_D0_m2_s=(math.log10(16.59e-12), math.log10(34.67e-12), math.log10(95.49e-12)),

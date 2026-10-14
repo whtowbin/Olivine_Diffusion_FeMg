@@ -320,7 +320,10 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   uses (Dohmen and Chakraborty 2007; Girona and Costa 2013, Table 1). The presets
   `mutch2019_tamed` and `mutch2019_global` are the regressions of Mutch et al.
   (2019); DIPRA's Ni, Mn and Ca equations are listed for reference but cannot be
-  used to fit Fo profiles.
+  used to fit Fo profiles. For Ni, `petry2004_ni` is Petry et al. (2004)'s own
+  constant-fO2 law; DIPRA's `girona_costa2013_ni` (the default for Ni fits) pairs
+  its pre-factor with the activation energy of a different fit, which makes Ni 0.14
+  log units slower at 1200 °C. Choose it with `fit_element(..., diffusivity="petry2004_ni")`.
   [docs/references/diffusivity-literature.md](docs/references/diffusivity-literature.md)
   compares them with newer experiments.
 - The default scheme (since 2026-10-13) is `implicit`: the rim and core values are
