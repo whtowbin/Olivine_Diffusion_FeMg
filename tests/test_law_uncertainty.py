@@ -35,7 +35,8 @@ PRESET = DIFFUSIVITY_PRESETS["femg_refit2026"]
 KS20 = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
 ALONG_001 = Orientation(90, 90, 0)
 OBLIQUE = Orientation(50, 70, 46.5)
-PREDICTIONS = Path(__file__).parents[1] / "analyses/femg_refit/results/predictions.csv"
+# The preset is fitted to the verified data (analyses/femg_refit/fit_verified.py).
+PREDICTIONS = Path(__file__).parents[1] / "analyses/femg_refit/results/verified/predictions.csv"
 
 
 def _perturbed(law: ArrheniusDiffusivity, name: str, eps: float) -> ArrheniusDiffusivity:
@@ -90,7 +91,7 @@ def test_a_law_without_covariance_has_no_sigma():
 
 @pytest.mark.skipif(not PREDICTIONS.exists(), reason="the refit's results are not here")
 def test_the_preset_reproduces_the_refit_at_the_round_robin_conditions():
-    """`analyses/femg_refit` (dc07_free, random study) at KS20, Fo85, [001]."""
+    """`analyses/femg_refit/fit_verified.py` (dc07_free, random study) at KS20, Fo85, [001]."""
     pred = pd.read_csv(PREDICTIONS)
     row = pred[
         (pred.form == "dc07_free")

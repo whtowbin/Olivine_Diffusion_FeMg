@@ -4,6 +4,24 @@ Experimental Fe-Mg diffusion coefficients in olivine, compiled to refit the
 diffusivity law with a full parameter covariance. Plan and results:
 `docs/plans/2026-10-13-femg-refit.md`.
 
+## The preset: verified data only (2026-10-14)
+
+`femg_refit2026` is fitted to the verified compilation: every value stated in the
+sources' tables or text (`docs/references/data-to-source.md`).
+
+- **Data:** Chakraborty 1997, Dohmen et al. 2007 (fO2 > 1e-10 Pa), Petry et al. 2004,
+  Holzapfel et al. 2007 (Ni-NiO capsules only) and Oeser et al. 2026 (depth profiles),
+  153 points.
+- **Scripts:**
+  - `fit_verified.py`: `verified()`, the preset's fit, and the Holzapfel Au-capsule
+    variants at Ni-NiO with a wide fO2 prior. Writes `results/verified/`.
+  - `export_preset.py`: builds the preset from that fit and checks the shipped one.
+  - `unconfirmed_figures.py`: `figures/unconfirmed/`, showing the unconfirmed data and
+    the melt-contact evidence against the verified law
+    (`docs/references/unconfirmed-data.md`).
+- **The rest of this folder** (`fit_models.py` and `results/*.csv`) is the full
+  compilation as first analysed; it is kept for comparison.
+
 ## Data (`data/`), transcribed from the published tables
 
 | File | Source | Rows (Fe-Mg) | Conditions |

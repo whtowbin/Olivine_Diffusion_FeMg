@@ -24,15 +24,15 @@ runs beyond the fit itself:
    gradient g of log10 D with respect to those parameters is known in closed form,
    so the law's 1-sigma in log10 D is sigma = sqrt(g' C g)
    (`ArrheniusDiffusivity.log10_sigma`). At the round robin KS20 conditions along
-   [001] it is 0.122 log.
+   [001] it is 0.114 log (0.122 for the preset before 2026-10-14).
 3. **The D t argument.** The diffusion equation with D(X) = D_level f(X) and fixed
    boundary values is unchanged by trading D_level for time: the profile after time t
    with D_level is the profile after time 2t with D_level / 2. So an error delta in
    log10 D_level is an error -delta in the fitted log10 t, exactly.
 4. Each side of the fit's own range is combined with sigma in quadrature in log10
    time (`forster.uncertainty.widen_log10`), so an asymmetric range stays
-   asymmetric. "law_and_studies" also adds the between-study spread tau (0.254 log for
-   `femg_refit2026`) in quadrature: hypot(0.122, 0.254) = 0.282 log at KS20.
+   asymmetric. "law_and_studies" also adds the between-study spread tau (0.235 log for
+   `femg_refit2026`) in quadrature: hypot(0.114, 0.235) = 0.261 log at KS20.
 
 ### Checked: linear propagation against a Monte Carlo over the covariance
 
@@ -43,18 +43,19 @@ preset's covariance, log10 D at Fo 0.85 (`linear_vs_mc.csv`):
 
 | conditions | orientation | linear sigma | Monte Carlo sd | MC 16-84% half-width |
 |---|---|---|---|---|
-| 1200 C, 0.042 GPa, KS20 fO2 | [001] | 0.1221 | 0.1232 | 0.1258 |
-| 1200 C, 0.042 GPa, KS20 fO2 | [100] | 0.1363 | 0.1373 | 0.1381 |
-| 1200 C, 0.042 GPa, KS20 fO2 | oblique (50, 70, 46.5) | 0.1213 | 0.1226 | 0.1255 |
-| 1200 C, 0.042 GPa, KS20 fO2 | equal angles (54.7) | 0.1212 | 0.1228 | 0.1247 |
-| 900 C, 0.1 GPa, 1e-9 Pa | [001] | 0.1493 | 0.1492 | 0.1482 |
-| 900 C, 0.1 GPa, 1e-9 Pa | oblique (50, 70, 46.5) | 0.1485 | 0.1482 | 0.1473 |
-| 1300 C, 1 atm, 1e-2 Pa | [100] | 0.1400 | 0.1413 | 0.1411 |
-| 1300 C, 1 atm, 1e-2 Pa | equal angles (54.7) | 0.1255 | 0.1272 | 0.1292 |
+| 1200 C, 0.042 GPa, KS20 fO2 | [001] | 0.1141 | 0.1138 | 0.1137 |
+| 1200 C, 0.042 GPa, KS20 fO2 | [100] | 0.1213 | 0.1209 | 0.1215 |
+| 1200 C, 0.042 GPa, KS20 fO2 | oblique (50, 70, 46.5) | 0.1134 | 0.1131 | 0.1139 |
+| 1200 C, 0.042 GPa, KS20 fO2 | equal angles (54.7) | 0.1134 | 0.1130 | 0.1141 |
+| 900 C, 0.1 GPa, 1e-9 Pa | [001] | 0.1276 | 0.1283 | 0.1280 |
+| 900 C, 0.1 GPa, 1e-9 Pa | oblique (50, 70, 46.5) | 0.1271 | 0.1280 | 0.1286 |
+| 1300 C, 1 atm, 1e-2 Pa | [100] | 0.1252 | 0.1246 | 0.1246 |
+| 1300 C, 1 atm, 1e-2 Pa | equal angles (54.7) | 0.1178 | 0.1174 | 0.1171 |
 
 The two agree within the Monte Carlo's own sampling error (about 1.1% of sigma at
-4000 draws; the [001] rows, where the propagation is exactly linear, show the same
-+1%, so that offset is the draws, not the method). A Monte Carlo over the law adds
+4000 draws; every row is within 1.6%, and the [001] rows, where the propagation is
+exactly linear, differ by -0.3% to +0.5%, so the differences are the draws, not the
+method; table regenerated for the preset of 2026-10-14). A Monte Carlo over the law adds
 nothing for an Fo fit for which the D t argument holds.
 
 ## Where the D t argument holds (measured)
@@ -124,7 +125,7 @@ range, and is cruder than the usual case.
   time shift for dn = 0.3 matched -dn (X_ref - X) at that X to 0.0011 log; the
   midpoint missed by up to 0.005 (`test_the_composition_term_moves_time_as_evaluated_a_third_of_the_way_in`).
   For `femg_refit2026` it barely matters: sigma changes by 0.0005 log over X =
-  0.80-0.90, because the composition coefficient's own variance is small (sd 0.155).
+  0.80-0.90, because the composition coefficient's own variance is small (sd 0.140).
   A law with a much less certain composition term, or a profile spanning a much
   wider Fo range, would need this checked again.
 - **The plateau Fo** of a two-step initial condition is not used to place X.
@@ -136,8 +137,8 @@ range, and is cruder than the usual case.
 - **Gaussian in log10 D.** Both the law's covariance and tau are 1-sigma Gaussian
   quantities in log10; the fit's range is a 68% likelihood interval. The widened
   range is a 68% range under those assumptions. tau is poorly determined from five
-  studies (95% range 0.11-0.66 log), and the "law_and_studies" range moves with it:
-  hypot(0.122, tau) is 0.164 to 0.671 log over that interval at KS20.
+  studies (95% range 0.11-0.64 log), and the "law_and_studies" range moves with it:
+  hypot(0.114, tau) is 0.157 to 0.647 log over that interval at KS20.
 
 ## What the covariance does not contain
 

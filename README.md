@@ -326,15 +326,16 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   [docs/references/fit-uncertainty.md](docs/references/fit-uncertainty.md) how it
   differs from earlier versions.
 - The range does not include the diffusivity law's own uncertainty either, unless
-  the law carries a covariance. `femg_refit2026` does: our refit of the TaMED Fe-Mg
-  data (135 points, five studies) in the Dohmen and Chakraborty (2007) form, with a
-  random offset per study ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
+  the law carries a covariance. `femg_refit2026` does: our refit of the verified
+  Fe-Mg data (153 points, five studies, every value stated in the sources' tables or
+  text; [docs/references/data-to-source.md](docs/references/data-to-source.md)) in the
+  Dohmen and Chakraborty (2007) form, with a random offset per study ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
   profile depends on D t, so an error in log D is the same error in log time, and
   no extra model runs are needed. Fits with it report three ranges:
   `low_days`/`high_days` (the profile alone; use these to compare crystals fitted
   with the same law, whose error is common to all of them), `law_low_days`/
-  `law_high_days` (plus the law's calibration, about ±0.12 log at 1200 °C), and
-  `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.25 log;
+  `law_high_days` (plus the law's calibration, about ±0.11 log at 1200 °C), and
+  `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.24 log;
   for an absolute time, if the crystal may sit off the laboratories' average as one
   more experiment would). From Python: `result.time_range_days("fit" | "law" |
   "law_and_studies")`. Not available for fits with growth stages, a rim value that

@@ -1,6 +1,8 @@
 """Write the `femg_refit2026` preset from the refit, and check it against the refit.
 
-The DC07 form with log D0, E, the fO2 exponent, the composition coefficient and
+Fitted to the verified compilation (`fit_verified.verified()`: every value stated in
+the sources' tables or text; see docs/references/data-to-source.md). The DC07 form
+with log D0, E, the fO2 exponent, the composition coefficient and
 both anisotropy factors fitted (V fixed at 7 cm3/mol), with a random offset per
 study (`fit_models.fit_random`). Checks that the law reproduces the refit's log10 D
 and its 1-sigma (`fit_models.predict`) on every axis at the round robin and paper
@@ -14,6 +16,7 @@ import math
 import warnings
 
 import fit_models as F
+import fit_verified
 import numpy as np
 
 from forster import DIFFUSIVITY_PRESETS, Conditions, Orientation
@@ -36,7 +39,7 @@ AXES = {
 }
 
 
-def preset(fit: dict) -> ArrheniusDiffusivity:
+def preset(fit: dict, n_studies: int) -> ArrheniusDiffusivity:
     log_d0, e, m, n, k100, k010 = fit["beta"]
     # dc07_free's beta is (log10 D0, E, m, n, ln offsets of [100] and [010]); the
     # offsets become log10.
@@ -62,7 +65,7 @@ def preset(fit: dict) -> ArrheniusDiffusivity:
             between_study_log10=float(fit["tau"] / LN10),
             source=(
                 f"Covariance of the law averaged over laboratories; between-study sd "
-                f"{fit['tau'] / LN10:.3f} log10 (95% {lo:.2f}-{hi:.2f}, five studies)."
+                f"{fit['tau'] / LN10:.3f} log10 (95% {lo:.2f}-{hi:.2f}, {n_studies} studies)."
             ),
         ),
     )
@@ -107,8 +110,9 @@ def check(law: ArrheniusDiffusivity, fit: dict) -> float:
 
 
 def main() -> None:
-    fit = F.fit_random(F.FORMS["dc07_free"], F.tamed())
-    law = preset(fit)
+    data = fit_verified.verified()
+    fit = F.fit_random(F.FORMS["dc07_free"], data)
+    law = preset(fit, data["source"].nunique())
     print(f"worst difference, preset vs refit (log10 D and its sigma): {check(law, fit):.2e}")
     if law == DIFFUSIVITY_PRESETS["femg_refit2026"]:
         print("the preset in src/forster/diffusivity.py is this law, exactly")

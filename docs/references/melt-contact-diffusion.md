@@ -2,6 +2,8 @@
 
 How the melt-olivine experiments of Shea et al. (2023) compare with the study offsets of the Fe-Mg refit (`femg_refit2026`) and with Oeser et al. (2026), and what they say about the between-study term and the fO2 exponent. This is an analysis note: forster's laws, presets and uncertainty code are unchanged. Written 2026-10-14. Data `analyses/melt_contact/data/shea2023_table1.csv`; numbers from `analyses/melt_contact/melt_sensitivity.py` (`results/variants.csv`, `shea_residuals.csv`, `element_offsets.csv`). The study itself is summarised in `diffusivity-literature.md`.
 
+**Status (2026-10-14, later):** the `femg_refit2026` preset has since been refitted to the verified data, without Spandler and O'Neill (`data-to-source.md`, `unconfirmed-data.md`). "The preset" and "previous preset" in this note mean the one before that: the full compilation with Spandler as a study.
+
 ## Summary
 
 -   **Shea et al. sit about +0.9 log above the refit** (+1.14 above DC07) on the eight profiles tied to an axis. Against the same refit, the four solid-source studies are within ±0.25, and Spandler and O'Neill (2010), the other melt-contact experiment, is +0.36 (shrunk). Shea's runs are at QFM−1, 10\^-3.7 to 10\^-4.1 Pa at 1220-1255 °C, at and just below the round robin's fO2.
@@ -162,7 +164,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
 **Fig. 2. The fO2 dependence with and without a melt term.**
 
 -   **(a) The data at 1200 °C, Fo90, 1 atm, \[001\] against fO2**, moved in T, Fo, P and axis (not fO2) by the Spandler + Shea melt-term fit.
-    -   Grey: as the preset. Blue: solid contact. Wine: melt contact. Bands are 68%.
+    -   Grey: previous preset. Blue: solid contact. Wine: melt contact. Bands are 68%.
     -   The shaded span is the round robin and paper fO2.
 -   **(b) The fO2 exponent (±1σ)** of each variant in both forms, plus Dohmen's and Petry's own exponents (`fo2_figures._within_study`), against DC07's 1/6 and Mutch et al.'s 0.224.
 -   Numbers are in `figures/fig2_fo2_exponents.csv`.

@@ -92,7 +92,7 @@ def panels(pts: pd.DataFrame, fit: dict) -> list[dict]:
         (
             "a",
             "baseline",
-            "as the preset: Oeser not fitted",
+            "previous preset: Oeser not fitted",
             solid,
             "faded: Oeser and Shea, not fitted",
         ),
@@ -157,8 +157,8 @@ def fig_fo2(pts, sigma, fit, ex, rng) -> None:
         color="0.35",
     )
     best0, solid0, _ = MF.curves(form, fit["baseline"], v, rng)
-    MF.band(a, fo2, solid0, MF.BASE, "as the preset, 68%")
-    a.plot(fo2, best0, color=MF.BASE, lw=1.4, label="as the preset")
+    MF.band(a, fo2, solid0, MF.BASE, "previous preset, 68%")
+    a.plot(fo2, best0, color=MF.BASE, lw=1.4, label="previous preset")
     m_fit = fit["oeser_dp_melt"]
     best, solid, melt = MF.curves(form, m_fit, v, rng)
     MF.band(a, fo2, solid, MF.SOLID, "+ Oeser dp, solid contact, 68%")

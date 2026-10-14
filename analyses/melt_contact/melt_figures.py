@@ -54,7 +54,7 @@ T_GRID = np.linspace(700, 1600, 91)
 KS20 = B.PANELS["b"][1:]  # log10 fO2 (Pa), X_Fo, P (Pa)
 AT_1200 = {"T_K": 1473.15, "X_Fo": 0.9, "P_Pa": 1e5, "axis": "[001]"}
 PANELS = {
-    "a": ("baseline", (), "as the preset: melt inside the lab spread"),
+    "a": ("baseline", (), "previous preset: melt inside the lab spread"),
     "b": ("melt_fixed_spandler", (M.SPANDLER,), "melt term: Spandler"),
     "c": ("melt_fixed_both", (M.SPANDLER, SHEA), "melt term: Spandler + Shea"),
 }
@@ -63,7 +63,7 @@ NEAR = 0.5  # log units either side of that span counted as "near our fO2"
 FORM_NAME = {"dc07_free": "DC07 form: ", "mutch_x6": "Mutch form: "}
 FORM_LEGEND = {"dc07_free": "DC07 form", "mutch_x6": "Mutch form, 6x", "study's own": "one study"}
 VARIANT_NAME = {
-    "baseline": "as the preset",
+    "baseline": "previous preset",
     "no_spandler": "without Spandler",
     "melt_fixed_spandler": "melt term: Spandler",
     "shea_random": "Shea as a sixth lab",
@@ -103,8 +103,11 @@ def band(ax, x, sample, colour, label68, label95=None):
 FILLED = {SHEA, "oeser2026", "oeser2026_linescan"}
 
 
-def points(ax, x, y, sigma, both: pd.DataFrame, in_fit: np.ndarray, faded=0.3, style=None):
+def points(
+    ax, x, y, sigma, both: pd.DataFrame, in_fit: np.ndarray, faded=0.3, style=None, filled=None
+):
     """Each study's points with their measurement error; points outside the fit faded."""
+    filled = FILLED if filled is None else filled
     for src, (colour, marker, label) in (style or STYLE).items():
         for fitted in (True, False):
             m = ((both["source"] == src).to_numpy()) & (in_fit == fitted)
@@ -116,12 +119,12 @@ def points(ax, x, y, sigma, both: pd.DataFrame, in_fit: np.ndarray, faded=0.3, s
                 yerr=sigma[m],
                 fmt=marker,
                 color=colour,
-                mfc=colour if src in FILLED else "none",
-                ms=4.5 if src in FILLED else 4,
+                mfc=colour if src in filled else "none",
+                ms=4.5 if src in filled else 4,
                 elinewidth=0.6,
                 capsize=0,
                 alpha=1.0 if fitted else faded,
-                label=label if fitted or src in FILLED else None,
+                label=label if fitted or src in filled else None,
             )
 
 
@@ -272,8 +275,8 @@ def fig_fo2(base, both, sigma, fit, ex: pd.DataFrame, rng) -> None:
         color="0.35",
     )
     b_best, b_solid, _ = curves(form, fit["baseline"], v, rng)
-    band(a, fo2, b_solid, BASE, "as the preset, 68%")
-    a.plot(fo2, b_best, color=BASE, lw=1.4, label="as the preset")
+    band(a, fo2, b_solid, BASE, "previous preset, 68%")
+    a.plot(fo2, b_best, color=BASE, lw=1.4, label="previous preset")
     best, solid, melt = curves(form, fit["melt_fixed_both"], v, rng)
     band(a, fo2, solid, SOLID, "solid contact (melt term fitted), 68%")
     a.plot(fo2, best, color=SOLID, lw=1.8, label="solid contact")
