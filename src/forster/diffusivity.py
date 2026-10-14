@@ -136,6 +136,12 @@ class LawUncertainty:
         object.__setattr__(self, "covariance", tuple(tuple(map(float, row)) for row in cov))
 
 
+def _cos2(orientation: Orientation) -> np.ndarray:
+    """Squared direction cosines of the profile to [100], [010], [001]."""
+    angles = [orientation.alpha_deg, orientation.beta_deg, orientation.gamma_deg]
+    return np.cos(np.deg2rad(angles)) ** 2
+
+
 @dataclass(frozen=True)
 class ArrheniusDiffusivity:
     """One diffusivity equation in the form of the module docstring.
@@ -214,10 +220,7 @@ class ArrheniusDiffusivity:
         (without the between-study spread); None if the law has none."""
         if self.uncertainty is None:
             return None
-        cos2 = (
-            np.cos(np.deg2rad([orientation.alpha_deg, orientation.beta_deg, orientation.gamma_deg]))
-            ** 2
-        )
+        cos2 = _cos2(orientation)
         weights = self.axis_diffusivities(conditions, x_fo) * cos2
         weights = weights / weights.sum()
         T, dP = conditions.T_K, conditions.P_Pa - self.P_ref_Pa
@@ -238,10 +241,7 @@ class ArrheniusDiffusivity:
 
     def functions(self, conditions: Conditions, orientation: Orientation) -> DiffusivityFunctions:
         """D(X_Fo) along the profile and dD/dX_Fo, for the model's time steppers."""
-        cos2 = (
-            np.cos(np.deg2rad([orientation.alpha_deg, orientation.beta_deg, orientation.gamma_deg]))
-            ** 2
-        )
+        cos2 = _cos2(orientation)
         # Everything but the composition term is constant during a run.
         at_ref = float(self.axis_diffusivities(conditions, self.fo_ref) @ cos2)
         slope = -self.fo_coefficient * math.log(10)

@@ -23,7 +23,16 @@ from typing import Any
 import numpy as np
 
 from forster import compiled, dipra, engine, implicit, orientation
-from forster.boundary import BoundaryHistory, Rim, Stage, is_fixed, rim_at, settles_at_s
+from forster.boundary import (
+    SECONDS_PER_DAY,
+    BoundaryHistory,
+    Rim,
+    Stage,
+    is_fixed,
+    rim_at,
+    settles_at_s,
+)
+from forster.compiled import Advance
 from forster.diffusivity import (
     DEFAULT_DIFFUSIVITY,
     ArrheniusDiffusivity,
@@ -39,7 +48,6 @@ from forster.uncertainty import (
     widen_log10,
 )
 
-SECONDS_PER_DAY = 24 * 60 * 60
 FO2_BUFFERS = ("QFM", "FMQ", "NNO")
 SCHEMES = ("central", "dipra", "implicit")  # finite-difference schemes, see fit_profile
 EXPLICIT_SCHEMES = ("central", "dipra")
@@ -168,6 +176,13 @@ class InitialCondition:
                 f"{len(self.steps_um)} step positions given: use one step, or two with "
                 "step_fo for the plateau between them"
             )
+
+    @property
+    def fo_values(self) -> tuple[float, ...]:
+        """Fo of each part of the step function, from the edge: edge, [plateau], core."""
+        if self.step_fo is None:
+            return (self.edge_fo, self.core_fo)
+        return (self.edge_fo, self.step_fo, self.core_fo)
 
 
 @dataclass(frozen=True)
@@ -322,7 +337,6 @@ class FitResult:
 
 
 # advance(c, n, first_row=0): rows first_row .. first_row + n, the first being c.
-Advance = Callable[..., np.ndarray]
 
 
 def fe_mg_diffusivity(diffusivity: Diffusivity | str) -> Diffusivity:
@@ -366,13 +380,6 @@ def scheme_grid(
     return x, float(np.diff(x).max()), (0, len(x) - 1)
 
 
-def _intervals(initial: InitialCondition) -> list[float]:
-    intervals = [initial.edge_fo, initial.core_fo]
-    if initial.step_fo is not None:
-        intervals[1:1] = [initial.step_fo]
-    return intervals
-
-
 def _diffusion_model(
     scheme: str,
     conditions: Conditions,
@@ -400,14 +407,27 @@ def _diffusion_model(
     D, dD_dfo = diffusivity.functions(conditions, orientation)
     rim = initial.edge_fo if rim is None else rim
     if scheme == "implicit":
-        start = implicit.cell_average(model_x, initial.steps_um, _intervals(initial))
-        advance = fast and compiled.implicit_stepper(D, rim, initial.core_fo, grid.dt_s, model_x)
-        return start, advance or implicit.stepper(D, rim, initial.core_fo, grid.dt_s, model_x)
+        start = implicit.cell_average(model_x, initial.steps_um, list(initial.fo_values))
+        return start, _implicit_stepper(D, rim, initial.core_fo, grid.dt_s, model_x, fast=fast)
     if not isinstance(rim, int | float):
         raise ValueError('a rim value that changes in time needs scheme="implicit"')
-    start = engine.step_condition(model_x, list(initial.steps_um), _intervals(initial))
+    start = engine.step_condition(model_x, list(initial.steps_um), list(initial.fo_values))
     bounds = (float(rim), initial.core_fo)
     return start, _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_um * 1e-6, fast)
+
+
+def _implicit_stepper(
+    D: Callable[[np.ndarray], np.ndarray],
+    rim: Rim,
+    core: float,
+    dt_s: float,
+    model_x: np.ndarray,
+    t0_s: float = 0.0,
+    fast: bool = True,
+) -> Advance:
+    """The implicit stepper: compiled when available and ``fast``, else NumPy."""
+    advance = fast and compiled.implicit_stepper(D, rim, core, dt_s, model_x, t0_s=t0_s)
+    return advance or implicit.stepper(D, rim, core, dt_s, model_x, t0_s=t0_s)
 
 
 def _stepper(
@@ -442,6 +462,19 @@ def _stepper(
     return advance
 
 
+def _check_staged_grid(
+    last_start_row: int, grid: Grid, history: BoundaryHistory, firsts: Sequence[int]
+) -> None:
+    """The run must reach past the last stage, and the grid start at the outer rim."""
+    if last_start_row >= grid.timesteps:
+        raise ValueError(
+            f"max_time_days ({grid.max_time_days}) must extend past the last stage "
+            f"({history.stages[-1].start_s / SECONDS_PER_DAY:.4g} days)"
+        )
+    if firsts[-1] != 0:
+        raise ValueError("the model grid must start at the outermost rim")
+
+
 def _staged_prefix(
     scheme: str,
     conditions: Conditions,
@@ -464,13 +497,7 @@ def _staged_prefix(
     dx_m = dx_um * 1e-6
     stages = history.stages
     firsts, starts = history.first_nodes(model_x), history.start_rows(grid.dt_s)
-    if starts[-1] >= grid.timesteps:
-        raise ValueError(
-            f"max_time_days ({grid.max_time_days}) must extend past the last stage "
-            f"({stages[-1].start_s / SECONDS_PER_DAY:.4g} days)"
-        )
-    if firsts[-1] != 0:
-        raise ValueError("the model grid must start at the outermost rim")
+    _check_staged_grid(starts[-1], grid, history, firsts)
     full_start, _ = _diffusion_model(
         scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um
     )
@@ -522,16 +549,10 @@ def _implicit_staged_prefix(
     # A start within STEP_TOLERANCE steps after a step counts as on it, here and in
     # the loop below (floating-point products such as 6.37 * 86400 can sit one ulp off).
     offset = math.ceil(stages[-1].start_s / dt - STEP_TOLERANCE)
-    if offset >= grid.timesteps:
-        raise ValueError(
-            f"max_time_days ({grid.max_time_days}) must extend past the last stage "
-            f"({stages[-1].start_s / SECONDS_PER_DAY:.4g} days)"
-        )
-    if firsts[-1] != 0:
-        raise ValueError("the model grid must start at the outermost rim")
+    _check_staged_grid(offset, grid, history, firsts)
     state = np.full(len(model_x), np.nan)
     state[firsts[0] :] = implicit.cell_average(
-        model_x[firsts[0] :], initial.steps_um, _intervals(initial)
+        model_x[firsts[0] :], initial.steps_um, list(initial.fo_values)
     )
     state[firsts[0]] = rim_at(stages[0].rim, 0.0)
     state[-1] = initial.core_fo
@@ -558,8 +579,7 @@ def _implicit_staged_prefix(
         if j < offset:
             rows[j] = state
     rim, core = stages[-1].rim, initial.core_fo
-    last = compiled.implicit_stepper(D, rim, core, dt, model_x, t0_s=offset * dt)
-    last = last or implicit.stepper(D, rim, core, dt, model_x, t0_s=offset * dt)
+    last = _implicit_stepper(D, rim, core, dt, model_x, t0_s=offset * dt)
     return rows, state.copy(), last, offset
 
 
@@ -610,26 +630,25 @@ def _run_past_best_fit(
     return np.concatenate(chunks)
 
 
-def _fit_correlated_extending(
-    curves: np.ndarray,
+def _fit_extending(
+    rows: np.ndarray,
     advance: Advance,
     total_steps: int,
-    model_x: np.ndarray,
-    x: np.ndarray,
-    y: np.ndarray,
-):
-    """`fit_correlated`, extending the run while the 1-sigma range reaches its end."""
+    fit: Callable[[np.ndarray, bool], Any],
+) -> tuple[np.ndarray, Any]:
+    """``fit(rows, complete)``, extending the run while the 1-sigma range reaches its end.
+    Warnings are raised only for the fit that is kept."""
     while True:
-        complete = len(curves) - 1 >= total_steps
+        complete = len(rows) - 1 >= total_steps
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            fit = fit_correlated(curves, model_x, x, y, end_is_limit=complete)
-        if complete or fit.interval.high_row < len(curves) - 1:
+            result = fit(rows, complete)
+        if complete or result.interval.high_row < len(rows) - 1:
             for w in caught:
                 warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
-            return curves, fit
-        extra = min(len(curves) - 1, total_steps - (len(curves) - 1))
-        curves = np.concatenate([curves, advance(curves[-1], extra, first_row=len(curves) - 1)[1:]])
+            return rows, result
+        extra = min(len(rows) - 1, total_steps - (len(rows) - 1))
+        rows = np.concatenate([rows, advance(rows[-1], extra, first_row=len(rows) - 1)[1:]])
 
 
 def _correlated_run(
@@ -649,7 +668,12 @@ def _correlated_run(
         curves = _run_past_best_fit(start, advance, total_steps, W, py, min_steps=min_steps)
     else:
         curves = advance(start, total_steps)
-    return _fit_correlated_extending(curves, advance, total_steps, model_x, x, y)
+    return _fit_extending(
+        curves,
+        advance,
+        total_steps,
+        lambda rows, complete: fit_correlated(rows, model_x, x, y, end_is_limit=complete),
+    )
 
 
 def _check_stable(
@@ -668,8 +692,7 @@ def _check_stable(
     of lower Fo has a larger D."""
     from forster.grid import UNSTABLE_RATIO
 
-    values = [initial.edge_fo, initial.core_fo]
-    values += [initial.step_fo] if initial.step_fo is not None else []
+    values = list(initial.fo_values)
     values += [float(rim_fo)] if isinstance(rim_fo, int | float) else []
     for stage in history.stages if history is not None else ():
         values += [stage.zone_value] if stage.zone_value is not None else []
@@ -813,25 +836,26 @@ def fit_profile(
     sigma_interp = interp_sigma[low_idx : high_idx + 1] + kriging.uniform_uncertainty
 
     # The legacy method keeps the NumPy steppers: it reproduces the old scripts exactly.
-    start, advance = _diffusion_model(
-        scheme,
-        conditions,
-        orientation,
-        initial,
-        grid,
-        diffusivity,
-        model_x,
-        dx_um,
-        rim_fo,
-        fast=uncertainty != "legacy",
-    )
     prefix, offset, last_stage_s = None, 0, 0.0
-    if history is not None and scheme == "implicit":
+    if history is None:
+        start, advance = _diffusion_model(
+            scheme,
+            conditions,
+            orientation,
+            initial,
+            grid,
+            diffusivity,
+            model_x,
+            dx_um,
+            rim_fo,
+            fast=uncertainty != "legacy",
+        )
+    elif scheme == "implicit":
         prefix, start, advance, offset = _implicit_staged_prefix(
             conditions, orientation, initial, grid, diffusivity, model_x, history
         )
         last_stage_s = history.stages[-1].start_s
-    elif history is not None:
+    else:
         prefix, start, advance, offset = _staged_prefix(
             scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um, history
         )

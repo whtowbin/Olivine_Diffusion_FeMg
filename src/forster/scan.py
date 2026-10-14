@@ -70,6 +70,7 @@ from forster.uncertainty import (
     ONE_SIGMA,
     Interval,
     NoiseModel,
+    central_range,
     delta_chi2_interval,
     fit_noise_model,
     interpolation_matrix,
@@ -196,7 +197,7 @@ def candidate_grid(
         vals = dict(zip(names, (float(v) for v in combo), strict=True))
         cand = _with_values(initial, vals)
         steps = cand.steps_um
-        fos = [cand.edge_fo, cand.core_fo] + ([cand.step_fo] if cand.step_fo is not None else [])
+        fos = cand.fo_values
         if (
             not all(lo <= s <= hi for s in steps)
             or any(b <= a for a, b in itertools.pairwise(steps))
@@ -227,6 +228,12 @@ def candidate_grid(
     )
 
 
+def _fo_span(candidates: Sequence[InitialCondition]) -> tuple[float, float]:
+    """Smallest and largest Fo over every candidate's edge, core and plateau."""
+    values = [fo for c in candidates for fo in c.fo_values]
+    return min(values), max(values)
+
+
 def scan_grid(
     grid: Grid,
     candidates: Sequence[InitialCondition],
@@ -242,8 +249,7 @@ def scan_grid(
     for every candidate, so their chi-squared values stay comparable. With ``profile``
     the spacing `fit_profile` will actually use with the explicit ``scheme`` is taken
     (`forster.grid.actual_dx_um`)."""
-    lo = min(min(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in candidates)
-    hi = max(max(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in candidates)
+    lo, hi = _fo_span(candidates)
     dx = grid.dx_um if profile is None else actual_dx_um(profile, grid.dx_um, candidates[0], scheme)
     return replace(
         grid, dt_s=stable_dt(dx, [(diffusivity, (lo, hi))], conditions, orientation, stability)
@@ -456,12 +462,7 @@ def fit_candidates(
     # -inf where a candidate did not run
     log_post = -0.5 * len(x) * np.log(table) + log_prior[:, None]
     weights = np.exp(log_post - log_post.max())
-    over_time = weights.sum(axis=0)
-    cdf = np.concatenate([[0.0], np.cumsum(0.5 * (over_time[1:] + over_time[:-1]))])
-    cdf /= cdf[-1]
-    rows = np.arange(n_steps, dtype=float)
-    low = float(np.interp(0.5 - level / 2, cdf, rows))
-    high = float(np.interp(0.5 + level / 2, cdf, rows))
+    low, high = central_range(weights.sum(axis=0), level)
     marginal = Interval(int(best_row), low, high, int(np.floor(low)), int(np.ceil(high)))
     probability = weights.sum(axis=1) / weights.sum()
     return ScanResult(
@@ -518,8 +519,7 @@ def scan_initial_conditions(
             grid, initials, conditions, orientation, diffusivity, stability, profile, scheme
         )
     elif explicit:
-        lo = min(min(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in initials)
-        hi = max(max(c.edge_fo, c.core_fo, c.step_fo or c.edge_fo) for c in initials)
+        lo, hi = _fo_span(initials)
         dx = actual_dx_um(profile, grid.dx_um, initials[0], scheme)
         ratio = stability_ratio(dx, grid.dt_s, [(diffusivity, (lo, hi))], conditions, orientation)
         if ratio > UNSTABLE_RATIO:

@@ -59,6 +59,7 @@ from forster.grid import (
 from forster.model import (
     DEFAULT_SCHEME,
     SCHEMES,
+    SECONDS_PER_DAY,
     UNCERTAINTY_METHODS,
     Conditions,
     FitResult,
@@ -842,7 +843,7 @@ def scan_table(scan: ScanResult) -> pd.DataFrame:
         rows.append(
             {
                 **values,
-                "best_days": k * scan.runs.dt_s / 86400,
+                "best_days": k * scan.runs.dt_s / SECONDS_PER_DAY,
                 "min_chi2": float(chi2[k]),
                 "prior_penalty": penalty,
                 "probability": float(scan.candidate_probability[i]),

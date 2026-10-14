@@ -207,6 +207,17 @@ def delta_chi2_interval(
     return Interval(best=best, low=float(low), high=float(high), low_row=lo_row, high_row=hi_row)
 
 
+def central_range(weights: np.ndarray, level: float = ONE_SIGMA) -> tuple[float, float]:
+    """Rows (fractional) holding the central ``level`` of a posterior given by its
+    unnormalised ``weights`` per time step (trapezoid rule between steps)."""
+    cdf = np.concatenate([[0.0], np.cumsum(0.5 * (weights[1:] + weights[:-1]))])
+    cdf /= cdf[-1]
+    rows = np.arange(len(weights), dtype=float)
+    return float(np.interp(0.5 - level / 2, cdf, rows)), float(
+        np.interp(0.5 + level / 2, cdf, rows)
+    )
+
+
 def posterior_interval(chi2: np.ndarray, n_points: int, level: float = ONE_SIGMA) -> Interval:
     """Central ``level`` credible range of time with the noise scale integrated out.
 
@@ -218,12 +229,7 @@ def posterior_interval(chi2: np.ndarray, n_points: int, level: float = ONE_SIGMA
     ``stop_early=False``, or with the run extended well past the range.
     """
     log_post = -0.5 * n_points * np.log(chi2)
-    weights = np.exp(log_post - log_post.max())
-    cdf = np.concatenate([[0.0], np.cumsum(0.5 * (weights[1:] + weights[:-1]))])
-    cdf /= cdf[-1]
-    rows = np.arange(len(chi2), dtype=float)
-    low = float(np.interp(0.5 - level / 2, cdf, rows))
-    high = float(np.interp(0.5 + level / 2, cdf, rows))
+    low, high = central_range(np.exp(log_post - log_post.max()), level)
     return Interval(
         best=int(np.argmin(chi2)),
         low=low,

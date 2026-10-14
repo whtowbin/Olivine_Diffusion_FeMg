@@ -17,6 +17,7 @@ import numpy as np
 
 from forster.boundary import Rim, is_fixed, rim_at
 from forster.diffusivity import LogLinearDiffusivity
+from forster.implicit import grid_geometry
 
 try:
     if os.environ.get("FORSTER_NO_NUMBA") == "1":
@@ -60,8 +61,7 @@ def implicit_stepper(
     if params is None or _kernels is None:
         return None
     kernels = _kernels
-    h = np.diff(np.asarray(x_um, dtype=float)) * 1e-6
-    w = 0.5 * (h[1:] + h[:-1])
+    h, w = grid_geometry(np.asarray(x_um, dtype=float))
     gamma = kernels.GAMMA
 
     def advance(c: np.ndarray, n: int, first_row: int = 0) -> np.ndarray:

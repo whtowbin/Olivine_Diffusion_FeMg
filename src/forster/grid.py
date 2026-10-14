@@ -80,10 +80,7 @@ Species = tuple[Diffusivity | str, tuple[float, float]]
 
 def fo_range(initial: InitialCondition) -> tuple[float, float]:
     """Smallest and largest Fo of the initial condition (edge, core and any plateau)."""
-    values = [initial.edge_fo, initial.core_fo] + (
-        [initial.step_fo] if initial.step_fo is not None else []
-    )
-    return min(values), max(values)
+    return min(initial.fo_values), max(initial.fo_values)
 
 
 def _diffusivities(

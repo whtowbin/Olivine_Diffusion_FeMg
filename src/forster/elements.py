@@ -35,14 +35,17 @@ from forster.diffusivity import DEFAULT_DIFFUSIVITY as DEFAULT_FO_DIFFUSIVITY
 from forster.diffusivity import Diffusivity, resolve
 from forster.grid import STABILITY_RATIO, UNSTABLE_RATIO, stability_ratio, stable_dt
 from forster.model import (
+    EXPLICIT_SCHEMES,
     SCHEMES,
     SECONDS_PER_DAY,
+    Advance,
     Conditions,
     FitResult,
     Grid,
     InitialCondition,
     Orientation,
     Profile,
+    _fit_extending,
     _run_past_best_fit,
     fe_mg_diffusivity,
     model_grid,
@@ -67,8 +70,7 @@ DEFAULT_DIFFUSIVITY = {
 
 # advance(state, n, first_row=0): ``first_row`` is the row ``state`` is at; the element
 # steppers do not depend on it (it matches `forster.model`'s advance functions).
-Advance = Callable[..., np.ndarray]
-ELEMENT_SCHEMES = ("central", "dipra")  # explicit steppers that take a separate Fo vector
+ELEMENT_SCHEMES = EXPLICIT_SCHEMES  # explicit steppers that take a separate Fo vector
 Step = Callable[..., np.ndarray]
 
 
@@ -230,9 +232,7 @@ def coupled_model(
         )
     dx_m = dx_um * 1e-6
     fo_d = fe_mg_diffusivity(fo_diffusivity)
-    fo_intervals = [fo_initial.edge_fo, fo_initial.core_fo]
-    if fo_initial.step_fo is not None:
-        fo_intervals[1:1] = [fo_initial.step_fo]
+    fo_intervals = list(fo_initial.fo_values)
     fo = _Species(
         "Fo",
         engine.step_condition(model_x_um, list(fo_initial.steps_um), fo_intervals),
@@ -287,26 +287,6 @@ def _advance(species: list[_Species], move_fo: bool, step: Step) -> Advance:
         return rows
 
     return advance
-
-
-def _fit_extending(
-    packed: np.ndarray,
-    advance: Advance,
-    total_steps: int,
-    fit: Callable[[np.ndarray, bool], Any],
-) -> tuple[np.ndarray, Any]:
-    """``fit(packed, complete)``, extending the run while the 1-sigma range reaches its end."""
-    while True:
-        complete = len(packed) - 1 >= total_steps
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = fit(packed, complete)
-        if complete or result.interval.high_row < len(packed) - 1:
-            for w in caught:
-                warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
-            return packed, result
-        extra = min(len(packed) - 1, total_steps - (len(packed) - 1))
-        packed = np.concatenate([packed, advance(packed[-1], extra)[1:]])
 
 
 def _times(interval, dt_s: float) -> tuple[float, float, float]:

@@ -125,4 +125,18 @@ plus a control. Verify 14: rerun every script; `results/*.csv` and
 
 - [x] Group A (2026-10-14): every new test failed on the old code except the time-order
   one, which pins existing behaviour; suite 219 passed (210 + 9 skipped without Numba).
-- [ ] Group B  - [ ] Group C
+- [x] Group B (2026-10-14): `docs/references/law-uncertainty-limits.md` with
+  `law_limits.py` (writes `dt_scaling.csv`, `linear_vs_mc.csv`); export_preset checked
+  both ways (equal: exit 0; a 1e-15 change to the shipped preset: exit 1).
+- [x] Group C, tasks 12-13 (2026-10-14): replay of 161 cases (9510 arrays, SHA-256 of
+  each) at 0e8a1c4 against the refactored tree: identical with Numba and without; the
+  baseline against itself: identical; Numba against NumPy at the baseline: 588 arrays
+  differ (the compiled steppers' rounding), so the comparison does see changes.
+  Decisions: kept the Mn and Ni presets written out (each reads as its source; `replace`
+  on the DC07 preset would make a subclass); kept `from_row`'s explicit keywords (ty
+  cannot check a `**` dict); kept `_round_robin_run` / `_paper_run` (a shared helper
+  needs nine parameters to save six lines); kept `scan._extend_tails` (a different loop:
+  several runs); guarded the hand-written preset list and `DIFFUSIVITY_COLUMNS` with
+  tests instead of generating them; `mplstereonet` moved to the analysis group (the
+  archived `old Xenolith Code` copy still imports it).
+- [ ] Group C, task 14

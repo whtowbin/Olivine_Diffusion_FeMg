@@ -11,7 +11,7 @@ import math
 import numpy as np
 from numba import njit
 
-GAMMA = 2.0 - math.sqrt(2.0)
+from forster.implicit import GAMMA
 
 
 @njit(cache=True)

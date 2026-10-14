@@ -154,3 +154,20 @@ def test_write_template_refuses_to_overwrite(tmp_path):
     assert (tmp_path / "parameters.csv").read_text() == "mine"
     write_template(tmp_path, overwrite=True)
     assert (tmp_path / "parameters.csv").read_text() != "mine"
+
+
+def test_diffusivity_columns_match_the_table_reader():
+    from forster.diffusivity import TABLE_COLUMNS
+    from forster.template import DIFFUSIVITY_COLUMNS
+
+    assert tuple(c.name for c in DIFFUSIVITY_COLUMNS) == TABLE_COLUMNS
+
+
+def test_the_diffusivity_column_names_every_fe_mg_preset():
+    from forster import DIFFUSIVITY_PRESETS
+    from forster.template import PARAMETER_COLUMNS
+
+    (column,) = [c for c in PARAMETER_COLUMNS if c.name == "diffusivity"]
+    for name, preset in DIFFUSIVITY_PRESETS.items():
+        if preset.element == "Fe-Mg":
+            assert name in column.description
