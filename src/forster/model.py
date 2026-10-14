@@ -21,7 +21,7 @@ from typing import Any
 
 import numpy as np
 
-from forster import dipra, engine, implicit, orientation
+from forster import compiled, dipra, engine, implicit, orientation
 from forster.boundary import BoundaryHistory, Rim, Stage, is_fixed, rim_at, settles_at_s
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
 from forster.uncertainty import (
@@ -338,6 +338,7 @@ def _diffusion_model(
     model_x: np.ndarray,
     dx_um: float,
     rim: Rim | None = None,
+    fast: bool = True,
 ) -> tuple[np.ndarray, Advance]:
     """The step-function start and a function advancing a profile by n time steps.
 
@@ -348,18 +349,20 @@ def _diffusion_model(
     engine's, "dipra" is Girona and Costa (2013) eq. 5, "implicit" is
     `forster.implicit` (cell-averaged start, values held on the end nodes). ``rim`` is
     the value held at the rim (default ``initial.edge_fo``); a function of time needs
-    "implicit".
+    "implicit". ``fast``: use the compiled steppers when available (`forster.compiled`);
+    False keeps NumPy (bit-identical to earlier versions).
     """
     D, dD_dfo = diffusivity.functions(conditions, orientation)
     rim = initial.edge_fo if rim is None else rim
     if scheme == "implicit":
         start = implicit.cell_average(model_x, initial.steps_um, _intervals(initial))
-        return start, implicit.stepper(D, rim, initial.core_fo, grid.dt_s, model_x)
+        advance = fast and compiled.implicit_stepper(D, rim, initial.core_fo, grid.dt_s, model_x)
+        return start, advance or implicit.stepper(D, rim, initial.core_fo, grid.dt_s, model_x)
     if not isinstance(rim, int | float):
         raise ValueError('a rim value that changes in time needs scheme="implicit"')
     start = engine.step_condition(model_x, list(initial.steps_um), _intervals(initial))
     bounds = (float(rim), initial.core_fo)
-    return start, _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_um * 1e-6)
+    return start, _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_um * 1e-6, fast)
 
 
 def _stepper(
@@ -369,9 +372,14 @@ def _stepper(
     bounds: tuple[float, float],
     dt_s: float,
     dx_m: float,
+    fast: bool = True,
 ) -> Advance:
     """``advance(c, n, first_row=0)``: n time steps with Fo held at ``bounds`` beyond
-    both ends (``first_row`` is not needed: the bounds are fixed)."""
+    both ends (``first_row`` is not needed: the bounds are fixed). ``fast``: compiled
+    when available."""
+    advance = fast and compiled.explicit_stepper(scheme, D, bounds, dt_s, dx_m)
+    if advance:
+        return advance
 
     def advance(c: np.ndarray, n: int, first_row: int = 0) -> np.ndarray:
         if scheme == "central":
@@ -502,7 +510,9 @@ def _implicit_staged_prefix(
         advance_to(j * dt)
         if j < offset:
             rows[j] = state
-    last = implicit.stepper(D, stages[-1].rim, initial.core_fo, dt, model_x, t0_s=offset * dt)
+    rim, core = stages[-1].rim, initial.core_fo
+    last = compiled.implicit_stepper(D, rim, core, dt, model_x, t0_s=offset * dt)
+    last = last or implicit.stepper(D, rim, core, dt, model_x, t0_s=offset * dt)
     return rows, state.copy(), last, offset
 
 
@@ -721,8 +731,18 @@ def fit_profile(
     data_interp = interp_fo[low_idx : high_idx + 1]
     sigma_interp = interp_sigma[low_idx : high_idx + 1] + kriging.uniform_uncertainty
 
+    # The legacy method keeps the NumPy steppers: it reproduces the old scripts exactly.
     start, advance = _diffusion_model(
-        scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um, rim_fo
+        scheme,
+        conditions,
+        orientation,
+        initial,
+        grid,
+        diffusivity,
+        model_x,
+        dx_um,
+        rim_fo,
+        fast=uncertainty != "legacy",
     )
     prefix, offset, last_stage_s = None, 0, 0.0
     if history is not None and scheme == "implicit":

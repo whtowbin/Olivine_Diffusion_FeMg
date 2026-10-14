@@ -23,6 +23,12 @@ uv add git+https://github.com/whtowbin/Olivine_Diffusion_FeMg            # or as
 or with pip: `pip install git+https://github.com/whtowbin/Olivine_Diffusion_FeMg`.
 A PyPI release (`pip install forster`) will follow.
 
+Optional, about 5× faster fits and scans: add the `fast` extra, which installs
+[Numba](https://numba.pydata.org/) to compile the time steppers
+(`uv tool install "forster[fast] @ git+https://github.com/whtowbin/Olivine_Diffusion_FeMg"`,
+or `pip install "forster[fast] @ git+..."`). Results are the same to rounding; without
+Numba the same code runs in NumPy. `FORSTER_NO_NUMBA=1` turns it off.
+
 ## Three ways to run it
 
 ### 1. Command line, with two filled-in tables

@@ -254,6 +254,9 @@ Measured on the same profiles (`gridbench.py`, `compiled.py`; the latter needs
 - **Non-uniform or adaptive grids:** at most 10–20% fewer steps with an
   explicit scheme, because the smallest cell still sets dt. Not worth the
   complexity.
-- **A compiled loop** (Numba): 8–10× faster per explicit step. Per-step cost is
-  overhead (25–30 µs for 50–300 nodes), so the gain is the same at any grid
-  size. With the implicit scheme the model run is no longer the main cost.
+- **A compiled loop** (Numba; done 2026-10-13, `forster.compiled`, optional
+  `fast` extra): per step for 150 nodes, central 15 → 0.9 µs, dipra 20 → 0.9 µs,
+  implicit 22 → 3 µs. End to end on the 35 profiles, default fits are about 5×
+  faster (12 s → 2.2 s for all 35), fits on the tables' own grids 5–7× and a
+  125-candidate scan 5–20× (timings on a loaded machine; the ratios held across
+  four runs). What remains of a default fit is mostly the noise-model fit.

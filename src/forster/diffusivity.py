@@ -41,6 +41,23 @@ LOG10_6 = math.log10(6.0)  # [001] is 6x faster than [100] and [010] for Fe-Mg, 
 DiffusivityFunctions = tuple[Callable[[np.ndarray], np.ndarray], Callable[[np.ndarray], np.ndarray]]
 
 
+@dataclass(frozen=True)
+class LogLinearDiffusivity:
+    """D(X_Fo) = at_ref * 10**(fo_coefficient * (fo_ref - X_Fo)), evaluated by ``function``.
+
+    Calling it calls ``function`` (so results are unchanged); the parameters let the
+    compiled time steppers (`forster.compiled`) evaluate D themselves.
+    """
+
+    function: Callable[[np.ndarray], np.ndarray]
+    at_ref: float
+    fo_coefficient: float
+    fo_ref: float
+
+    def __call__(self, x_fo: np.ndarray) -> np.ndarray:
+        return self.function(x_fo)
+
+
 class Diffusivity(Protocol):
     """What `fit_profile` needs from a diffusivity; `ArrheniusDiffusivity` is one.
 
@@ -146,7 +163,9 @@ class ArrheniusDiffusivity:
         def derivative(x_fo: np.ndarray) -> np.ndarray:
             return slope * diffusivity(x_fo)
 
-        return diffusivity, derivative
+        return LogLinearDiffusivity(
+            diffusivity, at_ref, self.fo_coefficient, self.fo_ref
+        ), derivative
 
 
 @dataclass(frozen=True)
@@ -168,7 +187,7 @@ class _EngineFeMg(ArrheniusDiffusivity):
             activation_energy_J_mol=DOHMEN_CHAKRABORTY_2007.activation_energy_J_mol,
         )
         if E[0] == E[1] == E[2] and unchanged == DOHMEN_CHAKRABORTY_2007:
-            return dipra.D_Fo_and_derivative(
+            D, dD = dipra.D_Fo_and_derivative(
                 conditions.T_K,
                 conditions.P_Pa,
                 conditions.fO2_Pa,
@@ -177,6 +196,8 @@ class _EngineFeMg(ArrheniusDiffusivity):
                 orientation.gamma_deg,
                 E[0],
             )
+            at_ref = float(np.asarray(D(np.array([self.fo_ref])))[0])
+            return LogLinearDiffusivity(D, at_ref, self.fo_coefficient, self.fo_ref), dD
         return ArrheniusDiffusivity.functions(self, conditions, orientation)
 
 

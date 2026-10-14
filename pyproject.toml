@@ -19,9 +19,15 @@ dependencies = [
 [project.scripts]
 forster = "forster.cli:main"
 
+[project.optional-dependencies]
+fast = [
+    "numba>=0.61",
+]
+
 [dependency-groups]
 dev = [
     "complexipy>=4.0",
+    "numba>=0.61",
     "pytest>=8.3",
     "pytest-xdist>=3.6",
     "ruff>=0.14",

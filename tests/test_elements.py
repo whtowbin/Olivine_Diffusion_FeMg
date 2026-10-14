@@ -20,6 +20,7 @@ from forster import (
     InitialCondition,
     Orientation,
     Profile,
+    compiled,
     engine,
     fit_element,
     fit_joint,
@@ -100,6 +101,7 @@ def test_fo_rows_are_those_of_the_fo_model(scheme):
         fe_mg_diffusivity("dohmen_chakraborty2007"),
         X_UM,
         DX_UM,
+        fast=False,  # element fits use the NumPy steppers; the compiled ones agree to rounding
     )
     assert np.array_equal(rows[:, :N_X], advance(start, grid.timesteps))
 
@@ -224,7 +226,8 @@ def test_early_stopping_gives_the_same_element_fit(synthetic):
     assert len(early.curves) < len(full.curves)
 
 
-def test_joint_fit_with_fo_alone_equals_fit_profile(synthetic):
+def test_joint_fit_with_fo_alone_equals_fit_profile(synthetic, monkeypatch):
+    monkeypatch.setattr(compiled, "_kernels", None)  # bit for bit: both on the NumPy steppers
     fo_profile = synthetic[0]
     joint = fit_joint(fo_profile, [], CONDITIONS, ALONG_001, FO_INITIAL, {}, FIT_GRID)
     single = fit_profile(
