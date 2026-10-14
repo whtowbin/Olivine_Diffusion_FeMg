@@ -73,6 +73,21 @@ def test_a_failing_run_is_skipped_and_reported(tmp_path, template):
     done = forster("fit", template / "profiles.csv", template / "parameters.csv", cwd=tmp_path)
     assert done.returncode == 1
     assert "not in the table" in done.stderr
+    assert 'failed: "' not in done.stderr  # a KeyError's message, without repr quotes
+    assert read_csv(tmp_path / "results" / "summary.csv").run.tolist() == [EXAMPLE]
+
+
+def test_a_run_that_raises_does_not_lose_the_summary(tmp_path, template):
+    """Not only input errors: an OSError writing one run's figure (here a folder where
+    its PNG goes) is reported with its type, and the other run still reaches summary.csv."""
+    params = read_csv(template / "parameters.csv")
+    pd.concat([params.assign(run="blocked"), params]).to_csv(
+        template / "parameters.csv", index=False
+    )
+    (tmp_path / "results" / "blocked_fit.png").mkdir(parents=True)
+    done = forster("fit", template / "profiles.csv", template / "parameters.csv", cwd=tmp_path)
+    assert done.returncode == 1
+    assert "Error" in done.stderr  # IsADirectoryError (or PermissionError on Windows)
     assert read_csv(tmp_path / "results" / "summary.csv").run.tolist() == [EXAMPLE]
 
 

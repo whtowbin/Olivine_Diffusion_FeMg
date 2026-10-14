@@ -195,3 +195,61 @@ def test_bad_uncertainty_columns_are_errors(tmp_path, columns, message):
     table.to_csv(path, index=False)
     with pytest.raises(ValueError, match=message):
         read_runs(path)
+
+
+@pytest.fixture
+def template_tables(tmp_path):
+    from forster import write_template
+
+    write_template(tmp_path / "t")
+    return (
+        pd.read_csv(tmp_path / "t" / "profiles.csv"),
+        pd.read_csv(tmp_path / "t" / "parameters.csv"),
+    )
+
+
+def test_flags_are_case_insensitive(tmp_path, template_tables):
+    profiles, _ = template_tables
+    flags = ["Bad", " BAD ", "bad"] + [""] * (len(profiles) - 3)
+    path = tmp_path / "flagged.csv"
+    profiles.assign(
+        Marked_bad=flags, Ignore=["", "", "", "Yes"] + [""] * (len(profiles) - 4)
+    ).to_csv(path, index=False)
+    (profile,) = read_profiles(path).values()
+    assert len(profile.distance_um) == len(profiles) - 4
+
+
+def test_rows_without_distance_or_fo_are_dropped_with_a_warning(tmp_path, template_tables):
+    profiles, _ = template_tables
+    profiles.loc[5, "fo"] = np.nan
+    path = tmp_path / "blank.csv"
+    profiles.to_csv(path, index=False)
+    with pytest.warns(UserWarning, match="dropped rows with no distance or Fo"):
+        (profile,) = read_profiles(path).values()
+    assert len(profile.fo) == len(profiles) - 1
+    assert np.isfinite(profile.fo).all()
+
+
+def test_unknown_template_column_warns(tmp_path, template_tables):
+    _, parameters = template_tables
+    path = tmp_path / "params.csv"
+    parameters.assign(steps_sd=2.0).to_csv(path, index=False)  # meant steps_sd_um
+    with pytest.warns(UserWarning, match=r"not used by FORSTER.*steps_sd"):
+        read_runs(path)
+
+
+def test_bad_inflection_c_is_a_value_error():
+    from forster.io import _plateau_fraction
+
+    assert _plateau_fraction("88.5") == pytest.approx(0.885)
+    with pytest.raises(ValueError, match="inflection_c"):
+        _plateau_fraction("88,,5")
+
+
+def test_xls_is_refused(tmp_path):
+    from forster.io import read_table
+
+    path = tmp_path / "old.xls"
+    path.write_bytes(b"")
+    with pytest.raises(ValueError, match=r"\.csv or \.xlsx"):
+        read_table(path)

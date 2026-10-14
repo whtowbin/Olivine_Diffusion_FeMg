@@ -77,6 +77,7 @@ from forster.scan import (
     candidate_grid,
     scan_initial_conditions,
 )
+from forster.template import PARAMETER_COLUMNS, SUMMARY_COLUMNS
 
 ROUND_ROBIN_COLUMNS = {
     "Sample",
@@ -174,18 +175,19 @@ def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
         # what was written, so a table written by FORSTER refits identically.
         # pandas documents "round_trip" but its type stubs leave it out.
         return pd.read_csv(path, float_precision="round_trip")  # ty: ignore[no-matching-overload]
-    if path.suffix.lower() in {".xlsx", ".xlsm", ".xls"}:
+    if path.suffix.lower() in {".xlsx", ".xlsm"}:
         return pd.read_excel(path, sheet_name=sheet, engine="openpyxl")
+    # openpyxl cannot read the old binary .xls format: save it as .xlsx or .csv.
     raise ValueError(f"{path}: expected a .csv or .xlsx file")
 
 
 def _usable_rows(df: pd.DataFrame) -> pd.Series:
-    """Rows not flagged as bad (``Marked_bad == "bad"``) or ignored (``Ignore == "yes"``)."""
+    """Rows not flagged as bad (``Marked_bad`` "bad") or ignored (``Ignore`` "yes"), in any
+    case and with spaces around them."""
     keep = pd.Series(True, index=df.index)
-    if "Marked_bad" in df.columns:
-        keep &= df["Marked_bad"] != "bad"
-    if "Ignore" in df.columns:
-        keep &= df["Ignore"] != "yes"
+    for column, flag in (("Marked_bad", "bad"), ("Ignore", "yes")):
+        if column in df.columns:
+            keep &= df[column].astype(str).str.strip().str.lower() != flag
     return keep
 
 
@@ -223,9 +225,21 @@ def read_profiles(
     if missing:
         raise ValueError(f"{path}: missing column(s) {sorted(missing)}")
     keep = _usable_rows(df)
+    names = df.loc[keep, name_column].dropna().unique()
+    # A row with no distance or Fo cannot be fitted; a name left with too few points
+    # is skipped below like any other.
+    blank = keep & df[name_column].notna() & df[[distance_column, fo_column]].isna().any(axis=1)
+    keep &= ~blank
+    partly_blank = sorted(
+        str(n) for n in df.loc[blank, name_column].unique() if (keep & (df[name_column] == n)).any()
+    )
+    if partly_blank:
+        warnings.warn(
+            f"{path}: dropped rows with no distance or Fo from {partly_blank}", stacklevel=2
+        )
     profiles = {}
     too_short = []
-    for name in df.loc[keep, name_column].dropna().unique():
+    for name in names:
         rows = df.loc[(df[name_column] == name) & keep].sort_values(distance_column)
         if len(rows) < MIN_PROFILE_POINTS:
             too_short.append(str(name))
@@ -263,7 +277,10 @@ def _plateau_fraction(value: Any) -> float | None:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return None
     if isinstance(value, str):
-        parsed = ast.literal_eval(value)
+        try:
+            parsed = ast.literal_eval(value)
+        except (SyntaxError, ValueError):
+            raise ValueError(f"inflection_c {value!r}: expected a number (Fo in percent)") from None
         values = parsed if isinstance(parsed, (tuple, list)) else [parsed]
         if len(values) != 1:
             raise ValueError(f"inflection_c {value!r}: only one intermediate plateau is supported")
@@ -505,6 +522,18 @@ LAYOUTS = (
 )
 
 
+def _warn_unknown_columns(path: str | Path, columns: set[str]) -> None:
+    """Warn of columns a template (or summary) table does not use: usually a misspelt
+    optional column, which would otherwise be ignored without a word."""
+    known = {c.name for c in (*PARAMETER_COLUMNS, *SUMMARY_COLUMNS)} | set(METADATA_COLUMNS)
+    unknown = sorted(str(c) for c in columns - known if not str(c).startswith("Unnamed:"))
+    if unknown:
+        warnings.warn(
+            f"{path}: column(s) not used by FORSTER (check the spelling): {unknown}",
+            stacklevel=3,
+        )
+
+
 def read_runs(
     path: str | Path,
     *,
@@ -528,7 +557,9 @@ def read_runs(
         raise ValueError(
             f"{path}: not a recognised parameter table (see `forster template`). {needs}"
         )
-    _, _, name_column, make_run = layout
+    label, _, name_column, make_run = layout
+    if label == "Template layout":
+        _warn_unknown_columns(path, columns)
     named = df[df[name_column].notna()]
     duplicates = named[name_column][named[name_column].duplicated()].unique()
     if len(duplicates):

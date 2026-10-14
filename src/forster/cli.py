@@ -85,6 +85,15 @@ def _user_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
     return sorted({str(w.message) for w in caught if issubclass(w.category, UserWarning)})
 
 
+def _describe(error: Exception) -> str:
+    """The message of an input error; other errors also name their type."""
+    if isinstance(error, KeyError) and error.args:
+        return str(error.args[0])  # str(KeyError) adds quotes around the message
+    if isinstance(error, ValueError):
+        return str(error)
+    return f"{type(error).__name__}: {error}"
+
+
 def _fit_one(run: Run, profiles: dict, out_dir: Path, max_candidates: int) -> dict:
     n_scan = scan_size(run, max_candidates=max_candidates)  # raises early if too large
     t0 = time.perf_counter()
@@ -134,9 +143,8 @@ def fit_command(args: argparse.Namespace) -> int:
         print(f"[{i}/{len(runs)}] {run.name}", flush=True)
         try:
             row = _fit_one(run, profiles, out_dir, args.max_candidates)
-        except (KeyError, ValueError) as error:
-            # One bad row should not lose the other fits.
-            print(f"  failed: {error}", file=sys.stderr)
+        except Exception as error:  # one bad run, whatever the error, must not lose the others
+            print(f"  failed: {_describe(error)}", file=sys.stderr)
             failed.append(run.name)
             continue
         rows.append(row)
