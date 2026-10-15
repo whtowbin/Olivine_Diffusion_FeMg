@@ -77,6 +77,12 @@ MAX_TIME_FACTOR = 3.0  # chosen max time = this x the coarse best fit
 COARSE_POINTS = 150  # nodes of the coarse grid that estimates the time
 COARSE_MAX_DAYS = 3650.0  # coarse fit horizon when none is given (early stopping ends it)
 COARSE_MIN_RESOLUTION = 8.0  # refine the coarse fit once if l / dx is below this
+# Most nodes the narrowest gap may ask for across the domain: a step closer than this to
+# the rim or to another step acts as one boundary. Without the floor, a step 0.06 um from
+# the rim asked for dx = 0.015 um and an explicit run of tens of GB (round robin refit,
+# 2026-10-15). `check_grid` still reports the unresolved gap.
+COARSE_MAX_NODES = 600
+MAX_GAP_NODES = 5000
 COST_FACTOR = 4.0  # warn of wasted time when a grid is this much finer than needed
 IMPLICIT_ERROR_COEFFICIENT = 0.2  # implicit: error ~ this x (dx / l)^2 (worst case measured)
 IMPLICIT_MIN_RESOLUTION = {"scan": 4.0, "final": 8.0}  # implicit: l / dx at least
@@ -227,7 +233,8 @@ def _coarse_time_days(
     Always an explicit scheme ("central" for "implicit"): it needs no time scale."""
     scheme = scheme if scheme in EXPLICIT_SCHEMES else "central"
     span = initial.domain_um[1] - initial.domain_um[0]
-    dx = min(span / COARSE_POINTS, narrowest_gap_um(initial) / MIN_NODES_PER_GAP)
+    gap_dx = max(narrowest_gap_um(initial) / MIN_NODES_PER_GAP, span / COARSE_MAX_NODES)
+    dx = min(span / COARSE_POINTS, gap_dx)
     for _ in range(2):
         actual = actual_dx_um(profile, dx, initial, scheme)
         grid = Grid(dx, stable_dt(actual, species, conditions, orientation), max_time_days)
@@ -290,7 +297,10 @@ def choose_grid(
     length = diffusion_length_um(time_days, species, conditions, orientation)
     target = needed_dx_um(length, tolerance, scheme, purpose)
     if scheme != "implicit":
-        target = min(target, narrowest_gap_um(initial) / MIN_NODES_PER_GAP)
+        span = initial.domain_um[1] - initial.domain_um[0]
+        target = min(
+            target, max(narrowest_gap_um(initial) / MIN_NODES_PER_GAP, span / MAX_GAP_NODES)
+        )
     request, dx = dx_not_above(profile, target, initial, scheme)
     dt = resolving_dt(time_days, tolerance)
     if scheme != "implicit":
@@ -397,7 +407,7 @@ def _dt_messages(dt_s: float, time_days: float, tolerance: float, scheme: str) -
     if dt_s > good:
         return [
             f"dt {dt_s:.4g} s leaves {steps:.0f} time steps up to the fit: the fitted time "
-            f"is resolved to about {0.5 / steps:.0%} (aim for {tolerance:.0%}: "
+            f"is resolved to about {50 / steps:.2g}% (aim for {tolerance:.0%}: "
             f"dt <= {good:.4g} s)"
         ]
     if scheme == "implicit" and dt_s * COST_FACTOR < good:

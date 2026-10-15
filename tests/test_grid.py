@@ -215,3 +215,22 @@ def test_fit_with_a_dt_above_the_stable_step_substeps(two_step):
     coarse = fit_profile(*args, Grid(1.0, 3 * dt, 120), None, run.diffusivity, scheme="central")
     assert abs(coarse.time_days - fine.time_days) <= 1.5 * 3 * dt / 86400
     assert len(coarse.curves) <= len(fine.curves) // 3 + 2
+
+
+def test_a_step_next_to_the_rim_does_not_ask_for_a_huge_grid(two_step):
+    """A step 0.06 um from the rim (round robin refit, 2026-10-15) asked for dx = 0.015
+    um; the gap rule now stops at span / MAX_GAP_NODES (explicit) and the coarse fit at
+    span / COARSE_MAX_NODES, and check_grid still reports the unresolved gap."""
+    import time
+
+    from forster.grid import MAX_GAP_NODES
+
+    run, profile = two_step
+    lo, hi = run.initial.domain_um
+    near = replace(run.initial, steps_um=(lo + 0.06, run.initial.steps_um[1]))
+    args = (profile, run.conditions, run.orientation, near, run.diffusivity)
+    t0 = time.perf_counter()
+    choice = choose_grid(*args, purpose="scan", scheme="central")
+    assert time.perf_counter() - t0 < 60
+    assert choice.grid.dx_um >= 0.99 * (hi - lo) / MAX_GAP_NODES  # dx_not_above rounds down
+    assert any("narrowest" in m for m in check_grid(choice.grid, *args, scheme="central"))
