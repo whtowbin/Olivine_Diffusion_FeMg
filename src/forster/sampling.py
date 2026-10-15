@@ -55,6 +55,7 @@ from forster.model import (
     Profile,
     _diffusion_model,
     _explicit_substeps,
+    check_curve_memory,
     fe_mg_diffusivity,
     scheme_grid,
 )
@@ -133,6 +134,7 @@ class ICLikelihood:
             scheme, profile.distance_um, grid, initial.domain_um
         )
         self.model_x = step_x[low : high + 1]
+        check_curve_memory(grid.timesteps + 1, len(self.model_x))
         self.x, self.y = points_in_domain(self.model_x, profile.distance_um, profile.fo)
         self.W = interpolation_matrix(self.model_x, self.x)
         self.rows = grid.timesteps + 1

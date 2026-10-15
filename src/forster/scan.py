@@ -62,6 +62,7 @@ from forster.model import (
     _diffusion_model,
     _explicit_substeps,
     _run_past_best_fit,
+    check_curve_memory,
     fe_mg_diffusivity,
     scheme_grid,
 )
@@ -360,6 +361,7 @@ def run_candidates(
         scheme, profile.distance_um, grid, candidates[0].domain_um
     )
     model_x = step_x[low : high + 1]
+    check_curve_memory(grid.timesteps + 1, len(model_x))
     x, y = points_in_domain(model_x, profile.distance_um, profile.fo)
     W = interpolation_matrix(model_x, x)
     at_points, complete, advances, lasts = [], [], [], []

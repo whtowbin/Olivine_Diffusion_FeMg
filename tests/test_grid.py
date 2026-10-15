@@ -234,3 +234,16 @@ def test_a_step_next_to_the_rim_does_not_ask_for_a_huge_grid(two_step):
     assert time.perf_counter() - t0 < 60
     assert choice.grid.dx_um >= 0.99 * (hi - lo) / MAX_GAP_NODES  # dx_not_above rounds down
     assert any("narrowest" in m for m in check_grid(choice.grid, *args, scheme="central"))
+
+
+def test_a_grid_too_big_for_memory_is_refused(two_step, monkeypatch):
+    """A fit whose model profiles would exceed FORSTER_MAX_CURVES_GB raises before
+    allocating, instead of pushing the machine into swap."""
+    run, profile = two_step
+    args = (profile, run.conditions, run.orientation, run.initial)
+    huge = Grid(0.01, 1.0, 400)  # 30,000 nodes x 34.6 million time steps
+    with pytest.raises(ValueError, match="GB of model profiles"):
+        fit_profile(*args, huge, None, run.diffusivity, scheme="implicit")
+    monkeypatch.setenv("FORSTER_MAX_CURVES_GB", "0.001")
+    with pytest.raises(ValueError, match=r"limit 0\.001 GB"):
+        fit_profile(*args, Grid(1.0, 3600.0, 50), None, run.diffusivity, scheme="implicit")

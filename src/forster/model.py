@@ -15,6 +15,7 @@ pascals (``_Pa``), degrees Celsius (``_C``). Fo is a fraction (0.88, not 88).
 from __future__ import annotations
 
 import math
+import os
 import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -360,6 +361,24 @@ def model_grid(
     low_idx = int(np.abs(step_x - domain_um[0]).argmin())
     high_idx = int(np.abs(step_x - domain_um[1]).argmin())
     return step_x, float(dx_um), (low_idx, high_idx)
+
+
+# Largest array of model profiles (time steps x nodes, float64) a fit may allocate. A
+# grid mistake once asked for tens of GB and froze the machine in swap; a fit now
+# refuses instead. FORSTER_MAX_CURVES_GB in the environment raises or lowers it.
+MAX_CURVES_GB = 4.0
+
+
+def check_curve_memory(rows: int, nodes: int) -> None:
+    """Raise ValueError if ``rows`` x ``nodes`` model profiles exceed the memory limit."""
+    limit = float(os.environ.get("FORSTER_MAX_CURVES_GB", MAX_CURVES_GB))
+    gb = rows * nodes * 8 / 1e9
+    if gb > limit:
+        raise ValueError(
+            f"this grid would hold {rows:,} time steps x {nodes:,} nodes = {gb:.1f} GB of "
+            f"model profiles (limit {limit:g} GB, set FORSTER_MAX_CURVES_GB to change it); "
+            "use a larger dx or dt, or a shorter max_time_days"
+        )
 
 
 def scheme_grid(
@@ -838,6 +857,7 @@ def fit_profile(
     x, y = profile.distance_um, profile.fo
     step_x, dx_um, (low_idx, high_idx) = scheme_grid(scheme, x, grid, domain, rims)
     model_x = step_x[low_idx : high_idx + 1]
+    check_curve_memory(grid.timesteps + 1, len(model_x))
     substeps = 1
     if scheme in EXPLICIT_SCHEMES:
         substeps = _explicit_substeps(

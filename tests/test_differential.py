@@ -55,7 +55,8 @@ def fingerprint(time, indices, sum_chi2, model_x, curves, interp_fo, interp_sigm
         "interp_fo": np.asarray(interp_fo),
         "interp_sigma": np.asarray(interp_sigma),
         "curves_shape": curves.shape,
-        "curves_sha256": hashlib.sha256(np.ascontiguousarray(curves).tobytes()).hexdigest(),
+        # .data hashes the buffer in place (tobytes() made a full copy of the largest array)
+        "curves_sha256": hashlib.sha256(np.ascontiguousarray(curves).data).hexdigest(),
     }
 
 
