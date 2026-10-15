@@ -6,17 +6,26 @@ diffusivity law with a full parameter covariance. Plan and results:
 
 ## The preset: verified data, 6x anisotropy (2026-10-15)
 
-`femg_refit2026` is fitted to the verified compilation: every value stated in the
-sources' tables or text (`docs/references/data-to-source.md`).
+`femg_refit2026` is fitted to the verified compilation (every value stated in the
+sources' tables or text; `docs/references/data-to-source.md`) plus Holzapfel et al.'s
+Au-capsule runs, whose unbuffered fO2 is taken at Ni-NiO with a sd of 2 log units.
 
 - **Form:** the Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent and
   the composition coefficient fitted; [100] and [010] six times slower than [001] and
-  V = 7 cm3/mol fixed (`fit_verified.FORM`). Random offsets per study (REML).
+  V = 7 cm3/mol fixed (`fit_verified.FORM`).
+- **Method** (`fit_verified.fit_preset`): random offsets per study (REML), with each
+  run's errors in T (at least 10 C), fO2, X_Fo and P carried as extra variance on ln D
+  (effective variance: ODR to first order, inside the REML likelihood).
 - **Data:** Chakraborty 1997, Dohmen et al. 2007 (fO2 > 1e-10 Pa), Petry et al. 2004 and
-  Holzapfel et al. 2007 (Ni-NiO capsules only); 118 points.
+  Holzapfel et al. 2007 (Ni-NiO capsules, and Au capsules at Ni-NiO ± 2 log); 132 points.
 - **Scripts:**
-  - `fit_verified.py`: `verified()`, `oeser_dp()`, the preset's fit, and the Holzapfel
-    Au-capsule variants. Writes `results/verified/`.
+  - `fit_verified.py`: `verified()`, `preset_data()`, `oeser_dp()`, the preset's fit
+    (`fit_preset`), and its variants (no input errors, no Au runs, the Au runs' fO2 sd
+    0.5-3 log). Writes `results/verified/`.
+  - `preset_figures.py`: `figures/presets/`, the preset's bowties and residuals and the
+    candidate methods (`results/verified/candidates.csv`).
+  - `odr_check.py`: ODR against the preset's method, for T-error floors of 0, 10 and
+    20 C (`results/verified/odr_check.csv`).
   - `export_preset.py`: builds the preset and checks the shipped one.
   - `unconfirmed_figures.py`, `anisotropy_figures.py` and `oeser_fo2_figures.py`:
     `figures/unconfirmed/`, `figures/anisotropy/` and `figures/oeser_fo2/`, the

@@ -1,6 +1,7 @@
 """Can Oeser et al. (2026)'s [001] data guide the fO2 dependence? Plots to decide.
 
-The preset (fit_verified.FORM, 6x anisotropy) is fitted without Oeser. Here Oeser's [001]
+The preset (fit_verified.FORM, 6x anisotropy; fit_verified.fit_preset) is fitted without
+Oeser; each variant here is refitted by the same method. Here Oeser's [001]
 depth-profile rows are shown against it, and added to it, to see what they say about the
 fO2 exponent near the round robin and paper conditions (1e-4 to 1e-2 Pa).
 
@@ -45,13 +46,13 @@ plt.rcParams.update({"pdf.fonttype": 42, "font.size": 9, "axes.titlesize": 9.5})
 
 
 def fits() -> dict:
-    base, oes = V.verified(), V.oeser_dp()
+    base, oes = V.preset_data(), V.oeser_dp()
     sets = {
         "without Oeser (the preset)": base,
         "+ Oeser [001]": pd.concat([base, oes[oes["axis"] == "[001]"]]),
         "+ Oeser [001] and [100]": pd.concat([base, oes[oes["axis"] != "[010]"]]),
     }
-    return {k: (F.fit_random(V.FORM, d.reset_index(drop=True)), len(d)) for k, d in sets.items()}
+    return {k: (V.fit_preset(d.reset_index(drop=True)), len(d)) for k, d in sets.items()}
 
 
 def f1(fit_map: dict) -> None:

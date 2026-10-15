@@ -327,16 +327,18 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   differs from earlier versions.
 - The range does not include the diffusivity law's own uncertainty either, unless
   the law carries a covariance. `femg_refit2026` does: our refit of the verified
-  Fe-Mg data (118 points, four studies, every value stated in the sources' tables or
-  text; [docs/references/data-to-source.md](docs/references/data-to-source.md)) in the
-  Dohmen and Chakraborty (2007) form with [100] and [010] six times slower than [001],
-  with a random offset per study ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
+  Fe-Mg data (four studies, every value stated in the sources' tables or text, plus
+  Holzapfel et al.'s Au-capsule runs with their unbuffered fO2 taken at Ni-NiO ± 2 log;
+  132 points; [docs/references/data-to-source.md](docs/references/data-to-source.md)) in
+  the Dohmen and Chakraborty (2007) form with [100] and [010] six times slower than
+  [001], with a random offset per study and each run's errors in T, fO2, composition
+  and P ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
   profile depends on D t, so an error in log D is the same error in log time, and
   no extra model runs are needed. Fits with it report three ranges:
   `low_days`/`high_days` (the profile alone; use these to compare crystals fitted
   with the same law, whose error is common to all of them), `law_low_days`/
-  `law_high_days` (plus the law's calibration, about ±0.09 log at 1200 °C), and
-  `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.14 log;
+  `law_high_days` (plus the law's calibration, about ±0.07 log at 1200 °C), and
+  `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.12 log;
   for an absolute time, if the crystal may sit off the laboratories' average as one
   more experiment would). From Python: `result.time_range_days("fit" | "law" |
   "law_and_studies")`. Not available for fits with growth stages, a rim value that

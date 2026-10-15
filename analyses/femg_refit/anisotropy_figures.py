@@ -121,7 +121,7 @@ def a2(fit: dict) -> None:
 
 
 def options() -> pd.DataFrame:
-    base, oes = V.verified(), V.oeser_dp()
+    base, oes = V.preset_data(), V.oeser_dp()
     sets = {
         "(c) 6x, Oeser out (the preset)": (V.FORM, base),
         "(b) 6x, Oeser [001] and [100] only": (
@@ -138,7 +138,7 @@ def options() -> pd.DataFrame:
     rows = []
     for name, (form, df) in sets.items():
         df = df.reset_index(drop=True)
-        fit = F.fit_random(form, df)
+        fit = V.fit_preset(df, form)
         b, cov, tau = fit["beta"], fit["cov"], fit["tau"] / LN10
         row = {"option": name, "n_points": len(df), "tau": tau, "m": b[2], "E_kJ_mol": b[1] / 1e3}
         for label, axis in (("KS20 [001]", 0), ("KS20 [010]", 1), ("SH63 [001]", 0)):
@@ -184,11 +184,11 @@ def a3(tab: pd.DataFrame) -> None:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     runs = oeser_runs()
-    fitted = F.fit_random(
-        F.FORMS["dc07_free"], pd.concat([V.verified(), V.oeser_dp()], ignore_index=True)
+    fitted = V.fit_preset(
+        pd.concat([V.preset_data(), V.oeser_dp()], ignore_index=True), F.FORMS["dc07_free"]
     )
     a1(runs, -fitted["beta"][5] / LN10)
-    a2(F.fit_random(V.FORM, V.verified()))
+    a2(V.fit_preset(V.preset_data()))
     tab = options()
     tab.to_csv(HERE / "results" / "verified" / "oeser_options.csv", index=False)
     a3(tab)

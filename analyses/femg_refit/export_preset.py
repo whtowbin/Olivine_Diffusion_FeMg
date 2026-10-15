@@ -1,10 +1,11 @@
 """Write the `femg_refit2026` preset from the refit, and check it against the refit.
 
-Fitted to the verified compilation (`fit_verified.verified()`: every value stated in
-the sources' tables or text; see docs/references/data-to-source.md). The DC07 form
-with log D0, E, the fO2 exponent and the composition coefficient fitted, D[100] =
-D[010] = D[001]/6 and V = 7 cm3/mol fixed (`fit_verified.FORM`), with a random offset
-per study (`fit_models.fit_random`). Checks that the law reproduces the refit's log10 D
+Fitted to the verified compilation plus Holzapfel's Au-capsule runs at Ni-NiO with an
+fO2 sd of 2 log units (`fit_verified.preset_data()`; docs/references/data-to-source.md).
+The DC07 form with log D0, E, the fO2 exponent and the composition coefficient fitted,
+D[100] = D[010] = D[001]/6 and V = 7 cm3/mol fixed (`fit_verified.FORM`), with a random
+offset per study and each row's errors in T, fO2, X_Fo and P (`fit_verified.fit_preset`).
+Checks that the law reproduces the refit's log10 D
 and its 1-sigma (`fit_models.predict`) on every axis at the round robin and paper
 conditions and over a spread of others, and that it equals the preset shipped in
 `src/forster/diffusivity.py`; if not (the data or the fit changed), prints the
@@ -105,8 +106,8 @@ def check(law: ArrheniusDiffusivity, fit: dict) -> float:
 
 
 def main() -> None:
-    data = fit_verified.verified()
-    fit = F.fit_random(fit_verified.FORM, data)
+    data = fit_verified.preset_data()
+    fit = fit_verified.fit_preset(data)
     law = preset(fit, data["source"].nunique())
     print(f"worst difference, preset vs refit (log10 D and its sigma): {check(law, fit):.2e}")
     if law == DIFFUSIVITY_PRESETS["femg_refit2026"]:
