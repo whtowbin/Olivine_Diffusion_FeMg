@@ -100,7 +100,8 @@ two laws, the element's and Fe-Mg's (the element diffusivity depends on the Fo
 profile through the cross term), each with its own uncertainty and possibly
 correlated with each other. A law range would need both covariances and the
 gradient of the fitted time with respect to each law's level, which the D t
-argument does not give. **Not computed.** The element presets carry no covariance.
+argument does not give. **Not computed**, although `mutch2019_ni` and `mutch2019_mn`
+now carry covariances (Mutch et al. 2021, Data Set S6).
 
 **4. The initial-condition scan** (`scan_initial_conditions`, the `scan_*` columns).
 Each candidate is a fixed-boundary Fo fit, so the D t argument does hold for each;
@@ -141,11 +142,17 @@ range, and is cruder than the usual case.
 ## What the covariance does not contain
 
 - **Model-form error.** C is the uncertainty of the parameters *within* the DC07
-  form with V fixed at 7 cm3/mol. Other forms fitted to the same data predict D at
-  KS20 differently: with a random study offset the five forms span +0.20 to +0.30
-  log against the default law, a spread comparable to sigma; without it (OLS, WLS,
-  ODR, bootstrap) they span -0.01 to +0.85 (`analyses/femg_refit/README.md`, bowtie table).
-  Choosing a form is a systematic the law range does not include.
+  form with V fixed at 7 cm3/mol and the anisotropy at 6x. Other forms predict D at
+  KS20 differently: fitted to the full compilation (135 points) with a random study
+  offset, the five forms span +0.20 to +0.30 log against the default law; without
+  it (OLS, WLS, ODR, bootstrap) they span -0.01 to +0.85
+  (`analyses/femg_refit/README.md`, bowtie table). Choosing a form is a systematic
+  the law range does not include.
+- **The choice of experiments.** C is conditional on which data were fitted. The
+  preset's D at KS20 along [001] (Fo 0.85), against the default law, was +0.274 log
+  fitted to all 135 TaMED points (first export), +0.195 on the verified subset with
+  Oeser et al. (2026), and +0.103 on 118 points from four studies (2026-10-15): it moved
+  0.17 log, about twice the present sigma (0.087), with the data selection alone.
 - **Extrapolation beyond the calibration.** g' C g grows away from the data's centre
   as the covariance says it should (the bowtie widening in
   `analyses/femg_refit/README.md`), but only within the assumed form; outside the
