@@ -218,3 +218,15 @@ def test_links_in_a_project_folder_are_not_followed(project, tmp_path):
     with pytest.raises(ValueError, match="symbolic link"):
         project.fit(EXAMPLE)
     assert list(elsewhere.iterdir()) == []
+
+
+def test_opening_refuses_project_files_that_are_links(project, tmp_path):
+    """A received folder whose tables link elsewhere is refused on open, so a linked
+    file's contents never reach memory (and a later export)."""
+    project.save()
+    elsewhere = tmp_path / "other.csv"
+    elsewhere.write_text((project.folder / "profiles.csv").read_text())
+    (project.folder / "profiles.csv").unlink()
+    (project.folder / "profiles.csv").symlink_to(elsewhere)
+    with pytest.raises(ValueError, match="symbolic link"):
+        Project.open(project.folder)

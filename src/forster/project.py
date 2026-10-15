@@ -73,11 +73,15 @@ def profile_table(profiles: Mapping[str, Profile]) -> pd.DataFrame:
 
 
 def _no_links(*paths: Path) -> None:
-    """Refuse to write through a symbolic link: a project folder someone sent could
-    hold a link that redirects a write (or, on export, a read) outside the folder."""
+    """Refuse to read or write a project file through a symbolic link: a project folder
+    someone sent could hold a link that points a read (whose data a later export would
+    package) or a write outside the folder."""
     for path in paths:
         if path.is_symlink():
-            raise ValueError(f"{path} is a symbolic link; FORSTER does not write through links")
+            raise ValueError(
+                f"{path} is a symbolic link; FORSTER does not read or write project files "
+                "through links"
+            )
 
 
 def _write_text(text: str, path: Path) -> None:
@@ -110,6 +114,7 @@ class Project:
     def open(cls, folder: str | Path) -> Project:
         """Read a project folder (any folder holding the template tables)."""
         folder = Path(folder)
+        _no_links(*(folder / f for f in (PROFILES, PARAMETERS, DIFFUSIVITIES, STATE, WORK)))
         if not (folder / PARAMETERS).exists():
             raise FileNotFoundError(f"{folder}: no {PARAMETERS}; not a FORSTER project")
         custom = {}
@@ -181,6 +186,7 @@ class Project:
 
     def restore_autosave(self) -> Project:
         """The project as last autosaved (to be saved over the tables by `save`)."""
+        _no_links(self.folder / WORK, self.folder / WORK / "autosave")
         restored = Project.open(self.folder / WORK / "autosave")
         restored.folder, restored.dirty = self.folder, True
         return restored
@@ -377,12 +383,18 @@ class Project:
         """The cached fit for the run's current settings, or None (never fitted, or its
         settings changed since)."""
         folder = self._cache(self.result_key(name))
-        return _load_fit(folder, self.run(name)) if (folder / "fit.json").exists() else None
+        if not (folder / "fit.json").exists():
+            return None
+        _no_links(folder.parents[1], folder.parent, folder, folder / "fit.json", folder / "fit.npz")
+        return _load_fit(folder, self.run(name))
 
     def summary(self, name: str) -> dict[str, Any] | None:
         """The cached fit's summary row, or None (cheap: no unpickling)."""
         path = self._cache(self.result_key(name)) / "summary.json"
-        return json.loads(path.read_text()) if path.exists() else None
+        if not path.exists():
+            return None
+        _no_links(path.parents[2], path.parents[1], path.parent, path)
+        return json.loads(path.read_text())
 
     def is_stale(self, name: str) -> bool:
         """The run was fitted before (project.json says so) but its settings have changed."""
