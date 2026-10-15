@@ -62,8 +62,9 @@ def preset(fit: dict, n_studies: int) -> ArrheniusDiffusivity:
             covariance=tuple(map(tuple, cov)),
             between_study_log10=float(fit["tau"] / LN10),
             source=(
-                f"Covariance of the law averaged over laboratories; between-study sd "
-                f"{fit['tau'] / LN10:.3f} log10 (95% {lo:.2f}-{hi:.2f}, {n_studies} studies)."
+                "Covariance of the five fitted parameters, for D in an average laboratory. "
+                f"Laboratories differ from that average with a 1-sigma of {fit['tau'] / LN10:.3f} "
+                f"in log10 D (95% range {lo:.2f}-{hi:.2f}, from {n_studies} studies)."
             ),
         ),
     )

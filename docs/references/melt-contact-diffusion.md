@@ -2,7 +2,7 @@
 
 How the melt-olivine experiments of Shea et al. (2023) compare with the study offsets of the Fe-Mg refit (`femg_refit2026`) and with Oeser et al. (2026), and what they say about the between-study term and the fO2 exponent. This is an analysis note: forster's laws, presets and uncertainty code are unchanged. Written 2026-10-14. Data `analyses/melt_contact/data/shea2023_table1.csv`; numbers from `analyses/melt_contact/melt_sensitivity.py` (`results/variants.csv`, `shea_residuals.csv`, `element_offsets.csv`). The study itself is summarised in `diffusivity-literature.md`.
 
-**Status (2026-10-14, later):** the `femg_refit2026` preset has since been refitted to the verified data, without Spandler and O'Neill, with the anisotropy fixed at 6x, with Holzapfel's Au-capsule runs and each run's input errors, and with the activation volume fitted (`data-to-source.md`, `unconfirmed-data.md`). Against that preset the melt term is +0.51 ± 0.18 (Spandler) or +0.78 ± 0.19 (with Shea's 8 profiles). "The preset" and "previous preset" in this note mean the one before that: the full compilation with Spandler as a study.
+**Status (2026-10-14, later):** the `femg_refit2026` preset has since been refitted to the verified data, without Spandler and O'Neill, with the anisotropy fixed at 6x, with Holzapfel's Au-capsule runs and each run's input errors, with the activation volume fitted, and with each value's published error and a random offset per experiment (`data-to-source.md`, `unconfirmed-data.md`). Against that preset the melt term is +0.54 ± 0.20 (Spandler) or +0.83 ± 0.20 (with Shea's 8 profiles). "The preset" and "previous preset" in this note mean the one before that: the full compilation with Spandler as a study.
 
 ## Summary
 

@@ -125,6 +125,8 @@ def linear_vs_mc(n=4000) -> pd.DataFrame:
             ),
             fO2_exponent=LAW.fO2_exponent + d[index["fO2_exponent"]],
             fo_coefficient=LAW.fo_coefficient + d[index["fo_coefficient"]],
+            activation_volume_m3_mol=LAW.activation_volume_m3_mol
+            + draw("activation_volume_m3_mol"),
             uncertainty=None,
         )
 

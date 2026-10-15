@@ -311,16 +311,19 @@ DOHMEN_CHAKRABORTY_2007 = _EngineFeMg(
 
 
 _REFIT_2026 = (
-    "Refit of the verified Fe-Mg data, every value stated in the sources' tables or text "
-    "(docs/references/data-to-source.md): Chakraborty 1997; Dohmen et al. 2007, fO2 > "
-    "1e-10 Pa; Petry et al. 2004; Holzapfel et al. 2007, Ni-NiO capsules, and Au capsules "
-    "with their unbuffered fO2 taken at Ni-NiO +- 2 log units (132 points, 4 studies). "
-    "Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent, the "
-    "composition coefficient and the activation volume fitted; [100] and [010] 6x slower "
-    "than [001]; least squares with a random offset per study (REML) and each run's "
-    "errors in T (at least 10 C), fO2, X_Fo and P carried as effective variance. Not "
-    "included: melt contact (Spandler and O'Neill 2010) and Oeser et al. 2026, whose [010] "
-    "is about 2x slower than [001], not 6x (both unconfirmed scenarios). analyses/femg_refit "
+    "Fe-Mg diffusion in olivine refitted (2026) to experiments whose every value is stated "
+    "in the source's tables or text (docs/references/data-to-source.md): Chakraborty "
+    "(1997); Dohmen et al. (2007), fO2 above 1e-10 Pa; Petry et al. (2004); Holzapfel et "
+    "al. (2007), including their Au-capsule runs, whose unbuffered fO2 is taken at Ni-NiO "
+    "+- 2 log units. 132 values from 4 studies. The equation is that of Dohmen and "
+    "Chakraborty (2007), with five numbers fitted (log D0, activation energy E, fO2 "
+    "exponent, composition coefficient and activation volume V) and D along [100] and "
+    "[010] fixed at 1/6 of D along [001]. Fitted by least squares allowing each "
+    "laboratory, and each experiment, its own offset in log D (REML), with each value's "
+    "published error and the errors in its T (at least 10 C), fO2, composition and P. "
+    "Not included: diffusion next to melt (Spandler and O'Neill 2010) and Oeser et al. "
+    "(2026), whose [010] is about 2x slower than [001], not 6x (both described as "
+    "scenarios in docs/references/unconfirmed-data.md). analyses/femg_refit "
     "(fit_verified.py, export_preset.py)."
 )
 
@@ -507,13 +510,13 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
         ArrheniusDiffusivity(
             name="femg_refit2026",
             element="Fe-Mg",
-            log10_D0_m2_s=(-9.670280474321283, -9.670280474321283, -8.892129223937639),
-            activation_energy_J_mol=(210321.92759416375, 210321.92759416375, 210321.92759416375),
-            fO2_exponent=0.22237401697318931,
+            log10_D0_m2_s=(-9.73177893930006, -9.73177893930006, -8.953627688916416),
+            activation_energy_J_mol=(208762.9395093429, 208762.9395093429, 208762.9395093429),
+            fO2_exponent=0.21636100269852954,
             fO2_ref_Pa=1e-7,
-            fo_coefficient=3.14799380039531,
+            fo_coefficient=2.8225348316197243,
             fo_ref=0.9,
-            activation_volume_m3_mol=7.721452781283535e-06,
+            activation_volume_m3_mol=7.534173233116927e-06,
             P_ref_Pa=1e5,
             source=_REFIT_2026,
             uncertainty=LawUncertainty(
@@ -526,45 +529,46 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
                 ),
                 covariance=(
                     (
-                        0.07202461679450274,
-                        1764.4108132600745,
-                        -0.0029272092549996118,
-                        0.007520116296860018,
-                        -3.287098984684858e-08,
+                        0.13416127469258196,
+                        3380.917179022952,
+                        -0.005708147416666105,
+                        0.0040833384468564405,
+                        -7.544651443528496e-08,
                     ),
                     (
-                        1764.4108132600745,
-                        45789365.47996112,
-                        -72.15482579425372,
-                        217.73494838654577,
-                        -0.001058609728573739,
+                        3380.917179022952,
+                        86967186.17940205,
+                        -143.09776075257113,
+                        125.60355313309284,
+                        -0.0020488850391522937,
                     ),
                     (
-                        -0.0029272092549996118,
-                        -72.15482579425372,
-                        0.0005393066153166875,
-                        -0.0003711179747509314,
-                        1.3210979281555924e-08,
+                        -0.005708147416666105,
+                        -143.09776075257113,
+                        0.0011296987438116001,
+                        -0.00018215961328897677,
+                        2.843757098803644e-08,
                     ),
                     (
-                        0.007520116296860018,
-                        217.73494838654577,
-                        -0.0003711179747509314,
-                        0.01909336292531011,
-                        -1.209803270743005e-08,
+                        0.0040833384468564405,
+                        125.60355313309284,
+                        -0.00018215961328897677,
+                        0.017233196101524205,
+                        -8.239767880722013e-09,
                     ),
                     (
-                        -3.287098984684858e-08,
-                        -0.001058609728573739,
-                        1.3210979281555924e-08,
-                        -1.209803270743005e-08,
-                        5.872547528599421e-13,
+                        -7.544651443528496e-08,
+                        -0.0020488850391522937,
+                        2.843757098803644e-08,
+                        -8.239767880722013e-09,
+                        9.831228933412666e-13,
                     ),
                 ),
-                between_study_log10=0.10406679072272666,
+                between_study_log10=0.07176556529058999,
                 source=(
-                    "Covariance of the law averaged over laboratories; between-study sd "
-                    "0.104 log10 (95% 0.02-0.46, 4 studies)."
+                    "Covariance of the five fitted parameters, for D in an average laboratory. "
+                    "Laboratories differ from that average with a 1-sigma of 0.072 in log10 D "
+                    "(95% range 0.00-0.42, from 4 studies)."
                 ),
             ),
         ),

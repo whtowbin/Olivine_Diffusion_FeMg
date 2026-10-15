@@ -25,16 +25,17 @@ runs beyond the fit itself:
    gradient g of log10 D with respect to those parameters is known in closed form,
    so the law's 1-sigma in log10 D is sigma = sqrt(g' C g)
    (`ArrheniusDiffusivity.log10_sigma`). At the round robin KS20 conditions along
-   [001] it is 0.102 log (0.073 with V fixed at 7 cm3/mol, 0.087 for the verified-only
-   preset, 0.114 for the one with Oeser, and 0.122 before that).
+   [001] it is 0.132 log (0.102 before each value's published error and a random
+   offset per experiment entered the fit, 0.073 with V also fixed at 7 cm3/mol, 0.087
+   for the verified-only preset, 0.114 for the one with Oeser, 0.122 before that).
 3. **The D t argument.** The diffusion equation with D(X) = D_level f(X) and fixed
    boundary values is unchanged by trading D_level for time: the profile after time t
    with D_level is the profile after time 2t with D_level / 2. So an error delta in
    log10 D_level is an error -delta in the fitted log10 t, exactly.
 4. Each side of the fit's own range is combined with sigma in quadrature in log10
    time (`forster.uncertainty.widen_log10`), so an asymmetric range stays
-   asymmetric. "law_and_studies" also adds the between-study spread tau (0.104 log for
-   `femg_refit2026`) in quadrature: hypot(0.102, 0.104) = 0.146 log at KS20.
+   asymmetric. "law_and_studies" also adds the between-study spread tau (0.072 log for
+   `femg_refit2026`) in quadrature: hypot(0.132, 0.072) = 0.150 log at KS20.
 
 ### Checked: linear propagation against a Monte Carlo over the covariance
 
@@ -48,13 +49,14 @@ oblique direction. 4000 draws from the preset's covariance, log10 D at Fo 0.85
 
 | conditions | orientation | linear sigma | Monte Carlo sd | MC 16-84% half-width |
 |---|---|---|---|---|
-| 1200 C, 0.042 GPa, KS20 fO2 | every direction | 0.1018 | 0.1025 | 0.1016 |
-| 900 C, 0.1 GPa, 1e-9 Pa | every direction | 0.0820 | 0.0804 | 0.0797 |
-| 1300 C, 1 atm, 1e-2 Pa | every direction | 0.1157 | 0.1154 | 0.1142 |
+| 1200 C, 0.042 GPa, KS20 fO2 | every direction | 0.1321 | 0.1316 | 0.1303 |
+| 900 C, 0.1 GPa, 1e-9 Pa | every direction | 0.0877 | 0.0867 | 0.0869 |
+| 1300 C, 1 atm, 1e-2 Pa | every direction | 0.1554 | 0.1546 | 0.1541 |
 
 The two agree within the Monte Carlo's own sampling error (about 1.1% of sigma at
-4000 draws; the rows are within 0.3, 0.7 and 2.0%; table regenerated for the preset
-with V fitted). A Monte Carlo over the law adds
+4000 draws; the rows are within 0.3, 1.1 and 0.5%; table regenerated 2026-10-15). The
+draws now include the activation volume: the version committed with V first fitted
+left it out, which is why its 900 C, 0.1 GPa row was 2% low. A Monte Carlo over the law adds
 nothing for an Fo fit for which the D t argument holds.
 
 ## Where the D t argument holds (measured)
@@ -67,10 +69,10 @@ Where the argument holds, the fitted log10 t moves by -delta
 | case | shift of log10 t, delta = 0.122 | delta = 0.301 | fraction of -delta |
 |---|---|---|---|
 | fixed rim (control) | -0.1221 | -0.3010 | 1.00 |
-| fixed `rim_fo`, not the edge Fo | -0.1223 | -0.3018 | 1.00 |
+| fixed `rim_fo`, not the edge Fo | -0.1216 | -0.3010 | 1.00 |
 | rim changing (`RimPath` 0.86 to 0.82) over days 0-0.5 | -0.1158 | -0.2825 | 0.94-0.95 |
-| rim changing (`RimPath` 0.86 to 0.82) over days 0-3 | -0.0795 | -0.1703 | 0.57-0.65 |
-| growth stage (Fo 0.82 zone) at day 3 | -0.0723 | -0.1487 | 0.49-0.59 |
+| rim changing (`RimPath` 0.86 to 0.82) over days 0-3 | -0.0795 | -0.1714 | 0.57-0.65 |
+| growth stage (Fo 0.82 zone) at day 3 | -0.0723 | -0.1559 | 0.52-0.59 |
 
 The control and the fixed `rim_fo` miss by at most 0.0004 log, within the time-step
 resolution of the fit (dt 0.01 d on 6 d). So the argument is exact, to the grid's resolution, for every fit whose
@@ -137,8 +139,8 @@ range, and is cruder than the usual case.
 - **Gaussian in log10 D.** Both the law's covariance and tau are 1-sigma Gaussian
   quantities in log10; the fit's range is a 68% likelihood interval. The widened
   range is a 68% range under those assumptions. tau is poorly determined from four
-  studies (95% range 0.02-0.46 log), and the "law_and_studies" range moves with it:
-  hypot(0.102, tau) is 0.105 to 0.468 log over that interval at KS20.
+  studies (95% range 0.00-0.42 log), and the "law_and_studies" range moves with it:
+  hypot(0.132, tau) is 0.132 to 0.442 log over that interval at KS20.
 
 ## What the covariance does not contain
 
@@ -154,9 +156,10 @@ range, and is cruder than the usual case.
   fitted to all 135 TaMED points (first export), +0.195 on the verified subset with
   Oeser et al. (2026), +0.103 on 118 points from four studies, +0.155 with Holzapfel's
   14 Au-capsule runs added at an fO2 sd of 2 log and each run's input errors carried
-  (132 points), and +0.224 with the activation volume fitted rather than fixed at 7
-  cm3/mol (2026-10-15): it moved 0.17 log, about 1.7 times the present sigma (0.102),
-  with the data selection and the error model alone.
+  (132 points), +0.224 with the activation volume fitted rather than fixed at 7
+  cm3/mol, and +0.177 with each value's published error and a random offset per
+  experiment (2026-10-15): it moved 0.17 log, about 1.3 times the present sigma
+  (0.132), with the data selection and the error model alone.
 - **Extrapolation beyond the calibration.** g' C g grows away from the data's centre
   as the covariance says it should (the bowtie widening in
   `analyses/femg_refit/README.md`), but only within the assumed form; outside the
@@ -166,7 +169,7 @@ range, and is cruder than the usual case.
 - **Inputs to the law.** Errors in the user's T, P, fO2 and orientation are not in
   C (the calibration experiments' own input errors are: the refit carries them). They
   move D through the same g, but `forster` does not propagate them (an error of
-  10 C at 1200 C is 0.05 log in D for E = 210 kJ/mol, before any change in a
+  10 C at 1200 C is 0.05 log in D for E = 209 kJ/mol, before any change in a
   buffered fO2).
 
 ## What a law range for cases 1-3 would need

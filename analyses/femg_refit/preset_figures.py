@@ -10,10 +10,12 @@ figures/presets/
 - p2_residuals.png: the preset's residuals (log10 D minus the preset at each point's
   own conditions and axis) against T, fO2, X_Fo and P, by study.
 - p3_candidates.png: D[001] at KS20, SH63 and the paper conditions, relative to DC07,
-  for the candidate methods, A-C with V fixed at 7 cm3/mol: REML on the verified data
-  (A), with each study's errors in T (at least 10 C), fO2, X_Fo and P (B), plus
-  Holzapfel's Au-capsule runs at Ni-NiO with an fO2 sd of 1 or 2 log (C); D, the preset:
-  C at sd 2 with V fitted. ODR on the preset's data, V 7, with the stated T errors and
+  for the candidate fitting methods, built up step by step. A-C fix the activation
+  volume V at 7 cm3/mol: REML (least squares with a random offset per laboratory) on
+  the verified data (A); with each run's errors in T (at least 10 C), fO2, X_Fo and P
+  (B); plus Holzapfel's Au-capsule runs at Ni-NiO with an fO2 sd of 1 or 2 log (C).
+  D fits V. E, the femg_refit2026 preset, adds each value's published D error and a
+  random offset per experiment. ODR on the preset's data, V 7, with the stated T errors and
   with a 20 C floor (odr_check.py); the bootstrap of runs (bootstrap_preset.py), by the
   preset's method and by OLS; and the Mutch presets.
 
@@ -250,7 +252,7 @@ def p2(data: pd.DataFrame) -> None:
     plt.close(fig)
 
 
-PRESET_ROW = f"D  C (sd {AU_SD:g}) with V fitted (the preset)"
+PRESET_ROW = "E  D + published D errors, per-experiment offset (femg_refit2026)"
 
 
 def bootstrap_rows(n_points: int, conds: list[str]) -> list[dict]:
@@ -262,7 +264,7 @@ def bootstrap_rows(n_points: int, conds: list[str]) -> list[dict]:
     boot = pd.read_csv(path)
     rows = []
     for method, label in (
-        ("preset method", "D, bootstrap of runs"),
+        ("preset method", "E, bootstrap of runs"),
         ("OLS", "OLS, bootstrap of runs"),
     ):
         q = boot[boot["method"] == method].set_index("quantity")
@@ -282,15 +284,24 @@ def candidates() -> pd.DataFrame:
         "A  verified data, REML, V 7": (v7, F.fit_random(v7, ver), len(ver)),
         "B  A + errors in T (at least 10 °C), fO2, X_Fo, P": (
             v7,
-            V.fit_with_input_errors(ver, form=v7),
+            V.fit_with_input_errors(ver, form=v7, published=False, run_term=False),
             len(ver),
         ),
         "C  B + Holzapfel Au at NNO, fO2 sd 1": (
             v7,
-            V.fit_preset(both, v7, au_fo2_sd=1.0),
+            V.fit_preset(both, v7, au_fo2_sd=1.0, published=False, run_term=False),
             len(both),
         ),
-        "C  B + Holzapfel Au at NNO, fO2 sd 2": (v7, V.fit_preset(both, v7), len(both)),
+        "C  B + Holzapfel Au at NNO, fO2 sd 2": (
+            v7,
+            V.fit_preset(both, v7, published=False, run_term=False),
+            len(both),
+        ),
+        "D  C (sd 2) with V fitted": (
+            V.FORM,
+            V.fit_preset(both, published=False, run_term=False),
+            len(both),
+        ),
         PRESET_ROW: (V.FORM, V.fit_preset(both), len(both)),
     }
     conds = {k.split(",")[0]: c for k, c in F._conditions().items()}
@@ -357,12 +368,14 @@ def p3(tab: pd.DataFrame) -> None:
     ks = tab.set_index("candidate")["KS20"]
     odr = ks[ks.index.str.startswith("ODR")]
     fig.suptitle(
-        f"At KS20 the preset (V fitted) is {ks[PRESET_ROW]:+.2f}; with V fixed at 7, "
-        f"{ks.iloc[3]:+.2f} (C), {ks.iloc[1]:+.2f} (B), {ks.iloc[0]:+.2f} (A). ODR without "
-        f"study terms: {odr.iloc[0]:+.2f} or {odr.iloc[1]:+.2f}, set by the assumed T error."
-        "\nBars: the law's 1 sigma; squares: bootstrap mean and half its 16-84% range; open "
-        "diamonds: ODR (no sigma shown); blue: the preset",
-        fontsize=10,
+        "log10 D[001] relative to Dohmen and Chakraborty (2007) at the round-robin crystals' "
+        "conditions (KS20 1200 °C, SH63 1102 °C) and the paper's (1250 °C).\n"
+        f"At KS20, step by step: A {ks.iloc[0]:+.2f}, B {ks.iloc[1]:+.2f}, C {ks.iloc[3]:+.2f}, "
+        f"D {ks.iloc[4]:+.2f}, E (femg_refit2026, blue) {ks[PRESET_ROW]:+.2f}. ODR without "
+        f"laboratory offsets gives {odr.iloc[0]:+.2f} or {odr.iloc[1]:+.2f}, set by the assumed "
+        "T error.\nBars: 1 sigma of each fitted equation; squares: bootstrap mean and half its "
+        "16-84% range; open diamonds: ODR (no uncertainty shown)",
+        fontsize=9.5,
     )
     fig.savefig(OUT / "p3_candidates.png", dpi=200)
     plt.close(fig)

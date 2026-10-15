@@ -28,11 +28,14 @@ fixed. V was fixed at DC07's 7 cm3/mol until 2026-10-15 (`FORM_V7`): the data gi
 7.7 +- 0.8, and fixing it let Holzapfel's high-pressure runs pin the fO2 exponent
 harder than they can (fit_mutch.py).
 
-The method (`fit_preset`): least squares with a random offset per study (REML), plus
-each row's errors in T, fO2, X_Fo and P carried as extra variance on ln D (the
-effective-variance form of errors in variables, the first-order equivalent of ODR),
-iterated until the coefficients settle. Temperature errors are at least 10 C a run
-(T_ERROR_FLOOR_K). That likelihood is checked against fit_models.fit_random with no
+The method (`fit_preset`): least squares (REML) in which each value's variance is its
+published D error (`published_sigma_ln`; decided 2026-10-15) plus its errors in T, fO2,
+X_Fo and P carried onto ln D (the effective-variance form of errors in variables, the
+first-order equivalent of ODR) plus a common extra scatter, with a random offset per
+study and per experiment (an experiment that gives several values, such as one of
+Chakraborty's diffusion couples read at several compositions, counts once for what
+they share). Iterated until the coefficients settle. Temperature errors are at least
+10 C a run (T_ERROR_FLOOR_K). That likelihood is checked against fit_models.fit_random with no
 extra variance before use; odr_check.py compares it with ODR.
 
 Variants: the method without input errors (fit_random, the previous preset),
@@ -124,23 +127,44 @@ def preset_data() -> pd.DataFrame:
     return pd.concat([verified(), holzapfel_au_rows()], ignore_index=True)
 
 
+def _run_ids(df: pd.DataFrame) -> np.ndarray:
+    """One id per experiment; rows without a run id are their own experiment."""
+    ids = df["run_id"] if "run_id" in df else pd.Series(np.nan, index=df.index)
+    fallback = (
+        df["source"].astype(str) + "#" + pd.Series(range(len(df)), index=df.index).astype(str)
+    )
+    return ids.astype(object).where(ids.notna(), fallback).astype(str).to_numpy()
+
+
 def fit_extra(
-    form: F.Form, df: pd.DataFrame, extra_ln_var: np.ndarray, tau_range: bool = False
+    form: F.Form,
+    df: pd.DataFrame,
+    extra_ln_var: np.ndarray,
+    tau_range: bool = False,
+    run_term: bool = False,
 ) -> dict:
     """REML fit with a random offset per study and a known extra variance per point:
     V = s^2 I + tau^2 Z Z' + diag(extra). The variances are found by maximising the
     REML likelihood; with extra = 0 this is fit_models.fit_random's model. With
-    ``tau_range``, also tau's 95% range from the profile likelihood (as fit_random)."""
+    ``run_term``, also a random offset per experiment shared by its rows, r^2 W W' (an
+    experiment that gives several D, such as one diffusion couple read at several
+    compositions, counts once for what its rows share). With ``tau_range``, also tau's
+    95% range from the profile likelihood (as fit_random)."""
     v = F.Vars.of(df)
     A = form.design(v)
     scale = np.abs(A).max(axis=0)
     As = A / scale
     y = df["ln_D"].to_numpy() - form.offset(v)
     Z = pd.get_dummies(df["source"]).to_numpy(float)
+    ZZ = Z @ Z.T
+    W = pd.get_dummies(pd.Series(_run_ids(df))).to_numpy(float)
+    WW = W @ W.T
     n = As.shape[0]
 
-    def parts(log_s2: float, log_t2: float):
-        V = math.exp(log_s2) * np.eye(n) + math.exp(log_t2) * Z @ Z.T + np.diag(extra_ln_var)
+    def parts(*q: float):
+        V = math.exp(q[0]) * np.eye(n) + math.exp(q[1]) * ZZ + np.diag(extra_ln_var)
+        if run_term:
+            V = V + math.exp(q[2]) * WW
         L = np.linalg.cholesky(V)
         Aw = np.linalg.solve(L, As)
         yw = np.linalg.solve(L, y)
@@ -150,12 +174,11 @@ def fit_extra(
         nll = 0.5 * (2 * np.log(np.diag(L)).sum() + np.linalg.slogdet(info)[1] + r @ r)
         return nll, beta_s, info, V
 
-    res = optimize.minimize(
-        lambda q: parts(*q)[0],
-        x0=np.log([0.25, 0.3]),
-        method="Nelder-Mead",
-        options={"xatol": 1e-6, "fatol": 1e-9, "maxiter": 4000},
-    )
+    opts = {"xatol": 1e-6, "fatol": 1e-9, "maxiter": 4000}
+    x0 = np.log([0.25, 0.3, 0.1] if run_term else [0.25, 0.3])
+    res = optimize.minimize(lambda q: parts(*q)[0], x0=x0, method="Nelder-Mead", options=opts)
+    if run_term:  # a restart: three variances and a likelihood flat near a zero variance
+        res = optimize.minimize(lambda q: parts(*q)[0], res.x, method="Nelder-Mead", options=opts)
     _, beta_s, info, V = parts(*res.x)
     beta = beta_s / scale
     cov = np.linalg.inv(info) / np.outer(scale, scale)
@@ -167,13 +190,21 @@ def fit_extra(
         "sd": math.exp(res.x[0] / 2),
         "n": n,
         "tau": math.sqrt(tau2),
+        "run_sd": math.exp(res.x[2] / 2) if run_term else 0.0,
         "study_effects": dict(zip(pd.get_dummies(df["source"]).columns, effects, strict=True)),
     }
     if tau_range:
 
         def profile(log_t2: float) -> float:
-            return optimize.minimize_scalar(
-                lambda s: parts(s, log_t2)[0], bounds=(-20.0, 5.0), method="bounded"
+            if not run_term:
+                return optimize.minimize_scalar(
+                    lambda s: parts(s, log_t2)[0], bounds=(-20.0, 5.0), method="bounded"
+                ).fun
+            return optimize.minimize(
+                lambda q: parts(q[0], log_t2, q[1])[0],
+                res.x[[0, 2]],
+                method="Nelder-Mead",
+                options=opts,
             ).fun
 
         cut = res.fun + stats.chi2.ppf(0.95, 1) / 2
@@ -184,6 +215,35 @@ def fit_extra(
         hi = math.exp(optimize.brentq(lambda q: profile(q) - cut, res.x[1], math.log(1e3)) / 2)
         out["tau_range"] = (lo, hi)
     return out
+
+
+def published_sigma_ln(df: pd.DataFrame) -> np.ndarray:
+    """Each row's published error of ln D (decided 2026-10-15: the base error of every
+    fit). Per point where the source prints one: Chakraborty (1997) a % of D, Holzapfel
+    et al. (2007) the last digit of log10 D printed to 0.1, Spandler and O'Neill (2010)
+    an SD in log10 units. Otherwise the error the source states for all its values
+    (fit_models.ERRORS: Dohmen et al. 2007 +-0.2 log, Petry et al. 2004 a factor of 2),
+    or for sources that state none an assumed one (SCENARIO_ERRORS)."""
+    err = pd.concat([F.ERRORS, SCENARIO_ERRORS])
+    missing = set(df["source"]) - set(err.index)
+    if missing:
+        raise ValueError(f"no D error for {sorted(missing)}")
+    sigma = df["source"].map(err["log10_D"]).astype(float).to_numpy() * LN10
+    printed = (
+        df["D_error_as_printed"] if "D_error_as_printed" in df else pd.Series("", index=df.index)
+    )
+    printed = printed.fillna("").astype(str).str.strip()
+    pct = printed.str.extract(r"^([\d.]+)%$")[0].astype(float).to_numpy()
+    digit = printed.str.extract(r"^\((\d)\)$")[0].astype(float).to_numpy()
+    sd = printed.str.extract(r"^([\d.]+) \(SD, log10")[0].astype(float).to_numpy()
+    holzapfel = (df["source"] == "holzapfel2007").to_numpy()
+    sigma = np.where(np.isnan(pct), sigma, np.log1p(pct / 100))
+    sigma = np.where(holzapfel & ~np.isnan(digit), digit * 0.1 * LN10, sigma)
+    sigma = np.where(np.isnan(sd), sigma, sd * LN10)
+    if np.isnan(sigma).any():
+        bad = sorted(set(df["source"][np.isnan(sigma)]))
+        raise ValueError(f"no published D error for rows of {bad}")
+    return sigma
 
 
 _DC07_HEAD = ("log10_D0", "E_J_mol", "m_fO2", "n_X")
@@ -241,16 +301,21 @@ def fit_with_input_errors(
     fo2_sd: np.ndarray | None = None,
     form: F.Form = FORM,
     tau_range: bool = True,
+    published: bool = True,
+    run_term: bool = True,
 ) -> dict:
-    """`fit_extra` with `input_error_variance`, iterated until the coefficients settle
+    """`fit_extra` with `input_error_variance`, plus (``published``) each row's published
+    D error (`published_sigma_ln`) and (``run_term``) a random offset per experiment,
+    iterated until the coefficients settle
     (the variance depends on them): a relative change under 1e-8, or, after 50
     iterations, a change under 1e-4 of each coefficient's standard error. The second
     is the inner optimiser's noise on poorly determined coefficients (the Mutch form's
     pressure terms); ``settled_se`` records the last change in standard errors."""
     beta = F.fit_random(form, df)["beta"]
+    base = published_sigma_ln(df) ** 2 if published else np.zeros(len(df))
     for _ in range(50):
-        extra = input_error_variance(df, beta, fo2_sd, form)
-        fit = fit_extra(form, df, extra)
+        extra = base + input_error_variance(df, beta, fo2_sd, form)
+        fit = fit_extra(form, df, extra, run_term=run_term)
         step = np.abs(fit["beta"] - beta)
         beta = fit["beta"]
         if np.max(step / np.maximum(np.abs(beta), 1e-12)) < 1e-8:
@@ -258,7 +323,8 @@ def fit_with_input_errors(
     settled = float(np.max(step / np.sqrt(np.diag(fit["cov"]))))
     if settled >= 1e-4:
         raise RuntimeError(f"fit_with_input_errors did not settle ({settled:.1e} se)")
-    return fit_extra(form, df, extra, tau_range=tau_range) | {"settled_se": settled}
+    final = fit_extra(form, df, extra, tau_range=tau_range, run_term=run_term)
+    return final | {"settled_se": settled}
 
 
 def fit_preset(
@@ -266,12 +332,16 @@ def fit_preset(
     form: F.Form = FORM,
     au_fo2_sd: float = PRESET_AU_FO2_SD,
     tau_range: bool = True,
+    published: bool = True,
+    run_term: bool = True,
 ) -> dict:
-    """The preset's method on any data built on `preset_data`: input errors, and the
+    """The preset's method on any data built on `preset_data`: each row's published D
+    error, its input errors, a random offset per study and per experiment, and the
     Au-capsule runs' fO2 at Ni-NiO with sd ``au_fo2_sd`` log units. ``tau_range=False``
-    skips tau's profile-likelihood range (for resampling)."""
+    skips tau's profile-likelihood range (for resampling); ``published`` and
+    ``run_term`` False give the method before 2026-10-15 (for comparison)."""
     fo2_sd = np.where(_is_au(df), au_fo2_sd, np.nan)
-    return fit_with_input_errors(df, fo2_sd, form, tau_range)
+    return fit_with_input_errors(df, fo2_sd, form, tau_range, published, run_term)
 
 
 def check_extra() -> None:
@@ -375,15 +445,30 @@ def main() -> None:
     )
     rows.append(
         row(
-            "V 7, preset data, input errors (preset until 2026-10-15)",
-            fit_preset(df, FORM_V7),
+            "V 7, preset data, input errors (preset of 9cedffb)",
+            fit_preset(df, FORM_V7, published=False, run_term=False),
             len(df),
             studies,
             FORM_V7,
         )
     )
+    rows.append(
+        row(
+            "V fitted, preset data, input errors (preset of 19203b8)",
+            fit_preset(df, published=False, run_term=False),
+            len(df),
+            studies,
+        )
+    )
     rows.append(row("verified, REML", F.fit_random(FORM, ver), len(ver), studies))
-    rows.append(row("verified, REML + input errors", fit_with_input_errors(ver), len(ver), studies))
+    rows.append(
+        row(
+            "verified, the preset's method (no Au runs)",
+            fit_with_input_errors(ver),
+            len(ver),
+            studies,
+        )
+    )
     for sd in FO2_PRIOR_SD:
         fit, n = with_au(sd)
         tag = " (the preset)" if sd == PRESET_AU_FO2_SD else ""

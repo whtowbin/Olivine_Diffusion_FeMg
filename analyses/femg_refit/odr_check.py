@@ -91,7 +91,7 @@ def odr(df: pd.DataFrame, floor: float, offsets: bool) -> np.ndarray:
         y,
         start / scale,
         weight_x=1 / sx**2,
-        weight_y=1 / F._y_sigma_ln(df) ** 2,
+        weight_y=1 / V.published_sigma_ln(df) ** 2,
         maxit=500,
     )
     return np.asarray(sol.beta) * scale
@@ -101,7 +101,7 @@ def min_s(df: pd.DataFrame) -> np.ndarray:
     """Minimise S(b) directly, at fit_verified's current T error floor."""
     v = F.Vars.of(df)
     A, y = FORM.design(v), df["ln_D"].to_numpy() - FORM.offset(v)
-    sy2, fo2 = F._y_sigma_ln(df) ** 2, _fo2_sd(df)
+    sy2, fo2 = V.published_sigma_ln(df) ** 2, _fo2_sd(df)
     sc = np.abs(np.linalg.lstsq(A, y, rcond=None)[0])
 
     def s(q: np.ndarray) -> float:
@@ -113,10 +113,14 @@ def min_s(df: pd.DataFrame) -> np.ndarray:
 
 
 def full_ml(df: pd.DataFrame) -> tuple[np.ndarray, float]:
-    """ML over (b, s^2, tau^2) with V(b) = s^2 I + tau^2 ZZ' + diag(input variance(b))."""
+    """ML over (b, s^2, tau^2, r^2) with V(b) = s^2 I + tau^2 ZZ' + r^2 WW' +
+    diag(published D variance + input variance(b)): the preset's model, with the input
+    variance depending on the coefficients instead of held fixed and iterated."""
     v = F.Vars.of(df)
     A, y = FORM.design(v), df["ln_D"].to_numpy() - FORM.offset(v)
     Z = pd.get_dummies(df["source"]).to_numpy(float)
+    W = pd.get_dummies(pd.Series(V._run_ids(df))).to_numpy(float)
+    base = V.published_sigma_ln(df) ** 2
     fo2 = _fo2_sd(df)
     start = V.fit_preset(df, FORM)["beta"]
     sc = np.abs(start)
@@ -124,13 +128,14 @@ def full_ml(df: pd.DataFrame) -> tuple[np.ndarray, float]:
     def nll(q: np.ndarray) -> float:
         b = q[:4] * sc
         var = math.exp(q[4]) * np.eye(len(y)) + math.exp(q[5]) * Z @ Z.T
+        var = var + math.exp(q[6]) * W @ W.T + np.diag(base)
         L = np.linalg.cholesky(var + np.diag(V.input_error_variance(df, b, fo2, FORM)))
         r = np.linalg.solve(L, y - A @ b)
         return float(np.log(np.diag(L)).sum() + 0.5 * r @ r)
 
-    q = np.r_[np.ones(4), math.log(0.2), math.log(0.1)]
+    q = np.r_[np.ones(4), math.log(0.05), math.log(0.1), math.log(0.1)]
     opts = {"xatol": 1e-9, "fatol": 1e-11, "maxiter": 40000, "maxfev": 40000}
-    for _ in range(2):  # a restart, as Nelder-Mead stalls in six dimensions
+    for _ in range(3):  # restarts, as Nelder-Mead stalls in seven dimensions
         q = optimize.minimize(nll, q, method="Nelder-Mead", options=opts).x
     return q[:4] * sc, math.exp(q[5] / 2) / LN10
 

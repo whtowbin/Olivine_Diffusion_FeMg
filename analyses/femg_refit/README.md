@@ -14,9 +14,12 @@ Au-capsule runs, whose unbuffered fO2 is taken at Ni-NiO with a sd of 2 log unit
   composition coefficient and the activation volume fitted (V 7.7 ± 0.8 cm3/mol; fixed
   at 7 until 2026-10-15, `FORM_V7`); [100] and [010] six times slower than [001]
   (`fit_verified.FORM`).
-- **Method** (`fit_verified.fit_preset`): random offsets per study (REML), with each
-  run's errors in T (at least 10 C), fO2, X_Fo and P carried as extra variance on ln D
-  (effective variance: ODR to first order, inside the REML likelihood).
+- **Method** (`fit_verified.fit_preset`): least squares (REML) in which each value's
+  variance is its published D error (`fit_verified.published_sigma_ln`) plus the
+  effect of its errors in T (at least 10 C), fO2, X_Fo and P (effective variance, ODR
+  to first order) plus a common extra scatter, and each laboratory and each
+  experiment has its own random offset. The per-experiment offset matters for
+  Chakraborty (1997), whose 55 values come from 12 diffusion couples.
 - **Data:** Chakraborty 1997, Dohmen et al. 2007 (fO2 > 1e-10 Pa), Petry et al. 2004 and
   Holzapfel et al. 2007 (Ni-NiO capsules, and Au capsules at Ni-NiO ± 2 log); 132 points.
 - **Scripts:**
