@@ -198,9 +198,10 @@ def vector_direction(theta, phi1, Phi, phi2, print_output=False):
     )  # B and A2 aligned to the East
     Cc = Crystal2Sample(np.matrix([0, 0, 1]), phi1, Phi, phi2)
 
-    alpha = float(min(Shortest_angle(uvw, Ac), Shortest_angle(uvw, -Ac)))
-    beta = float(min(Shortest_angle(uvw, Bc), Shortest_angle(uvw, -Bc)))
-    gamma = float(min(Shortest_angle(uvw, Cc), Shortest_angle(uvw, -Cc)))
+    # .item(): Shortest_angle returns a 1x1 matrix, and NumPy 2.5 refuses float() of one.
+    alpha = np.asarray(min(Shortest_angle(uvw, Ac), Shortest_angle(uvw, -Ac))).item()
+    beta = np.asarray(min(Shortest_angle(uvw, Bc), Shortest_angle(uvw, -Bc))).item()
+    gamma = np.asarray(min(Shortest_angle(uvw, Cc), Shortest_angle(uvw, -Cc))).item()
 
     if print_output == True:
         print("Alpha (to 100) :" + str(alpha))
