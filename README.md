@@ -87,6 +87,18 @@ the sampler, so a summary refits to the same numbers. `scan_method = grid` (or g
 `scan_points`) fits every node of a grid as before instead; it needs about 15 points
 per parameter to converge (`analyses/ic_sampling/`).
 
+**Temperature, pressure, fO2 and the law.** A fitted time is a fitted D·t, so it is
+only as good as the conditions and the diffusion equation. Give any of `mc_T_sd_C`,
+`mc_P_sd_Pa`, `mc_fO2_sd_log` (1σ each) and `forster fit` draws them, and the
+equation's parameters from its covariance (`mc_law`, on by default), and reports the
+time from all of it together: `mc_median_days`, `mc_low_days`/`mc_high_days` (68%) and
+`mc_p05_days`/`mc_p95_days` (90%), with `mc_sd_log10` saying how much each source
+contributes. When fO2 is given relative to a buffer it stays relative to it (`mc_fO2_buffer`),
+so it rises and falls with each drawn temperature. Times rescale exactly for a fixed rim
+(no extra model runs); runs with growth stages are refitted per draw. The draws are in
+`<run>_mc.csv`, and `<run>_time.png` shows the fit alone, with the initial condition and
+with everything, on one axis. `mc_seed` makes it repeatable.
+
 `summary.csv` uses the parameter-table column names, so it can be passed back to
 `forster fit` as a parameter table to rerun the same fits (with `--diffusivities`
 pointing at the output folder's `diffusivities.csv` if a run used your own equation). A run that fails (a
@@ -244,6 +256,14 @@ One row per model run. Fo is a fraction throughout.
 | `scan_dx_um` | µm | optional | Grid spacing of the initial-condition scan's runs. Empty: chosen for about 5% accuracy (coarser and faster than the final fit). |
 | `scan_dt_s` | s | optional | Time step of the scan's runs. Empty: 1/80 of the nominal fit's time, and for central or dipra at least D dt / dx² = 0.4 for every candidate. |
 | `scan_max_time_days` | days | optional | Longest time the scan's runs model. Empty: max_time_days if given, else 3x the fitted time. |
+| `mc_T_sd_C` | °C | optional | Monte Carlo over the conditions and the law (forster.rescale; run when any mc_ spread column is given): 1-sigma of temperature. |
+| `mc_P_sd_Pa` | Pa | optional | Monte Carlo: 1-sigma of pressure. |
+| `mc_fO2_sd_log` | log10 | optional | Monte Carlo: 1-sigma of log10 fO2 (relative to mc_fO2_buffer when given). |
+| `mc_fO2_buffer` |  | optional | Monte Carlo: QFM or NNO to hold fO2 relative to that buffer, so it follows each draw's T and P. Empty: the row's fO2_buffer when fO2 is given that way, else fO2 is drawn on its own. |
+| `mc_law` |  | optional | Monte Carlo: yes (default) to draw the law's parameters from its covariance (laws without one, such as dipra, are exact), or no. |
+| `mc_between_study` |  | optional | Monte Carlo: yes to add the spread between laboratories (for an absolute time); default no. |
+| `mc_samples` |  | optional | Monte Carlo draws (default 4000; 200 refits for runs with growth stages). |
+| `mc_seed` |  | optional | Monte Carlo seed (default 0). |
 | `notes` |  | optional | Free text for your own records. |
 
 *one form*: give fO2 either as `fO2_Pa` or as `fO2_buffer` with `fO2_delta_log`, and
@@ -314,6 +334,14 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `scan_sensitivity` |  | Sampled: change of the expected time per unit of each parameter (days per um for steps, days per unit Fo fraction), from the posterior samples. |
 | `scan_ess` |  | Sampled: effective sample size of the importance samples (out of 1024); below 256, auto uses nested sampling. |
 | `scan_log_evidence` |  | Sampled: log evidence; compare initial-condition models (one step or two) fitted to the same profile with the same grid. |
+| `mc_method` |  | Monte Carlo: rescale (t = t_fit D_fit / D_draw, exact for a fixed rim) or refit (growth stages: every draw refitted). |
+| `mc_draws` |  | Monte Carlo draws made. |
+| `mc_median_days` | days | Monte Carlo median time: the fit (or the initial-condition posterior), the conditions and the law together. |
+| `mc_low_days` | days | Monte Carlo 16th percentile. |
+| `mc_high_days` | days | Monte Carlo 84th percentile. |
+| `mc_p05_days` | days | Monte Carlo 5th percentile. |
+| `mc_p95_days` | days | Monte Carlo 95th percentile. |
+| `mc_sd_log10` | log10 | Monte Carlo: sd of log10 time from each source drawn alone (fit, T, P, fO2, law, studies), to see which matters most. |
 | `scan_dropped` |  | Grid points left out as invalid (steps out of order or domain, Fo outside 0-1). |
 | `grid_resolution` |  | Diffusion length sqrt(D t) at the fit over the grid spacing: for 1% accuracy in the fitted time about 5 (implicit) or 240 (central, dipra). |
 | `grid_error_pct` | % | Estimated worst-case error of the fitted time from the grid spacing (implicit: 0.2 x (dx / l)²; central, dipra: 2.4 x dx / l; l the diffusion length; measured on 35 real profiles). |

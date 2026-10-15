@@ -37,7 +37,13 @@ from forster.model import (
     Profile,
     fit_profile,
 )
-from forster.plotting import plot_fit, plot_law_comparison, plot_law_times
+from forster.plotting import (
+    plot_fit,
+    plot_law_comparison,
+    plot_law_times,
+    plot_time_distributions,
+)
+from forster.rescale import ConditionUncertainty, TimeDistribution, monte_carlo
 from forster.sampling import ICPosterior, fit_initial_condition
 from forster.scan import Uncertainty, candidate_grid
 from forster.template import write_template
@@ -49,6 +55,7 @@ __all__ = [
     "UNCERTAINTY_METHODS",
     "ArrheniusDiffusivity",
     "BoundaryHistory",
+    "ConditionUncertainty",
     "Conditions",
     "Diffusivity",
     "ElementInitial",
@@ -66,6 +73,7 @@ __all__ = [
     "Profile",
     "RunDefaults",
     "Stage",
+    "TimeDistribution",
     "Uncertainty",
     "boundary",
     "candidate_grid",
@@ -80,9 +88,11 @@ __all__ = [
     "fit_profile",
     "fit_run",
     "fit_tables",
+    "monte_carlo",
     "plot_fit",
     "plot_law_comparison",
     "plot_law_times",
+    "plot_time_distributions",
     "read_diffusivities",
     "read_profiles",
     "read_runs",

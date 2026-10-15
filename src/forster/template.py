@@ -235,6 +235,49 @@ PARAMETER_COLUMNS = (
         "Longest time the scan's runs model. Empty: max_time_days if given, else 3x the "
         "fitted time.",
     ),
+    Column(
+        "mc_T_sd_C",
+        "°C",
+        "optional",
+        "Monte Carlo over the conditions and the law (forster.rescale; run when any mc_ "
+        "spread column is given): 1-sigma of temperature.",
+    ),
+    Column("mc_P_sd_Pa", "Pa", "optional", "Monte Carlo: 1-sigma of pressure."),
+    Column(
+        "mc_fO2_sd_log",
+        "log10",
+        "optional",
+        "Monte Carlo: 1-sigma of log10 fO2 (relative to mc_fO2_buffer when given).",
+    ),
+    Column(
+        "mc_fO2_buffer",
+        "",
+        "optional",
+        "Monte Carlo: QFM or NNO to hold fO2 relative to that buffer, so it follows each "
+        "draw's T and P. Empty: the row's fO2_buffer when fO2 is given that way, else fO2 "
+        "is drawn on its own.",
+    ),
+    Column(
+        "mc_law",
+        "",
+        "optional",
+        "Monte Carlo: yes (default) to draw the law's parameters from its covariance (laws "
+        "without one, such as dipra, are exact), or no.",
+    ),
+    Column(
+        "mc_between_study",
+        "",
+        "optional",
+        "Monte Carlo: yes to add the spread between laboratories (for an absolute time); "
+        "default no.",
+    ),
+    Column(
+        "mc_samples",
+        "",
+        "optional",
+        "Monte Carlo draws (default 4000; 200 refits for runs with growth stages).",
+    ),
+    Column("mc_seed", "", "optional", "Monte Carlo seed (default 0)."),
     Column("notes", "", "optional", "Free text for your own records."),
 )
 
@@ -402,6 +445,32 @@ SUMMARY_COLUMNS = (
         "",
         "Sampled: log evidence; compare initial-condition models (one step or two) fitted "
         "to the same profile with the same grid.",
+    ),
+    Column(
+        "mc_method",
+        "",
+        "",
+        "Monte Carlo: rescale (t = t_fit D_fit / D_draw, exact for a fixed rim) or refit "
+        "(growth stages: every draw refitted).",
+    ),
+    Column("mc_draws", "", "", "Monte Carlo draws made."),
+    Column(
+        "mc_median_days",
+        "days",
+        "",
+        "Monte Carlo median time: the fit (or the initial-condition posterior), the "
+        "conditions and the law together.",
+    ),
+    Column("mc_low_days", "days", "", "Monte Carlo 16th percentile."),
+    Column("mc_high_days", "days", "", "Monte Carlo 84th percentile."),
+    Column("mc_p05_days", "days", "", "Monte Carlo 5th percentile."),
+    Column("mc_p95_days", "days", "", "Monte Carlo 95th percentile."),
+    Column(
+        "mc_sd_log10",
+        "log10",
+        "",
+        "Monte Carlo: sd of log10 time from each source drawn alone (fit, T, P, fO2, law, "
+        "studies), to see which matters most.",
     ),
     Column(
         "scan_dropped",

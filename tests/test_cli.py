@@ -291,3 +291,27 @@ def test_diffusivity_option_overrides_the_column(tmp_path, template):
     )
     assert unknown.returncode == 2
     assert "unknown diffusivity 'dc07'" in unknown.stderr
+
+
+def test_monte_carlo_and_sampled_scan_from_the_table_refit_identically(tmp_path, template):
+    params = read_csv(template / "parameters.csv")
+    params.assign(
+        diffusivity="refit", steps_sd_um=2.0, edge_fo_sd=0.002, mc_T_sd_C=15.0, mc_samples=500
+    ).to_csv(template / "parameters.csv", index=False)
+    done = forster("fit", template / "profiles.csv", template / "parameters.csv", cwd=tmp_path)
+    assert done.returncode == 0, done.stderr
+    assert "fitting the initial condition (auto)" in done.stdout
+    assert "with the conditions and the law" in done.stdout
+    out = tmp_path / "results"
+    for suffix in ("scan.csv", "mc.csv", "time.png"):
+        assert (out / f"{STEM}_{suffix}").stat().st_size > 0
+    row = read_csv(out / "summary.csv").iloc[0]
+    assert row.scan_sampler in ("laplace", "nested") and row.mc_method == "rescale"
+    assert row.mc_fO2_buffer == "QFM"  # the example's fO2 is relative to QFM
+    again = forster(
+        "fit", template / "profiles.csv", out / "summary.csv", "--out", "again", cwd=tmp_path
+    )
+    assert again.returncode == 0, again.stderr
+    refit = read_csv(tmp_path / "again" / "summary.csv").iloc[0]
+    for column in ("scan_median_days", "scan_low_days", "mc_median_days", "mc_p95_days"):
+        assert refit[column] == row[column]

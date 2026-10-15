@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
     from forster.model import FitResult
+    from forster.rescale import TimeDistribution
+    from forster.sampling import ICPosterior
 
 # Okabe-Ito blue for the model, black for data, grey for context.
 MODEL_COLOR = "#0072B2"
@@ -229,4 +231,83 @@ def plot_law_times(results: Sequence[FitResult], ax: Axes | None = None) -> Axes
         frameon=False,
         fontsize="small",
     )
+    return ax
+
+
+def _per_log10_day(days, density):
+    """Density per log10 day, scaled to a peak of 1 (time steps from day 0 are dropped)."""
+    import numpy as np
+
+    keep = days > 0
+    d = np.asarray(density)[keep] * days[keep]
+    return days[keep], d / d.max()
+
+
+def plot_time_distributions(
+    result: FitResult,
+    posterior: ICPosterior | None = None,
+    mc: TimeDistribution | None = None,
+    ax: Axes | None = None,
+) -> Axes:
+    """The distributions of time a run has, on a log time axis, each scaled to a peak of
+    1: the fit at the nominal initial condition (its own posterior), with the
+    initial-condition uncertainty (`forster.sampling`), and with the conditions and the
+    law as well (`forster.rescale`). Each legend entry gives the median and central 68%."""
+    import numpy as np
+
+    from forster.rescale import fit_time_density
+
+    if ax is None:
+        ax = _new_axes((6.5, 3.6))
+
+    def stats(days, density):
+        cdf = np.cumsum(density)
+        cdf = cdf / cdf[-1]
+        lo, mid, hi = np.interp([0.16, 0.5, 0.84], cdf, days)
+        return f"{mid:.3g} d ({lo:.3g}-{hi:.3g})"
+
+    spans = []  # where each distribution is above 0.1% of its peak, for the x limits
+
+    def span(x, y):
+        x = x[y > 1e-3]
+        if len(x):
+            spans.append((x.min(), x.max()))
+
+    days, density = fit_time_density(result)
+    x, y = _per_log10_day(days, density)
+    span(x, y)
+    ax.plot(x, y, color=CONTEXT_COLOR, lw=1.6, label=f"Fit alone: {stats(days, density)}")
+    if posterior is not None:
+        x, y = _per_log10_day(posterior.days, posterior.density)
+        span(x, y)
+        ax.plot(
+            x,
+            y,
+            color=MODEL_COLOR,
+            lw=1.8,
+            label=f"With the initial condition: {stats(posterior.days, posterior.density)}",
+        )
+    if mc is not None and len(mc.days):
+        log_days = np.log10(mc.days)
+        counts, edges = np.histogram(log_days, bins=60)
+        centres = 10 ** (0.5 * (edges[1:] + edges[:-1]))
+        lo, mid, hi = (mc.percentiles_days[p] for p in (16, 50, 84))
+        spans.append((float(np.percentile(mc.days, 0.1)), float(np.percentile(mc.days, 99.9))))
+        ax.fill_between(
+            centres,
+            counts / counts.max(),
+            step="mid",
+            color=LAW_COLORS[1],
+            alpha=0.35,
+            lw=0,
+            label=f"With conditions and law: {mid:.3g} d ({lo:.3g}-{hi:.3g})",
+        )
+    ax.set_xscale("log")
+    ax.set_xlim(min(a for a, _ in spans) / 1.2, max(b for _, b in spans) * 1.2)
+    ax.set_ylim(0, 1.5)  # headroom: the legend sits above the peaks
+    ax.set_xlabel("Time (days, log scale)")
+    ax.set_ylabel("Relative probability")
+    ax.set_yticks([0, 0.5, 1])
+    ax.set_title(f"{result.name}: time with median and central 68%")
+    ax.legend(loc="upper left", fontsize="small", frameon=False)
     return ax

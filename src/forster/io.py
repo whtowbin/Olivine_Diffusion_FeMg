@@ -76,6 +76,7 @@ from forster.model import (
     default_scheme,
     fit_profile,
 )
+from forster.rescale import ConditionUncertainty, TimeDistribution, monte_carlo
 from forster.sampling import METHODS as SAMPLING_METHODS
 from forster.sampling import ICPosterior, fit_initial_condition
 from forster.scan import (
@@ -185,6 +186,10 @@ class Run:
     # (`forster.sampling`), or "grid" (`forster.scan`); and the sampler's seed.
     scan_method: str = "auto"
     scan_seed: int = 0
+    # Monte Carlo over T, P, fO2 and the law (`forster.rescale`); None: not run.
+    mc: ConditionUncertainty | None = None
+    mc_samples: int | None = None
+    mc_seed: int = 0
 
 
 def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
@@ -343,6 +348,39 @@ def _scheme(row: pd.Series, defaults: RunDefaults) -> str:
 
 
 SCAN_METHODS = (*SAMPLING_METHODS, "grid")
+# Any of these given turns the Monte Carlo on (`_template_mc`).
+MC_SPREADS = ("mc_T_sd_C", "mc_P_sd_Pa", "mc_fO2_sd_log", "mc_law", "mc_between_study")
+_TRUE, _FALSE = ("yes", "true", "1", "y"), ("no", "false", "0", "n")
+
+
+def _flag(row: pd.Series, column: str, default: bool) -> bool:
+    if not _given(row, column):
+        return default
+    value = str(row[column]).strip().lower()
+    if value.endswith(".0"):
+        value = value[:-2]
+    if value not in _TRUE + _FALSE:
+        raise ValueError(f"{column} {row[column]!r} in the parameter table; use yes or no")
+    return value in _TRUE
+
+
+def _template_mc(row: pd.Series) -> ConditionUncertainty | None:
+    """The Monte Carlo's uncertainties, or None if no mc_ spread column is given.
+    fO2 follows ``mc_fO2_buffer``, or the row's own ``fO2_buffer`` when fO2 is given
+    relative to one."""
+    if not any(_given(row, c) for c in MC_SPREADS):
+        return None
+    buffer = row["mc_fO2_buffer"] if _given(row, "mc_fO2_buffer") else None
+    if buffer is None and _given(row, "fO2_buffer") and not _given(row, "fO2_Pa"):
+        buffer = row["fO2_buffer"]
+    return ConditionUncertainty(
+        T_sd_C=_optional_float(row, "mc_T_sd_C") or 0.0,
+        P_sd_Pa=_optional_float(row, "mc_P_sd_Pa") or 0.0,
+        fO2_sd_log=_optional_float(row, "mc_fO2_sd_log") or 0.0,
+        fO2_buffer=None if buffer is None else str(buffer).strip().upper(),
+        law=_flag(row, "mc_law", True),
+        between_study=_flag(row, "mc_between_study", False),
+    )
 
 
 def _scan_method(row: pd.Series) -> str:
@@ -620,6 +658,9 @@ def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Di
         ),
         scan_method=_scan_method(row),
         scan_seed=int(row["scan_seed"]) if _given(row, "scan_seed") else 0,
+        mc=_template_mc(row),
+        mc_samples=int(row["mc_samples"]) if _given(row, "mc_samples") else None,
+        mc_seed=int(row["mc_seed"]) if _given(row, "mc_seed") else 0,
     )
 
 
@@ -913,7 +954,51 @@ def uncertainty_columns(run: Run) -> dict[str, Any]:
     if run.uncertainties:
         out["scan_method"] = run.scan_method
         out["scan_seed"] = run.scan_seed
+    if run.mc is not None:
+        out.update(
+            mc_T_sd_C=run.mc.T_sd_C,
+            mc_P_sd_Pa=run.mc.P_sd_Pa,
+            mc_fO2_sd_log=run.mc.fO2_sd_log,
+            mc_fO2_buffer=run.mc.fO2_buffer,
+            mc_law="yes" if run.mc.law else "no",
+            mc_between_study="yes" if run.mc.between_study else "no",
+            mc_seed=run.mc_seed,
+        )
+        if run.mc_samples is not None:
+            out["mc_samples"] = run.mc_samples
     return out
+
+
+def mc_run(
+    run: Run, result: FitResult, posterior: ScanResult | ICPosterior | None = None
+) -> TimeDistribution:
+    """The run's Monte Carlo (`forster.rescale.monte_carlo`) on its fit, drawing the fit's
+    time from an initial-condition posterior when one is given (a sampled scan; a grid
+    scan's is not used)."""
+    if run.mc is None:
+        raise ValueError(f"run {run.name!r} has no mc_ columns")
+    return monte_carlo(
+        result,
+        run.mc,
+        posterior=posterior if isinstance(posterior, ICPosterior) else None,
+        n=run.mc_samples,
+        seed=run.mc_seed,
+    )
+
+
+def mc_summary(dist: TimeDistribution) -> dict[str, Any]:
+    """The Monte Carlo as summary.csv columns."""
+    p = dist.percentiles_days
+    return {
+        "mc_method": dist.method,
+        "mc_draws": len(dist.days),
+        "mc_median_days": p[50],
+        "mc_low_days": p[16],
+        "mc_high_days": p[84],
+        "mc_p05_days": p[5],
+        "mc_p95_days": p[95],
+        "mc_sd_log10": "; ".join(f"{k}={v:.3g}" for k, v in dist.sd_log10_by_source.items()),
+    }
 
 
 def scan_run(

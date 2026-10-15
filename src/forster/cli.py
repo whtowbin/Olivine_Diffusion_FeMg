@@ -26,6 +26,8 @@ from forster.io import (
     Run,
     fit_run,
     fit_tables,
+    mc_run,
+    mc_summary,
     read_diffusivities,
     read_profiles,
     read_runs,
@@ -37,7 +39,8 @@ from forster.io import (
     uncertainty_columns,
 )
 from forster.model import FitResult
-from forster.plotting import plot_fit, plot_law_comparison, plot_law_times
+from forster.plotting import plot_fit, plot_law_comparison, plot_law_times, plot_time_distributions
+from forster.sampling import ICPosterior
 from forster.scan import MAX_CANDIDATES
 from forster.template import write_template
 
@@ -175,6 +178,7 @@ def _fit_one(
     write_fit(result, out_dir, file_stem(run.name))
     row = summary_row(result)
     row = {"run": row.pop("run"), "profile": run.profile_name, **row, **uncertainty_columns(run)}
+    scan = dist = None
     if run.uncertainties:
         if n_scan:
             print(
@@ -192,6 +196,24 @@ def _fit_one(
         caught += scan_caught
         scan_table(scan).to_csv(out_dir / f"{file_stem(run.name)}_scan.csv", index=False)
         row.update(scan_summary(scan))
+    if run.mc is not None:
+        with warnings.catch_warnings(record=True) as mc_caught:
+            warnings.simplefilter("always")
+            dist = mc_run(run, result, scan)
+        caught += mc_caught
+        pd.DataFrame({"days": dist.days}).to_csv(
+            out_dir / f"{file_stem(run.name)}_mc.csv", index=False
+        )
+        row.update(mc_summary(dist))
+    if run.uncertainties or run.mc is not None:
+        fig = Figure(figsize=(6.5, 3.6), layout="constrained")
+        plot_time_distributions(
+            result,
+            scan if isinstance(scan, ICPosterior) else None,
+            dist if run.mc is not None else None,
+            fig.subplots(),
+        )
+        fig.savefig(out_dir / f"{file_stem(run.name)}_time.png", dpi=DPI)
     notes = _user_warnings(caught)
     row["warnings"] = "; ".join(notes)
     row["forster_version"] = version("forster")
@@ -202,6 +224,12 @@ def _fit_one(
 
 def _print_row(row: dict) -> None:
     print(f"  {row['time_days']:.2f} days ({row['low_days']:.2f}-{row['high_days']:.2f})")
+    if "mc_median_days" in row:
+        print(
+            f"  with the conditions and the law: {row['mc_median_days']:.2f} days "
+            f"({row['mc_low_days']:.2f}-{row['mc_high_days']:.2f}; 90%: "
+            f"{row['mc_p05_days']:.2f}-{row['mc_p95_days']:.2f})"
+        )
     if "scan_best_days" in row:
         print(
             f"  with initial-condition uncertainty: {row['scan_best_days']:.2f} days "
