@@ -42,10 +42,10 @@ def main(argv: list[str] | None = None) -> int:
 
         return self_test(args.self_test)
 
-    from nicegui import ui
-    from nicegui.native import find_open_port
+    from nicegui import app, ui
 
     from gui_web import app as gui
+    from gui_web.security import HOST, free_port, protect
 
     if args.open is not None:
         gui.SESSION.open(args.open)
@@ -53,14 +53,22 @@ def main(argv: list[str] | None = None) -> int:
         gui.SESSION.new(args.new)
     gui.QUIT_AFTER = 0.5 if args.exit_when_ready else args.quit_after
     native = not args.browser
-    extra = {"window_size": (1440, 880)} if native else {}
+    # Loopback only, a random port, and a per-launch token in the URL (gui_web.security).
+    port = args.port or free_port()
+    token = protect(app)
+    path = f"/?token={token}"
+    if native:
+        app.native.window_args["url"] = f"http://{HOST}:{port}{path}"
+        extra: dict = {"window_size": (1440, 880)}
+    else:
+        extra = {"show": path if not args.no_show else False}
+        print(f"FORSTER at http://{HOST}:{port}{path}", flush=True)
     ui.run(
         title="FORSTER",
         native=native,
-        host="127.0.0.1",
-        port=args.port or find_open_port(),
+        host=HOST,
+        port=port,
         reload=False,
-        show=not args.no_show and not native,
         show_welcome_message=False,
         **extra,
     )

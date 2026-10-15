@@ -18,7 +18,9 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
+
+from gui_web.security import COOKIE, HOST, free_port, protect
 
 CHECKS: list[tuple[str, bool, str]] = []
 
@@ -99,29 +101,62 @@ def logic(folder: Path) -> None:
     )
 
 
+async def _websocket_opens(url: str, cookie: str | None) -> bool:
+    """Whether a websocket upgrade to ``url`` is accepted (with the cookie, if given)."""
+    from websockets.asyncio.client import connect
+
+    headers = {"Cookie": cookie} if cookie else {}
+    try:
+        async with connect(url, additional_headers=headers, open_timeout=10):
+            return True
+    except Exception:  # InvalidStatus (403) for a refused upgrade
+        return False
+
+
+async def _security_probe(client: Any, base: str, token: str) -> str:
+    """Requests without the launch token are refused, over HTTP and the websocket; the
+    page with it is served and sets the cookie. Returns the page's HTML."""
+    ws = base.replace("http", "ws") + "/_nicegui_ws/socket.io/?EIO=4&transport=websocket"
+    polling = base + "/_nicegui_ws/socket.io/?EIO=4&transport=polling"
+    bare = await client.get(base + "/")
+    wrong = await client.get(base + "/?token=wrong")
+    check("page without the token refused", bare.status_code == 403, str(bare.status_code))
+    check("page with a wrong token refused", wrong.status_code == 403, str(wrong.status_code))
+    poll = await client.get(polling)
+    check("socket.io without the token refused", poll.status_code == 403, str(poll.status_code))
+    check("websocket without the token refused", not await _websocket_opens(ws, None))
+    page = await client.get(f"{base}/?token={token}")
+    check("page with the token served", page.status_code == 200, f"{len(page.text)} bytes")
+    cookie = f"{COOKIE}={client.cookies.get(COOKIE)}"
+    check("page sets the token cookie", client.cookies.get(COOKIE) == token)
+    poll = await client.get(polling)  # the client now sends the cookie
+    check("socket.io with the cookie accepted", poll.status_code == 200, str(poll.status_code))
+    check("websocket with the cookie accepted", await _websocket_opens(ws, cookie))
+    return page.text
+
+
 def server() -> None:
     import httpx
     from nicegui import app, background_tasks, ui
-    from nicegui.native import find_open_port
 
     import gui_web.app  # noqa: F401  (registers the page)
 
-    port = find_open_port()
-    base = f"http://127.0.0.1:{port}"
+    port = free_port()
+    token = protect(app)
+    base = f"http://{HOST}:{port}"
 
     async def probe() -> None:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 for _ in range(100):  # the server listens once startup has finished
                     try:
-                        page = await client.get(base + "/")
+                        await client.get(base + "/")
                         break
                     except httpx.ConnectError:
                         await asyncio.sleep(0.1)
                 else:
                     raise RuntimeError("the server never answered")
-                text = page.text
-                check("page served", page.status_code == 200, f"{len(text)} bytes")
+                text = await _security_probe(client, base, token)
                 check(
                     "page renders the run list and buttons",
                     "Fit initial condition" in text and "AZ18 WHT01_Ol_63_prof_1" in text,
@@ -129,10 +164,14 @@ def server() -> None:
                 scripts = re.findall(r'/_nicegui/[^"\']+?\.js', text)
                 asset = await client.get(base + scripts[0]) if scripts else None
                 check(
-                    "static script served",
+                    "static script served (with the cookie)",
                     asset is not None and asset.status_code == 200,
                     scripts[0] if scripts else "no script in the page",
                 )
+                if scripts:
+                    async with httpx.AsyncClient() as stranger:  # no cookie
+                        bare = await stranger.get(base + scripts[0])
+                    check("static script without the token refused", bare.status_code == 403)
         except Exception:
             check("server probe", False, traceback.format_exc())
         finally:
@@ -140,7 +179,7 @@ def server() -> None:
 
     app.on_startup(lambda: background_tasks.create(probe()))
     ui.run(
-        host="127.0.0.1",
+        host=HOST,
         port=port,
         native=False,
         show=False,

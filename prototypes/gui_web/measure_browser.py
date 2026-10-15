@@ -1,10 +1,11 @@
 """Drive the browser version with real mouse drags: latency, scan, cancel, screenshots.
 
-Start the app first (`main.py --browser --no-show --port 8765 --open <project>`, with
-FORSTER_GUI_METRICS=<file> for the server-side records), then:
+Start the app first (`main.py --browser --no-show --open <project> > app.log`, with
+FORSTER_GUI_METRICS=<file> for the server-side records); it prints its URL with the
+launch token. Then:
 
     uv run --with playwright python prototypes/gui_web/measure_browser.py \
-        --url http://127.0.0.1:8765 --shots prototypes/gui_web/screenshots --drags 20
+        --server-log app.log --shots prototypes/gui_web/screenshots --drags 20
 
 Any installed Chromium works (--browser-path); Playwright's own needs
 `playwright install chromium`.
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 from pathlib import Path
 
@@ -55,12 +57,17 @@ def drag(page: Page, index: int, axis: str, pixels: float) -> float:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", default="http://127.0.0.1:8765")
+    parser.add_argument("--url", help="the app's URL, with its ?token=")
+    parser.add_argument(
+        "--server-log", type=Path, help="or: read the URL from the app's output (FORSTER at ...)"
+    )
     parser.add_argument("--shots", type=Path, default=Path("prototypes/gui_web/screenshots"))
     parser.add_argument("--drags", type=int, default=20)
     parser.add_argument("--browser-path", default=BRAVE)
     parser.add_argument("--mode", choices=["drag", "scan", "cancel"], default="drag")
     args = parser.parse_args()
+    if args.server_log is not None:
+        args.url = re.search(r"FORSTER at (\S+)", args.server_log.read_text()).group(1)
     args.shots.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=args.browser_path or None, headless=True)
