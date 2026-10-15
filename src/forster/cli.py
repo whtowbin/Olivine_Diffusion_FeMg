@@ -37,7 +37,7 @@ from forster.io import (
     uncertainty_columns,
 )
 from forster.model import FitResult
-from forster.plotting import plot_fit
+from forster.plotting import plot_fit, plot_law_comparison, plot_law_times
 from forster.scan import MAX_CANDIDATES
 from forster.template import write_template
 
@@ -78,11 +78,25 @@ def _with_laws(
         return [replace(run, diffusivity=equation) for run in runs]
     if compare:
         return [
-            replace(run, name=f"{run.name}_{alias}", diffusivity=resolve(alias))
+            replace(run, name=_law_run_name(run.name, alias), diffusivity=resolve(alias))
             for run in runs
             for alias in FE_MG_CHOICES
         ]
     return runs
+
+
+def _law_run_name(run_name: str, alias: str) -> str:
+    return f"{run_name}_{alias}"
+
+
+def _law_groups(runs: list[Run]) -> dict[str, tuple[str, list[str]]]:
+    """For ``--compare-laws``: each run's last law run -> (the run's name, the names
+    of all its law runs), so its comparison figure is written once they are done."""
+    groups = {}
+    for run in runs:
+        names = [_law_run_name(run.name, alias) for alias in FE_MG_CHOICES]
+        groups[names[-1]] = (run.name, names)
+    return groups
 
 
 def _check_stems(runs: list[Run]) -> None:
@@ -110,6 +124,32 @@ def write_fit(result: FitResult, out_dir: Path, stem: str) -> list[Path]:
     return [path, *paths]
 
 
+def write_law_comparison(results: Sequence[FitResult], out_dir: Path, stem: str) -> Path:
+    """One run's fits under several laws: the profile with each law's best fit
+    (`plot_law_comparison`) above each law's time and ranges (`plot_law_times`)."""
+    fig = Figure(figsize=(7, 8.5), layout="constrained")
+    # Subfigures, so the times panel's long row labels do not narrow the profile panel.
+    top, bottom = fig.subfigures(2, 1, height_ratios=(2.2, 1))
+    plot_law_comparison(results, top.subplots())
+    plot_law_times(results, bottom.subplots())
+    path = out_dir / f"{stem}_laws.png"
+    fig.savefig(path, dpi=DPI)
+    return path
+
+
+def _write_laws_figure(run_name: str, results: list[FitResult], out_dir: Path) -> None:
+    """The comparison figure of the law fits that succeeded; a failure here is
+    reported and does not stop the other runs."""
+    if not results:
+        return
+    try:
+        path = write_law_comparison(results, out_dir, file_stem(run_name))
+    except Exception as error:  # a figure must not lose the fits already done
+        print(f"  law comparison figure failed: {_describe(error)}", file=sys.stderr)
+        return
+    print(f"  law comparison of {len(results)} fits: {path.name}")
+
+
 def _user_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
     return sorted({str(w.message) for w in caught if issubclass(w.category, UserWarning)})
 
@@ -123,7 +163,9 @@ def _describe(error: Exception) -> str:
     return f"{type(error).__name__}: {error}"
 
 
-def _fit_one(run: Run, profiles: dict, out_dir: Path, max_candidates: int) -> dict:
+def _fit_one(
+    run: Run, profiles: dict, out_dir: Path, max_candidates: int
+) -> tuple[dict, FitResult]:
     n_scan = scan_size(run, max_candidates=max_candidates)  # raises early if too large
     t0 = time.perf_counter()
     with warnings.catch_warnings(record=True) as caught:
@@ -155,7 +197,21 @@ def _fit_one(run: Run, profiles: dict, out_dir: Path, max_candidates: int) -> di
     row["forster_version"] = version("forster")
     for note in notes:
         print(f"  warning: {note}", file=sys.stderr)
-    return row
+    return row, result
+
+
+def _print_row(row: dict) -> None:
+    print(f"  {row['time_days']:.2f} days ({row['low_days']:.2f}-{row['high_days']:.2f})")
+    if "scan_best_days" in row:
+        print(
+            f"  with initial-condition uncertainty: {row['scan_best_days']:.2f} days "
+            f"({row['scan_low_days']:.2f}-{row['scan_high_days']:.2f}); best {row['scan_best']}"
+        )
+        if row.get("scan_sampler") in ("laplace", "nested"):
+            print(
+                f"  {row['scan_ic_share']:.0%} of the variance of time from the initial "
+                f"condition ({row['scan_sampler']}, {row['scan_candidates']} model runs)"
+            )
 
 
 def fit_command(args: argparse.Namespace) -> int:
@@ -166,32 +222,31 @@ def fit_command(args: argparse.Namespace) -> int:
         runs = read_runs(args.parameters, sheet=_sheet(args.parameters_sheet), diffusivities=custom)
     for note in _user_warnings(caught):
         print(f"warning: {note}", file=sys.stderr)
-    runs = _select(runs, args.run)
-    runs = _with_laws(runs, args.diffusivity, args.compare_laws, custom)
+    selected = _select(runs, args.run)
+    runs = _with_laws(selected, args.diffusivity, args.compare_laws, custom)
     _check_stems(runs)
+    # --compare-laws: each run's law fits, kept until its comparison figure is written.
+    groups = _law_groups(selected) if args.compare_laws else {}
+    law_fits: dict[str, FitResult] = {}
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     rows, failed = [], []
     for i, run in enumerate(runs, 1):
         print(f"[{i}/{len(runs)}] {run.name}", flush=True)
         try:
-            row = _fit_one(run, profiles, out_dir, args.max_candidates)
+            row, result = _fit_one(run, profiles, out_dir, args.max_candidates)
         except Exception as error:  # one bad run, whatever the error, must not lose the others
             print(f"  failed: {_describe(error)}", file=sys.stderr)
             failed.append(run.name)
-            continue
-        rows.append(row)
-        print(f"  {row['time_days']:.2f} days ({row['low_days']:.2f}-{row['high_days']:.2f})")
-        if "scan_best_days" in row:
-            print(
-                f"  with initial-condition uncertainty: {row['scan_best_days']:.2f} days "
-                f"({row['scan_low_days']:.2f}-{row['scan_high_days']:.2f}); best {row['scan_best']}"
-            )
-            if row.get("scan_sampler") in ("laplace", "nested"):
-                print(
-                    f"  {row['scan_ic_share']:.0%} of the variance of time from the initial "
-                    f"condition ({row['scan_sampler']}, {row['scan_candidates']} model runs)"
-                )
+        else:
+            rows.append(row)
+            _print_row(row)
+            if groups:
+                law_fits[run.name] = result
+        if run.name in groups:
+            original, names = groups[run.name]
+            fits = [law_fits.pop(name) for name in names if name in law_fits]
+            _write_laws_figure(original, fits, out_dir)
     summary = out_dir / "summary.csv"
     pd.DataFrame(rows).to_csv(summary, index=False)
     # The equations behind summary.csv, so it can be refitted with --diffusivities.

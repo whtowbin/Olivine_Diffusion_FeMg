@@ -251,6 +251,8 @@ def test_compare_laws_fits_each_run_with_the_four_choices(tmp_path, template):
     assert summary.time_days.nunique() == 4  # the laws differ, so do the times
     for alias in FE_MG_CHOICES:
         assert (tmp_path / "results" / f"{STEM}_{alias}_fit.png").stat().st_size > 0
+    # One figure of the four fits, named after the run itself.
+    assert (tmp_path / "results" / f"{STEM}_laws.png").stat().st_size > 0
     # Every law but Classic DIPRA carries a covariance, so it has a law_ range.
     has_law_range = summary.law_low_days.notna().tolist()
     assert has_law_range == [False, True, True, True]

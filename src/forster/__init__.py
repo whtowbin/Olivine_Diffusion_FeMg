@@ -37,7 +37,7 @@ from forster.model import (
     Profile,
     fit_profile,
 )
-from forster.plotting import plot_fit
+from forster.plotting import plot_fit, plot_law_comparison, plot_law_times
 from forster.sampling import ICPosterior, fit_initial_condition
 from forster.scan import Uncertainty, candidate_grid
 from forster.template import write_template
@@ -81,6 +81,8 @@ __all__ = [
     "fit_run",
     "fit_tables",
     "plot_fit",
+    "plot_law_comparison",
+    "plot_law_times",
     "read_diffusivities",
     "read_profiles",
     "read_runs",
