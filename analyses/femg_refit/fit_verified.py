@@ -42,6 +42,7 @@ Writes results/verified/{coefficients,predictions,variants}.csv.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from pathlib import Path
 
@@ -175,17 +176,41 @@ def fit_extra(
     return out
 
 
+_DC07_HEAD = ("log10_D0", "E_J_mol", "m_fO2", "n_X")
+_STEPS = {"T": 0.01, "log_fo2_pa": 1e-4, "x_fo": 1e-5, "P": 1e3}  # central differences
+
+
+def input_slopes(df: pd.DataFrame, beta: np.ndarray, form: F.Form = FORM) -> list[np.ndarray]:
+    """d ln D / d x per row for x = T (K), log10 fO2, X_Fo and P (Pa), at ``beta``. In
+    closed form for the DC07 forms (those whose first four parameters are DC07's,
+    with V fixed), by central differences through ``form`` otherwise."""
+    t, p = df["T_K"].to_numpy(float), df["P_Pa"].to_numpy(float)
+    if form.params[:4] == _DC07_HEAD:
+        _, e, m, n = beta[:4]
+        d_t = (e + (p - 1e5) * F.V_DC07) / (F.R * t**2)
+        return [d_t, np.full_like(t, m * LN10), np.full_like(t, -n * LN10), -F.V_DC07 / (F.R * t)]
+    v = F.Vars.of(df)
+
+    def ln_d(vv: F.Vars) -> np.ndarray:
+        return form.offset(vv) + form.design(vv) @ beta
+
+    out = []
+    for name, h in _STEPS.items():
+        x = getattr(v, name)
+        up, down = (dataclasses.replace(v, **{name: x + d}) for d in (h, -h))
+        out.append((ln_d(up) - ln_d(down)) / (2 * h))
+    return out
+
+
 def input_error_variance(
-    df: pd.DataFrame, beta: np.ndarray, fo2_sd: np.ndarray | None = None
+    df: pd.DataFrame, beta: np.ndarray, fo2_sd: np.ndarray | None = None, form: F.Form = FORM
 ) -> np.ndarray:
     """Extra variance of ln D from each row's errors in T, fO2, X_Fo and P (the effective
-    variance form of errors in variables): sum of (d ln D / d x)^2 sigma_x^2 at ``beta``,
-    with sigma_x per study from `fit_models.ERRORS` or SCENARIO_ERRORS (T at least
-    T_ERROR_FLOOR_K).
-    ``fo2_sd`` (log units, per row) replaces the stated fO2 error where it is not NaN.
-    ``beta`` starts with the four DC07 coefficients (any form built on them)."""
-    _, e, m, n = beta[:4]
-    t, p = df["T_K"].to_numpy(float), df["P_Pa"].to_numpy(float)
+    variance form of errors in variables): sum of (d ln D / d x)^2 sigma_x^2 at ``beta``
+    (`input_slopes`), with sigma_x per study from `fit_models.ERRORS` or SCENARIO_ERRORS
+    (T at least T_ERROR_FLOOR_K).
+    ``fo2_sd`` (log units, per row) replaces the stated fO2 error where it is not NaN."""
+    p = df["P_Pa"].to_numpy(float)
     err = pd.concat([F.ERRORS, SCENARIO_ERRORS])
     missing = set(df["source"]) - set(err.index)
     if missing:
@@ -196,24 +221,30 @@ def input_error_variance(
         s_f = np.where(np.isnan(fo2_sd), s_f, fo2_sd)
     s_x = df["source"].map(err["X_Fo"]).to_numpy(float)
     s_p = df["source"].map(err["P_frac"]).to_numpy(float) * p
-    d_t = (e + (p - 1e5) * F.V_DC07) / (F.R * t**2)
-    d_p = -F.V_DC07 / (F.R * t)
-    return (d_t * s_t) ** 2 + (m * LN10 * s_f) ** 2 + (n * LN10 * s_x) ** 2 + (d_p * s_p) ** 2
+    d_t, d_f, d_x, d_p = input_slopes(df, beta, form)
+    return (d_t * s_t) ** 2 + (d_f * s_f) ** 2 + (d_x * s_x) ** 2 + (d_p * s_p) ** 2
 
 
 def fit_with_input_errors(
     df: pd.DataFrame, fo2_sd: np.ndarray | None = None, form: F.Form = FORM
 ) -> dict:
     """`fit_extra` with `input_error_variance`, iterated until the coefficients settle
-    (the variance depends on them)."""
+    (the variance depends on them): a relative change under 1e-8, or, after 50
+    iterations, a change under 1e-4 of each coefficient's standard error. The second
+    is the inner optimiser's noise on poorly determined coefficients (the Mutch form's
+    pressure terms); ``settled_se`` records the last change in standard errors."""
     beta = F.fit_random(form, df)["beta"]
     for _ in range(50):
-        extra = input_error_variance(df, beta, fo2_sd)
+        extra = input_error_variance(df, beta, fo2_sd, form)
         fit = fit_extra(form, df, extra)
-        if np.max(np.abs(fit["beta"] - beta) / np.maximum(np.abs(beta), 1e-12)) < 1e-8:
-            return fit_extra(form, df, extra, tau_range=True)
+        step = np.abs(fit["beta"] - beta)
         beta = fit["beta"]
-    raise RuntimeError("fit_with_input_errors did not settle")
+        if np.max(step / np.maximum(np.abs(beta), 1e-12)) < 1e-8:
+            break
+    settled = float(np.max(step / np.sqrt(np.diag(fit["cov"]))))
+    if settled >= 1e-4:
+        raise RuntimeError(f"fit_with_input_errors did not settle ({settled:.1e} se)")
+    return fit_extra(form, df, extra, tau_range=True) | {"settled_se": settled}
 
 
 def fit_preset(df: pd.DataFrame, form: F.Form = FORM, au_fo2_sd: float = PRESET_AU_FO2_SD) -> dict:

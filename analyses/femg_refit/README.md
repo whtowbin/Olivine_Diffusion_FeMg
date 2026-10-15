@@ -24,6 +24,9 @@ Au-capsule runs, whose unbuffered fO2 is taken at Ni-NiO with a sd of 2 log unit
     0.5-3 log). Writes `results/verified/`.
   - `preset_figures.py`: `figures/presets/`, the preset's bowties and residuals and the
     candidate methods (`results/verified/candidates.csv`).
+  - `fit_mutch.py`: the Mutch forms (6x, fitted anisotropy, fO2 x 1/T) and the preset's
+    form with V fitted, on the preset's data by its method (`results/verified/
+    mutch_forms.csv`, `figures/presets/p4_mutch_forms.png`).
   - `odr_check.py`: ODR against the preset's method, for T-error floors of 0, 10 and
     20 C (`results/verified/odr_check.csv`).
   - `export_preset.py`: builds the preset and checks the shipped one.
