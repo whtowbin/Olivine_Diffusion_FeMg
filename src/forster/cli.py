@@ -133,12 +133,15 @@ def _fit_one(run: Run, profiles: dict, out_dir: Path, max_candidates: int) -> di
     write_fit(result, out_dir, file_stem(run.name))
     row = summary_row(result)
     row = {"run": row.pop("run"), "profile": run.profile_name, **row, **uncertainty_columns(run)}
-    if n_scan:
-        print(
-            f"  scanning {n_scan} initial conditions (roughly {n_scan * seconds / 3:.0f} s "
-            "or less)",
-            flush=True,
-        )
+    if run.uncertainties:
+        if n_scan:
+            print(
+                f"  scanning {n_scan} initial conditions (roughly {n_scan * seconds / 3:.0f} s "
+                "or less)",
+                flush=True,
+            )
+        else:
+            print(f"  fitting the initial condition ({run.scan_method})", flush=True)
         with warnings.catch_warnings(record=True) as scan_caught:
             warnings.simplefilter("always")
             scan = scan_run(
@@ -184,6 +187,11 @@ def fit_command(args: argparse.Namespace) -> int:
                 f"  with initial-condition uncertainty: {row['scan_best_days']:.2f} days "
                 f"({row['scan_low_days']:.2f}-{row['scan_high_days']:.2f}); best {row['scan_best']}"
             )
+            if row.get("scan_sampler") in ("laplace", "nested"):
+                print(
+                    f"  {row['scan_ic_share']:.0%} of the variance of time from the initial "
+                    f"condition ({row['scan_sampler']}, {row['scan_candidates']} model runs)"
+                )
     summary = out_dir / "summary.csv"
     pd.DataFrame(rows).to_csv(summary, index=False)
     # The equations behind summary.csv, so it can be refitted with --diffusivities.

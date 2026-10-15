@@ -150,10 +150,26 @@ PARAMETER_COLUMNS = (
     Column("step_fo_sd", "fraction", "optional", "1-sigma uncertainty on step_fo (Gaussian)."),
     Column("step_fo_range", "fraction", "optional", "± half-width on step_fo (uniform)."),
     Column(
+        "scan_method",
+        "",
+        "optional",
+        "How the uncertain initial-condition parameters are fitted: auto (default: best "
+        "fit, then importance sampling from a Laplace proposal, or nested sampling when "
+        "that has too few effective samples), laplace, nested, or grid (every node of a "
+        "grid, as before 2026-10-15). Blank with scan_points given means grid.",
+    ),
+    Column(
+        "scan_seed",
+        "",
+        "optional",
+        "Seed of the sampler (default 0); the same seed gives the same result.",
+    ),
+    Column(
         "scan_points",
         "",
         "optional",
-        "Grid points per uncertain parameter (default 13 for one, 9 for two, 5 for more).",
+        "scan_method grid: points per uncertain parameter (default 13 for one, 9 for two, "
+        "5 for more).",
     ),
     Column(
         "scan_dx_um",
@@ -269,14 +285,28 @@ SUMMARY_COLUMNS = (
         "scan_best_days",
         "days",
         "",
-        "With uncertainties: best-fit time over all scanned initial conditions.",
+        "With uncertainties: best-fit time over all scanned initial conditions (sampled: "
+        "the time of the best-fit initial condition).",
+    ),
+    Column(
+        "scan_sampler",
+        "",
+        "",
+        "Method that produced the scan columns: grid, laplace or nested (auto runs laplace "
+        "and falls back to nested).",
+    ),
+    Column(
+        "scan_median_days",
+        "days",
+        "",
+        "Sampled: median of the posterior of time over the initial-condition parameters.",
     ),
     Column(
         "scan_low_days",
         "days",
         "",
-        "Low end of the 1-sigma range including the initial-condition uncertainty (profile "
-        "likelihood; use this one).",
+        "Low end of the 1-sigma range including the initial-condition uncertainty (grid: "
+        "profile likelihood; sampled: central 68% of the posterior of time).",
     ),
     Column("scan_high_days", "days", "", "High end of that range."),
     Column(
@@ -295,6 +325,34 @@ SUMMARY_COLUMNS = (
         "values stay in the parameter columns.",
     ),
     Column("scan_candidates", "", "", "Initial conditions fitted (one model run each)."),
+    Column(
+        "scan_ic_share",
+        "",
+        "",
+        "Sampled: fraction of the variance of time that comes from the choice of initial "
+        "condition (the rest is the fit at a fixed initial condition).",
+    ),
+    Column(
+        "scan_sensitivity",
+        "",
+        "",
+        "Sampled: change of the expected time per unit of each parameter (days per um for "
+        "steps, days per unit Fo fraction), from the posterior samples.",
+    ),
+    Column(
+        "scan_ess",
+        "",
+        "",
+        "Sampled: effective sample size of the importance samples (out of 1024); below "
+        "256, auto uses nested sampling.",
+    ),
+    Column(
+        "scan_log_evidence",
+        "",
+        "",
+        "Sampled: log evidence; compare initial-condition models (one step or two) fitted "
+        "to the same profile with the same grid.",
+    ),
     Column(
         "scan_dropped",
         "",
@@ -387,17 +445,20 @@ def column_guide() -> str:
             "J. Petrology 67(9), egag077. Replace it with your own rows.",
             "**Uncertain initial conditions.** Give an uncertainty on any step position or "
             "concentration (`_sd` for a Gaussian 1 sigma, or `_range` for a uniform ± "
-            "half-width; not both for one parameter) and `forster fit` also fits a grid of "
-            "initial conditions around the nominal one: Gaussian parameters over ±2.5 "
-            "sigma, uniform ones over the whole range. It reports the range of time "
-            "including that uncertainty (`scan_*` columns in summary.csv) and writes "
-            "`<run>_scan.csv`, one row per candidate. Edge and core Fo are the boundary "
+            "half-width; not both for one parameter; Gaussian priors are cut at ±2.5 "
+            "sigma) and `forster fit` also fits those parameters: it finds the best-fit "
+            "initial condition, then the posterior of time over them, by importance "
+            "sampling from a Laplace approximation or, when that has too few effective "
+            "samples, nested sampling (`scan_method` auto, the default; "
+            "`forster.sampling`). It reports the range of time including that "
+            "uncertainty, the best values, and how much of the range comes from the "
+            "initial condition (`scan_*` columns in summary.csv), and writes "
+            "`<run>_scan.csv` with the posterior of time. Edge and core Fo are the boundary "
             "values held during diffusion, so their uncertainty also covers the boundary "
-            "conditions. The grid has `scan_points` values per parameter; the number of "
-            "model runs is their product, printed before the scan, and grids over 2000 "
-            "candidates are refused (`--max-candidates`). The scan's runs share one grid "
-            "with a larger time step (D dt / dx² = 0.4), which changed fitted times by "
-            "under 0.2% in tests.",
+            "conditions. `scan_method` grid fits every node of a grid instead "
+            "(`scan_points` values per parameter, one row per candidate in "
+            "`<run>_scan.csv`; grids over 2000 candidates are refused, "
+            "`--max-candidates`); it needs about 15 points per parameter to converge.",
             "**Grids.** dx_um and dt_s may be left empty: `forster fit` then makes a quick "
             "fit on a coarse grid, takes the diffusion length l = sqrt(D t) at its time, "
             "and, for the implicit scheme (the default), sets dx = l / 8 for the final fit "

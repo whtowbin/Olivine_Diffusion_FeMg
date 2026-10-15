@@ -72,6 +72,8 @@ from forster.model import (
     default_scheme,
     fit_profile,
 )
+from forster.sampling import METHODS as SAMPLING_METHODS
+from forster.sampling import ICPosterior, fit_initial_condition
 from forster.scan import (
     MAX_CANDIDATES,
     ScanResult,
@@ -167,6 +169,10 @@ class Run:
     scan_points: int | None = None
     # The scan's grid: parts left as None are chosen by `forster.grid.choose_grid`.
     scan_grid: GridRequest = field(default_factory=GridRequest)
+    # How the uncertain parameters are fitted: "auto", "laplace" or "nested"
+    # (`forster.sampling`), or "grid" (`forster.scan`); and the sampler's seed.
+    scan_method: str = "auto"
+    scan_seed: int = 0
 
 
 def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
@@ -320,6 +326,23 @@ def _scheme(row: pd.Series, defaults: RunDefaults) -> str:
     if value not in SCHEMES:
         raise ValueError(
             f"scheme {value!r} in the parameter table; use one of {', '.join(SCHEMES)}"
+        )
+    return value
+
+
+SCAN_METHODS = (*SAMPLING_METHODS, "grid")
+
+
+def _scan_method(row: pd.Series) -> str:
+    """Optional ``scan_method``; blank means "grid" when ``scan_points`` is given (as in
+    tables written before the samplers), "auto" otherwise."""
+    value = row.get("scan_method")
+    if value is None or pd.isna(value):
+        return "grid" if _given(row, "scan_points") else "auto"
+    value = str(value).strip().lower()
+    if value not in SCAN_METHODS:
+        raise ValueError(
+            f"scan_method {value!r} in the parameter table; use one of {', '.join(SCAN_METHODS)}"
         )
     return value
 
@@ -501,6 +524,8 @@ def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Di
             dt_s=_optional_float(row, "scan_dt_s"),
             max_time_days=_optional_float(row, "scan_max_time_days"),
         ),
+        scan_method=_scan_method(row),
+        scan_seed=int(row["scan_seed"]) if _given(row, "scan_seed") else 0,
     )
 
 
@@ -749,6 +774,9 @@ def uncertainty_columns(run: Run) -> dict[str, Any]:
             out[sd_col if u.kind == "normal" else range_col] = u.spread
     if run.scan_points is not None:
         out["scan_points"] = run.scan_points
+    if run.uncertainties:
+        out["scan_method"] = run.scan_method
+        out["scan_seed"] = run.scan_seed
     return out
 
 
@@ -759,19 +787,24 @@ def scan_run(
     time_days: float | None = None,
     max_candidates: int = MAX_CANDIDATES,
     progress: Callable[[int, int], None] | None = None,
-) -> ScanResult:
-    """Fit a run over its uncertain initial-condition parameters (`forster.scan`).
+) -> ScanResult | ICPosterior:
+    """Fit a run over its uncertain initial-condition parameters.
 
-    The scan's grid is ``run.scan_grid`` with blank parts chosen for a 5% scan
+    ``run.scan_method`` "grid" fits every node of a grid (`forster.scan`; ``progress(i,
+    n)`` after each run); "auto", "laplace" or "nested" find the best fit and sample the
+    posterior (`forster.sampling.fit_initial_condition`, seeded by ``run.scan_seed``).
+    Either runs on ``run.scan_grid`` with blank parts chosen for a 5% scan
     (`choose_grid`, purpose "scan"), using ``time_days`` (the nominal fit's time, if
     known) to size it; otherwise a coarse fit estimates the time.
     """
     if not run.uncertainties:
         raise ValueError(f"run {run.name!r} has no initial-condition uncertainties to scan")
     profile = _profile(run, profiles)
-    candidates = candidate_grid(
-        run.initial, run.uncertainties, run.scan_points, max_candidates=max_candidates
-    )
+    candidates = None
+    if run.scan_method == "grid":  # built first: a grid too large fails before any run
+        candidates = candidate_grid(
+            run.initial, run.uncertainties, run.scan_points, max_candidates=max_candidates
+        )
     request = run.scan_grid
     if not request.is_complete():
         max_time = run.grid.max_time_days if isinstance(run.grid, Grid) else None
@@ -786,6 +819,19 @@ def scan_run(
         time_days=time_days,
         scheme=run.scheme,
     ).grid
+    if candidates is None:
+        return fit_initial_condition(
+            profile,
+            run.conditions,
+            run.orientation,
+            run.initial,
+            run.uncertainties,
+            grid,
+            run.diffusivity,
+            run.scheme,
+            method=run.scan_method,
+            seed=run.scan_seed,
+        )
     return scan_initial_conditions(
         profile,
         run.conditions,
@@ -794,16 +840,18 @@ def scan_run(
         grid,
         run.diffusivity,
         run.scheme,
-        # A scan dt the user gave is kept (checked for stability over every candidate);
-        # otherwise dt is set at the stability ratio for every candidate's compositions.
+        # A scan dt the user gave is kept (an explicit run substeps within it if it is
+        # above the stable step); otherwise dt is raised to the stability ratio for
+        # every candidate's compositions.
         stability=None if run.scan_grid.dt_s is not None else STABILITY_RATIO,
         progress=progress,
     )
 
 
 def scan_size(run: Run, *, max_candidates: int = MAX_CANDIDATES) -> int:
-    """Number of candidates (model runs) `scan_run` would make for ``run``."""
-    if not run.uncertainties:
+    """Number of candidates (model runs) a grid scan of ``run`` would make; 0 for a run
+    without uncertainties or fitted by sampling (`forster.sampling`)."""
+    if not run.uncertainties or run.scan_method != "grid":
         return 0
     return len(
         candidate_grid(
@@ -812,10 +860,37 @@ def scan_size(run: Run, *, max_candidates: int = MAX_CANDIDATES) -> int:
     )
 
 
-def scan_summary(scan: ScanResult) -> dict[str, Any]:
+def _posterior_summary(post: ICPosterior) -> dict[str, Any]:
+    return {
+        "scan_sampler": post.method,
+        "scan_best_days": post.best_days,
+        "scan_median_days": post.median_days,
+        "scan_low_days": post.low_days,
+        "scan_high_days": post.high_days,
+        "scan_marginal_low_days": post.low_days,
+        "scan_marginal_high_days": post.high_days,
+        "scan_best": "; ".join(f"{k}={v:.6g}" for k, v in post.best_values.items()),
+        "scan_candidates": post.runs,
+        "scan_dropped": 0,
+        "scan_ic_share": post.ic_share,
+        "scan_sensitivity": "; ".join(
+            f"{k}={v:.4g}" for k, v in post.sensitivity.items() if math.isfinite(v)
+        ),
+        "scan_ess": post.ess,
+        "scan_log_evidence": post.log_evidence,
+        "scan_dx_um": post.grid.dx_um,
+        "scan_dt_s": post.grid.dt_s,
+        "scan_max_time_days": post.grid.max_time_days,
+    }
+
+
+def scan_summary(scan: ScanResult | ICPosterior) -> dict[str, Any]:
     """The scan's results as summary.csv columns (see SUMMARY_COLUMNS in forster.template)."""
+    if isinstance(scan, ICPosterior):
+        return _posterior_summary(scan)
     best = scan.best_values
     return {
+        "scan_sampler": "grid",
         "scan_best_days": scan.time_days,
         "scan_low_days": scan.profile_days[0],
         "scan_high_days": scan.profile_days[1],
@@ -831,8 +906,19 @@ def scan_summary(scan: ScanResult) -> dict[str, Any]:
     }
 
 
-def scan_table(scan: ScanResult) -> pd.DataFrame:
-    """One row per candidate: its parameter values, best time, chi-squared and probability."""
+def scan_table(scan: ScanResult | ICPosterior) -> pd.DataFrame:
+    """Grid: one row per candidate (its parameter values, best time, chi-squared and
+    probability). Sampled: the marginal posterior of time (days, density per day and
+    cumulative probability)."""
+    if isinstance(scan, ICPosterior):
+        step = scan.days[1] - scan.days[0] if len(scan.days) > 1 else 1.0
+        return pd.DataFrame(
+            {
+                "days": scan.days,
+                "density_per_day": scan.density,
+                "cumulative": np.cumsum(scan.density) * step,
+            }
+        )
     rows = []
     for i, chi2 in enumerate(scan.chi2):
         k = int(np.argmin(chi2))

@@ -38,6 +38,7 @@ from forster.model import (
     fit_profile,
 )
 from forster.plotting import plot_fit
+from forster.sampling import ICPosterior, fit_initial_condition
 from forster.scan import Uncertainty, candidate_grid
 from forster.template import write_template
 from forster.uncertainty import NoiseModel
@@ -55,6 +56,7 @@ __all__ = [
     "FitResult",
     "Grid",
     "GridRequest",
+    "ICPosterior",
     "InitialCondition",
     "JointFit",
     "KrigingSettings",
@@ -73,6 +75,7 @@ __all__ = [
     "dipra",
     "elements",
     "fit_element",
+    "fit_initial_condition",
     "fit_joint",
     "fit_profile",
     "fit_run",

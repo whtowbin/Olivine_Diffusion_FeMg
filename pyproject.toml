@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Henry Towbin" }]
 dependencies = [
+    "dynesty>=3.1.0",
     "matplotlib>=3.10.6",
     "numpy>=2.3.3",
     "openpyxl>=3.1.5",

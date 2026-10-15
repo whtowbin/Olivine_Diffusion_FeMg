@@ -66,10 +66,12 @@ For each run, `forster fit` writes into the output folder:
 - `diffusivities.csv`: the diffusivity equations the runs used.
 
 **Uncertain initial conditions.** Add an uncertainty to any step position or
-concentration in `parameters.csv` and `forster fit` also fits a grid of initial
-conditions around the nominal one, and reports the range of time including that
-uncertainty. For example, a step known to ±2 µm (1σ) and an edge Fo between 0.817 and
-0.823:
+concentration in `parameters.csv` and `forster fit` also fits those parameters: it finds
+the best-fit initial condition and the posterior of time over the uncertain values
+(importance sampling from a Laplace approximation, or nested sampling where that is
+not enough; about 1,000 model runs and under a second for most profiles, up to about
+15,000 runs for wide uniform priors). For example, a step known to ±2 µm (1σ) and an
+edge Fo between 0.817 and 0.823:
 
 ```
 steps_um,edge_fo,steps_sd_um,edge_fo_range
@@ -77,10 +79,13 @@ steps_um,edge_fo,steps_sd_um,edge_fo_range
 ```
 
 The summary then has `scan_low_days` and `scan_high_days` (the range including the
-initial condition), `scan_best` (the best step and edge), and `<run>_scan.csv` lists
-every candidate with its probability. `_sd` columns are Gaussian 1σ, `_range`
-columns are uniform ± half-widths. The number of model runs (the product of
-`scan_points` over the uncertain parameters) is printed before the scan.
+initial condition), `scan_best` (the best step and edge), `scan_ic_share` (how much of
+the variance of time comes from the initial condition) and `scan_sensitivity` (days per
+µm of step, per unit Fo), and `<run>_scan.csv` holds the posterior of time. `_sd`
+columns are Gaussian 1σ, `_range` columns are uniform ± half-widths. `scan_seed` fixes
+the sampler, so a summary refits to the same numbers. `scan_method = grid` (or giving
+`scan_points`) fits every node of a grid as before instead; it needs about 15 points
+per parameter to converge (`analyses/ic_sampling/`).
 
 `summary.csv` uses the parameter-table column names, so it can be passed back to
 `forster fit` as a parameter table to rerun the same fits (with `--diffusivities`
@@ -228,7 +233,9 @@ One row per model run. Fo is a fraction throughout.
 | `core_fo_range` | fraction | optional | ± half-width on core_fo (uniform). |
 | `step_fo_sd` | fraction | optional | 1-sigma uncertainty on step_fo (Gaussian). |
 | `step_fo_range` | fraction | optional | ± half-width on step_fo (uniform). |
-| `scan_points` |  | optional | Grid points per uncertain parameter (default 13 for one, 9 for two, 5 for more). |
+| `scan_method` |  | optional | How the uncertain initial-condition parameters are fitted: auto (default: best fit, then importance sampling from a Laplace proposal, or nested sampling when that has too few effective samples), laplace, nested, or grid (every node of a grid, as before 2026-10-15). Blank with scan_points given means grid. |
+| `scan_seed` |  | optional | Seed of the sampler (default 0); the same seed gives the same result. |
+| `scan_points` |  | optional | scan_method grid: points per uncertain parameter (default 13 for one, 9 for two, 5 for more). |
 | `scan_dx_um` | µm | optional | Grid spacing of the initial-condition scan's runs. Empty: chosen for about 5% accuracy (coarser and faster than the final fit). |
 | `scan_dt_s` | s | optional | Time step of the scan's runs. Empty: 1/80 of the nominal fit's time, and for central or dipra at least D dt / dx² = 0.4 for every candidate. |
 | `scan_max_time_days` | days | optional | Longest time the scan's runs model. Empty: max_time_days if given, else 3x the fitted time. |
@@ -288,13 +295,19 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `correlation_length_um` | µm | Length scale of that misfit; near half the profile length, the misfit is profile-wide. |
 | `warnings` |  | Warnings from the fit, such as a range that reaches the last time step. |
 | `forster_version` |  | FORSTER version that made the fit. |
-| `scan_best_days` | days | With uncertainties: best-fit time over all scanned initial conditions. |
-| `scan_low_days` | days | Low end of the 1-sigma range including the initial-condition uncertainty (profile likelihood; use this one). |
+| `scan_best_days` | days | With uncertainties: best-fit time over all scanned initial conditions (sampled: the time of the best-fit initial condition). |
+| `scan_sampler` |  | Method that produced the scan columns: grid, laplace or nested (auto runs laplace and falls back to nested). |
+| `scan_median_days` | days | Sampled: median of the posterior of time over the initial-condition parameters. |
+| `scan_low_days` | days | Low end of the 1-sigma range including the initial-condition uncertainty (grid: profile likelihood; sampled: central 68% of the posterior of time). |
 | `scan_high_days` | days | High end of that range. |
 | `scan_marginal_low_days` | days | Low end of the Bayesian (marginal) range; with Gaussian uncertainties it is pulled toward the nominal initial condition. |
 | `scan_marginal_high_days` | days | High end of the Bayesian range. |
 | `scan_best` |  | Best values of the scanned parameters (step1_um, edge_fo, ...); the nominal values stay in the parameter columns. |
 | `scan_candidates` |  | Initial conditions fitted (one model run each). |
+| `scan_ic_share` |  | Sampled: fraction of the variance of time that comes from the choice of initial condition (the rest is the fit at a fixed initial condition). |
+| `scan_sensitivity` |  | Sampled: change of the expected time per unit of each parameter (days per um for steps, days per unit Fo fraction), from the posterior samples. |
+| `scan_ess` |  | Sampled: effective sample size of the importance samples (out of 1024); below 256, auto uses nested sampling. |
+| `scan_log_evidence` |  | Sampled: log evidence; compare initial-condition models (one step or two) fitted to the same profile with the same grid. |
 | `scan_dropped` |  | Grid points left out as invalid (steps out of order or domain, Fo outside 0-1). |
 | `grid_resolution` |  | Diffusion length sqrt(D t) at the fit over the grid spacing: for 1% accuracy in the fitted time about 5 (implicit) or 240 (central, dipra). |
 | `grid_error_pct` | % | Estimated worst-case error of the fitted time from the grid spacing (implicit: 0.2 x (dx / l)²; central, dipra: 2.4 x dx / l; l the diffusion length; measured on 35 real profiles). |

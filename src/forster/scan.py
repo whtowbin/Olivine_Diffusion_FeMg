@@ -123,6 +123,17 @@ def _nominal(initial: InitialCondition, name: str) -> float:
     return float(value)
 
 
+def is_valid(candidate: InitialCondition, domain_um: tuple[float, float]) -> bool:
+    """Steps inside ``domain_um`` and in order, every Fo in (0, 1]."""
+    lo, hi = domain_um
+    steps = candidate.steps_um
+    return (
+        all(lo <= s <= hi for s in steps)
+        and all(b > a for a, b in itertools.pairwise(steps))
+        and all(0 < f <= 1 for f in candidate.fo_values)
+    )
+
+
 def _with_values(initial: InitialCondition, values: Mapping[str, float]) -> InitialCondition:
     steps = list(initial.steps_um)
     fields = {}
@@ -191,17 +202,10 @@ def candidate_grid(
         nodes[name] = np.linspace(v0 - half, v0 + half, points)
     candidates, values, log_prior, penalty = [], [], [], []
     dropped = 0
-    lo, hi = initial.domain_um
     for combo in itertools.product(*(nodes[n] for n in names)):
         vals = dict(zip(names, (float(v) for v in combo), strict=True))
         cand = _with_values(initial, vals)
-        steps = cand.steps_um
-        fos = cand.fo_values
-        if (
-            not all(lo <= s <= hi for s in steps)
-            or any(b <= a for a, b in itertools.pairwise(steps))
-            or not all(0 < f <= 1 for f in fos)
-        ):
+        if not is_valid(cand, initial.domain_um):
             dropped += 1
             continue
         pen = 0.0
