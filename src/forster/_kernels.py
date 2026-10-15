@@ -4,6 +4,10 @@ Numba is installed). D(X) = a * 10**(k * (ref - X)), the form of every built-in 
 Each matches its NumPy original to rounding (1e-16 explicit, 1e-14 implicit):
 ``engine.timestepper`` ("central"), ``dipra.timestepper`` ("dipra") and
 ``implicit.tr_bdf2_step`` (TR-BDF2 with the ends held on the end nodes).
+
+Every kernel releases the GIL (``nogil=True``): a fit in a worker thread then leaves the
+other threads (a GUI's event loop, other fits) free to run. The outputs are bit for bit
+those of the GIL-holding kernels (docs/plans/2026-10-15-python-versions.md).
 """
 
 import math
@@ -14,12 +18,12 @@ from numba import njit
 from forster.implicit import GAMMA
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _d(a, k, ref, x):
     return a * 10.0 ** (k * (ref - x))
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def central_steps(c0, a, k, ref, lo, hi, dt, dx, n, every=1):
     """`engine.timestepper`: lo and hi held one node outside, central cross term.
     ``every`` steps of ``dt`` per row returned (n + 1 rows)."""
@@ -46,7 +50,7 @@ def central_steps(c0, a, k, ref, lo, hi, dt, dx, n, every=1):
     return out
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def dipra_steps(c0, a, k, ref, lo, hi, dt, dx, n, every=1):
     """`dipra.timestepper`: forward cross term, dD/dX = -k ln(10) D. ``every`` steps of
     ``dt`` per row returned (n + 1 rows)."""
@@ -71,7 +75,7 @@ def dipra_steps(c0, a, k, ref, lo, hi, dt, dx, n, every=1):
     return out
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _stage(c, a, k, ref, dt, h, w, weight, rhs, end0, end1, explicit_part, d, cond, cp, dp, y):
     """y solving (I - weight dt A(c)) y = rhs + explicit_part dt A(c) c with the end
     values held (Thomas algorithm); d, cond, cp, dp: workspace."""
@@ -97,7 +101,7 @@ def _stage(c, a, k, ref, dt, h, w, weight, rhs, end0, end1, explicit_part, d, co
         y[i] = dp[i] - cp[i] * y[i + 1]
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def tr_bdf2_steps(c0, a, k, ref, rim_mid, rim_end, core, dt, h, w, n):
     """n TR-BDF2 steps; rim_mid[j] and rim_end[j] are the rim at t_j + gamma dt and t_j + dt."""
     m = c0.size

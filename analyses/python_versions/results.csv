@@ -1,0 +1,585 @@
+round,target,python,metric,backend,threads,value,unit,detail
+1,3.13,3.13.11,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""2.5.4""}"
+1,3.13,3.13.11,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+1,3.13,3.13.11,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.0.6""}"
+1,3.13,3.13.11,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.11.2""}"
+1,3.13,3.13.11,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.1.5""}"
+1,3.13,3.13.11,install,pykrige,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.7.3""}"
+1,3.13,3.13.11,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""0.68.0""}"
+1,3.13,3.13.11,install,forster,,editable,,
+1,3.13,3.13.11,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.029074750025756657, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,numpy.random,,1,,"{""gil"": 1, ""import_s"": 0.037232124945148826, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,scipy.linalg,,1,,"{""gil"": 1, ""import_s"": 0.0979315839940682, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,pandas,,1,,"{""gil"": 1, ""import_s"": 0.14282766706310213, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,matplotlib.pyplot,,1,,"{""gil"": 1, ""import_s"": 0.18029429204761982, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07610695902258158, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,pykrige,,1,,"{""gil"": 1, ""import_s"": 0.19054066704120487, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,numba,,1,,"{""gil"": 1, ""import_s"": 0.10593470791354775, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,forster,,1,,"{""gil"": 1, ""import_s"": 0.6338124159956351, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,gil_after_import,forster._kernels,,1,,"{""gil"": 1, ""import_s"": 0.5890997920650989, ""ok"": true, ""warning"": []}"
+1,3.13,3.13.11,free_threaded_build,,,0,,
+1,3.13,3.13.11,jit_available,,,0,,
+1,3.13,3.13.11,jit_enabled,,,0,,
+1,3.13,3.13.11,cpu_count,,,12,,
+1,3.13,3.13.11,loadavg_1min_start,,,7.9248046875,,
+1,3.13,3.13.11,numba_kernels,,,1,,
+1,3.13,3.13.11,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+1,3.13,3.13.11,gil_enabled_during_measure,,,1,,
+1,3.13,3.13.11,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+1,3.13,3.13.11,heartbeat_idle,,,1.2919160071760416,ms max,"{""beats"": 328, ""iterations"": 165, ""max_ms"": 1.2919160071760416, ""p50_ms"": 1.260375021956861, ""p99_ms"": 1.2757909717038274}"
+1,3.13,3.13.11,fit_first_call,numba-nogil,,0.09450854198075831,s,
+1,3.13,3.13.11,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.13,3.13.11,fit_first_call,numba-gil,,1.0044322910252959,s,
+1,3.13,3.13.11,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.13,3.13.11,fit_first_call,numpy,,0.10711720900144428,s,
+1,3.13,3.13.11,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.13,3.13.11,batch64_identical,numba-nogil,4,1,,
+1,3.13,3.13.11,batch64_identical,numba-nogil,8,1,,
+1,3.13,3.13.11,batch64_identical,numba-gil,4,1,,
+1,3.13,3.13.11,batch64_identical,numba-gil,8,1,,
+1,3.13,3.13.11,batch64_identical,numpy,4,1,,
+1,3.13,3.13.11,batch64_identical,numpy,8,1,,
+1,3.13,3.13.11,fit,numba-nogil,,0.014293125015683472,s,"{""calls_per_timing"": 1, ""max"": 0.016161833074875176, ""min"": 0.014008959056809545, ""repeats"": 7}"
+1,3.13,3.13.11,scan125,numba-nogil,,0.03737558296415955,s,"{""calls_per_timing"": 1, ""max"": 0.04017129202838987, ""min"": 0.03707987500820309, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numba-nogil,1,0.016284041669374954,s,"{""calls_per_timing"": 12, ""max"": 0.01679143058330131, ""min"": 0.01620273258110198, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numba-nogil,4,0.009850496581445137,s,"{""calls_per_timing"": 12, ""max"": 0.011062888913632682, ""min"": 0.009064867995524159, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numba-nogil,8,0.011091211742799109,s,"{""calls_per_timing"": 12, ""max"": 0.012794156248370806, ""min"": 0.010693933999088282, ""repeats"": 7}"
+1,3.13,3.13.11,fit,numba-gil,,0.014381499961018562,s,"{""calls_per_timing"": 1, ""max"": 0.016491832910105586, ""min"": 0.014109208015725017, ""repeats"": 7}"
+1,3.13,3.13.11,scan125,numba-gil,,0.03768445900641382,s,"{""calls_per_timing"": 1, ""max"": 0.048335624975152314, ""min"": 0.037226042011752725, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numba-gil,1,0.016811968749001,s,"{""calls_per_timing"": 12, ""max"": 0.018884131995340187, ""min"": 0.01667321874992922, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numba-gil,4,0.019448263910211,s,"{""calls_per_timing"": 12, ""max"": 0.02049674649606459, ""min"": 0.01914496875057618, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numba-gil,8,0.019893503495647263,s,"{""calls_per_timing"": 12, ""max"": 0.022263263914889347, ""min"": 0.01951809725142084, ""repeats"": 7}"
+1,3.13,3.13.11,fit,numpy,,0.10639920807443559,s,"{""calls_per_timing"": 1, ""max"": 0.10726916696876287, ""min"": 0.10487783292774111, ""repeats"": 7}"
+1,3.13,3.13.11,scan125,numpy,,0.7572747080121189,s,"{""calls_per_timing"": 1, ""max"": 0.7747736669844016, ""min"": 0.7561981250764802, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numpy,1,0.38098975003231317,s,"{""calls_per_timing"": 1, ""max"": 0.42189200001303107, ""min"": 0.3778624580008909, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numpy,4,0.3821200840175152,s,"{""calls_per_timing"": 1, ""max"": 0.39547158300410956, ""min"": 0.3802537500159815, ""repeats"": 7}"
+1,3.13,3.13.11,batch64,numpy,8,0.38421229098457843,s,"{""calls_per_timing"": 1, ""max"": 0.3910382919711992, ""min"": 0.3829886659514159, ""repeats"": 7}"
+1,3.13,3.13.11,heartbeat_fit,numba-nogil,,14.829708030447364,ms max,"{""beats"": 324, ""iterations"": 141, ""max_ms"": 14.829708030447364, ""p50_ms"": 1.2636249884963036, ""p99_ms"": 1.764915999956429}"
+1,3.13,3.13.11,heartbeat_batch,numba-nogil,,1.4149160124361515,ms max,"{""beats"": 330, ""iterations"": 123, ""max_ms"": 1.4149160124361515, ""p50_ms"": 1.260707969777286, ""p99_ms"": 1.3878749450668693}"
+1,3.13,3.13.11,heartbeat_kernel,numba-nogil,,1.2911249650642276,ms max,"{""beats"": 354, ""iterations"": 10, ""max_ms"": 1.2911249650642276, ""p50_ms"": 1.2614999432116747, ""p99_ms"": 1.2787500163540244}"
+1,3.13,3.13.11,heartbeat_fit,numba-gil,,23.877416970208287,ms max,"{""beats"": 317, ""iterations"": 141, ""max_ms"": 23.877416970208287, ""p50_ms"": 1.2728330912068486, ""p99_ms"": 2.257124986499548}"
+1,3.13,3.13.11,heartbeat_batch,numba-gil,,1.7705840291455388,ms max,"{""beats"": 324, ""iterations"": 120, ""max_ms"": 1.7705840291455388, ""p50_ms"": 1.3183749979361892, ""p99_ms"": 1.6858329763635993}"
+1,3.13,3.13.11,heartbeat_kernel,numba-gil,,241.96495790965855,ms max,"{""beats"": 11, ""iterations"": 10, ""max_ms"": 241.96495790965855, ""p50_ms"": 213.04195804987103, ""p99_ms"": 241.96495790965855}"
+1,3.13,3.13.11,heartbeat_fit,numpy,,7.563250022940338,ms max,"{""beats"": 249, ""iterations"": 19, ""max_ms"": 7.563250022940338, ""p50_ms"": 1.8934588879346848, ""p99_ms"": 7.539582904428244}"
+1,3.13,3.13.11,heartbeat_batch,numpy,,12.965957983396947,ms max,"{""beats"": 215, ""iterations"": 6, ""max_ms"": 12.965957983396947, ""p50_ms"": 6.773625034838915, ""p99_ms"": 12.838374939747155}"
+1,3.13,3.13.11,loadavg_1min_end,,,7.177734375,,
+1,3.14,3.14.6,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""2.5.4""}"
+1,3.14,3.14.6,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+1,3.14,3.14.6,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.0.6""}"
+1,3.14,3.14.6,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.11.2""}"
+1,3.14,3.14.6,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.1.5""}"
+1,3.14,3.14.6,install,pykrige,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.7.3""}"
+1,3.14,3.14.6,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""0.68.0""}"
+1,3.14,3.14.6,install,forster,,editable,,
+1,3.14,3.14.6,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.030200208071619272, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,numpy.random,,1,,"{""gil"": 1, ""import_s"": 0.03413045790512115, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,scipy.linalg,,1,,"{""gil"": 1, ""import_s"": 0.09815604204777628, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,pandas,,1,,"{""gil"": 1, ""import_s"": 0.14877575007267296, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,matplotlib.pyplot,,1,,"{""gil"": 1, ""import_s"": 0.18195104191545397, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07395066693425179, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,pykrige,,1,,"{""gil"": 1, ""import_s"": 0.1831337499897927, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,numba,,1,,"{""gil"": 1, ""import_s"": 0.1083835419267416, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,forster,,1,,"{""gil"": 1, ""import_s"": 0.5604209579760209, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,gil_after_import,forster._kernels,,1,,"{""gil"": 1, ""import_s"": 0.5656901249894872, ""ok"": true, ""warning"": []}"
+1,3.14,3.14.6,free_threaded_build,,,0,,
+1,3.14,3.14.6,jit_available,,,1,,
+1,3.14,3.14.6,jit_enabled,,,0,,
+1,3.14,3.14.6,cpu_count,,,12,,
+1,3.14,3.14.6,loadavg_1min_start,,,7.0029296875,,
+1,3.14,3.14.6,numba_kernels,,,1,,
+1,3.14,3.14.6,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+1,3.14,3.14.6,gil_enabled_during_measure,,,1,,
+1,3.14,3.14.6,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+1,3.14,3.14.6,heartbeat_idle,,,10.363916982896626,ms max,"{""beats"": 323, ""iterations"": 165, ""max_ms"": 10.363916982896626, ""p50_ms"": 1.2607090175151825, ""p99_ms"": 3.958499990403652}"
+1,3.14,3.14.6,fit_first_call,numba-nogil,,0.0981396670686081,s,
+1,3.14,3.14.6,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14,3.14.6,fit_first_call,numba-gil,,0.975023458013311,s,
+1,3.14,3.14.6,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14,3.14.6,fit_first_call,numpy,,0.10191262501757592,s,
+1,3.14,3.14.6,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14,3.14.6,batch64_identical,numba-nogil,4,1,,
+1,3.14,3.14.6,batch64_identical,numba-nogil,8,1,,
+1,3.14,3.14.6,batch64_identical,numba-gil,4,1,,
+1,3.14,3.14.6,batch64_identical,numba-gil,8,1,,
+1,3.14,3.14.6,batch64_identical,numpy,4,1,,
+1,3.14,3.14.6,batch64_identical,numpy,8,1,,
+1,3.14,3.14.6,fit,numba-nogil,,0.014767624903470278,s,"{""calls_per_timing"": 1, ""max"": 0.015117291011847556, ""min"": 0.014354749931953847, ""repeats"": 7}"
+1,3.14,3.14.6,scan125,numba-nogil,,0.039827208034694195,s,"{""calls_per_timing"": 1, ""max"": 0.058683292008936405, ""min"": 0.03901733399834484, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numba-nogil,1,0.017607723553241653,s,"{""calls_per_timing"": 11, ""max"": 0.019445276544006032, ""min"": 0.017384996182623912, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numba-nogil,4,0.009723674188452687,s,"{""calls_per_timing"": 11, ""max"": 0.01026148100341247, ""min"": 0.009078973459757188, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numba-nogil,8,0.010937090910209174,s,"{""calls_per_timing"": 11, ""max"": 0.011481848450123587, ""min"": 0.010588257637044246, ""repeats"": 7}"
+1,3.14,3.14.6,fit,numba-gil,,0.014166207984089851,s,"{""calls_per_timing"": 1, ""max"": 0.01613191608339548, ""min"": 0.013961625052616, ""repeats"": 7}"
+1,3.14,3.14.6,scan125,numba-gil,,0.037186000030487776,s,"{""calls_per_timing"": 1, ""max"": 0.03740287502296269, ""min"": 0.036850083037279546, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numba-gil,1,0.016731983928296428,s,"{""calls_per_timing"": 13, ""max"": 0.018101217995326106, ""min"": 0.01641913462215318, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numba-gil,4,0.019568804463443275,s,"{""calls_per_timing"": 13, ""max"": 0.020776560852447383, ""min"": 0.01900332376289253, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numba-gil,8,0.020127910234105702,s,"{""calls_per_timing"": 13, ""max"": 0.021118580157725282, ""min"": 0.01986095508059057, ""repeats"": 7}"
+1,3.14,3.14.6,fit,numpy,,0.10175129096023738,s,"{""calls_per_timing"": 1, ""max"": 0.10410075006075203, ""min"": 0.10109166603069752, ""repeats"": 7}"
+1,3.14,3.14.6,scan125,numpy,,0.7246710830368102,s,"{""calls_per_timing"": 1, ""max"": 0.7335409160004929, ""min"": 0.7207250419305637, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numpy,1,0.36583595792762935,s,"{""calls_per_timing"": 1, ""max"": 0.3708007090026513, ""min"": 0.36407870799303055, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numpy,4,0.36934112501330674,s,"{""calls_per_timing"": 1, ""max"": 0.37723608303349465, ""min"": 0.36783087509684265, ""repeats"": 7}"
+1,3.14,3.14.6,batch64,numpy,8,0.3703828339930624,s,"{""calls_per_timing"": 1, ""max"": 0.38751250004861504, ""min"": 0.36760112503543496, ""repeats"": 7}"
+1,3.14,3.14.6,heartbeat_fit,numba-nogil,,1.7255829880014062,ms max,"{""beats"": 327, ""iterations"": 140, ""max_ms"": 1.7255829880014062, ""p50_ms"": 1.2634159065783024, ""p99_ms"": 1.6475829761475325}"
+1,3.14,3.14.6,heartbeat_batch,numba-nogil,,11.481499997898936,ms max,"{""beats"": 325, ""iterations"": 111, ""max_ms"": 11.481499997898936, ""p50_ms"": 1.2602090137079358, ""p99_ms"": 5.938542075455189}"
+1,3.14,3.14.6,heartbeat_kernel,numba-nogil,,1.2786249862983823,ms max,"{""beats"": 354, ""iterations"": 10, ""max_ms"": 1.2786249862983823, ""p50_ms"": 1.2619169428944588, ""p99_ms"": 1.2741669779643416}"
+1,3.14,3.14.6,heartbeat_fit,numba-gil,,2.272250014357269,ms max,"{""beats"": 319, ""iterations"": 144, ""max_ms"": 2.272250014357269, ""p50_ms"": 1.311875064857304, ""p99_ms"": 2.111207926645875}"
+1,3.14,3.14.6,heartbeat_batch,numba-gil,,1.6297079855576158,ms max,"{""beats"": 322, ""iterations"": 120, ""max_ms"": 1.6297079855576158, ""p50_ms"": 1.3230839977040887, ""p99_ms"": 1.589708961546421}"
+1,3.14,3.14.6,heartbeat_kernel,numba-gil,,230.96566600725055,ms max,"{""beats"": 10, ""iterations"": 9, ""max_ms"": 230.96566600725055, ""p50_ms"": 215.63274995423853, ""p99_ms"": 230.96566600725055}"
+1,3.14,3.14.6,heartbeat_fit,numpy,,8.277249988168478,ms max,"{""beats"": 260, ""iterations"": 20, ""max_ms"": 8.277249988168478, ""p50_ms"": 1.6007079975679517, ""p99_ms"": 7.541042054072022}"
+1,3.14,3.14.6,heartbeat_batch,numpy,,12.794208014383912,ms max,"{""beats"": 196, ""iterations"": 6, ""max_ms"": 12.794208014383912, ""p50_ms"": 6.502542062662542, ""p99_ms"": 12.562749907374382}"
+1,3.14,3.14.6,loadavg_1min_end,,,6.56396484375,,
+1,3.14+jit,3.14.6,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""2.5.4""}"
+1,3.14+jit,3.14.6,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+1,3.14+jit,3.14.6,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.0.6""}"
+1,3.14+jit,3.14.6,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.11.2""}"
+1,3.14+jit,3.14.6,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.1.5""}"
+1,3.14+jit,3.14.6,install,pykrige,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.7.3""}"
+1,3.14+jit,3.14.6,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""0.68.0""}"
+1,3.14+jit,3.14.6,install,forster,,editable,,
+1,3.14+jit,3.14.6,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.02882812498137355, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,numpy.random,,1,,"{""gil"": 1, ""import_s"": 0.035458415979519486, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,scipy.linalg,,1,,"{""gil"": 1, ""import_s"": 0.09815587499178946, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,pandas,,1,,"{""gil"": 1, ""import_s"": 0.1472165830200538, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,matplotlib.pyplot,,1,,"{""gil"": 1, ""import_s"": 0.1896137499716133, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07597345905378461, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,pykrige,,1,,"{""gil"": 1, ""import_s"": 0.19531995803117752, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,numba,,1,,"{""gil"": 1, ""import_s"": 0.11203449999447912, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,forster,,1,,"{""gil"": 1, ""import_s"": 0.5805854999925941, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,gil_after_import,forster._kernels,,1,,"{""gil"": 1, ""import_s"": 0.5767613749485463, ""ok"": true, ""warning"": []}"
+1,3.14+jit,3.14.6,free_threaded_build,,,0,,
+1,3.14+jit,3.14.6,jit_available,,,1,,
+1,3.14+jit,3.14.6,jit_enabled,,,1,,
+1,3.14+jit,3.14.6,cpu_count,,,12,,
+1,3.14+jit,3.14.6,loadavg_1min_start,,,6.7587890625,,
+1,3.14+jit,3.14.6,numba_kernels,,,1,,
+1,3.14+jit,3.14.6,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+1,3.14+jit,3.14.6,gil_enabled_during_measure,,,1,,
+1,3.14+jit,3.14.6,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+1,3.14+jit,3.14.6,heartbeat_idle,,,2.51924991607666,ms max,"{""beats"": 326, ""iterations"": 165, ""max_ms"": 2.51924991607666, ""p50_ms"": 1.2617090251296759, ""p99_ms"": 1.2838749680668116}"
+1,3.14+jit,3.14.6,fit_first_call,numba-nogil,,0.09995787509251386,s,
+1,3.14+jit,3.14.6,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14+jit,3.14.6,fit_first_call,numba-gil,,0.9899533750722185,s,
+1,3.14+jit,3.14.6,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14+jit,3.14.6,fit_first_call,numpy,,0.10175599996000528,s,
+1,3.14+jit,3.14.6,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14+jit,3.14.6,batch64_identical,numba-nogil,4,1,,
+1,3.14+jit,3.14.6,batch64_identical,numba-nogil,8,1,,
+1,3.14+jit,3.14.6,batch64_identical,numba-gil,4,1,,
+1,3.14+jit,3.14.6,batch64_identical,numba-gil,8,1,,
+1,3.14+jit,3.14.6,batch64_identical,numpy,4,1,,
+1,3.14+jit,3.14.6,batch64_identical,numpy,8,1,,
+1,3.14+jit,3.14.6,fit,numba-nogil,,0.014431833056733012,s,"{""calls_per_timing"": 1, ""max"": 0.015794457984156907, ""min"": 0.014080750057473779, ""repeats"": 7}"
+1,3.14+jit,3.14.6,scan125,numba-nogil,,0.03784791601356119,s,"{""calls_per_timing"": 1, ""max"": 0.03833337500691414, ""min"": 0.03651079104747623, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numba-nogil,1,0.016506847246394802,s,"{""calls_per_timing"": 12, ""max"": 0.016595392332722742, ""min"": 0.016436486078115802, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numba-nogil,4,0.009644902747822925,s,"{""calls_per_timing"": 12, ""max"": 0.01039734375081025, ""min"": 0.009350243092436964, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numba-nogil,8,0.010918378500112643,s,"{""calls_per_timing"": 12, ""max"": 0.012361670087557286, ""min"": 0.010640204835605497, ""repeats"": 7}"
+1,3.14+jit,3.14.6,fit,numba-gil,,0.014102832996286452,s,"{""calls_per_timing"": 1, ""max"": 0.014878250076435506, ""min"": 0.013914875104092062, ""repeats"": 7}"
+1,3.14+jit,3.14.6,scan125,numba-gil,,0.03786370798479766,s,"{""calls_per_timing"": 1, ""max"": 0.04096791706979275, ""min"": 0.03702758392319083, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numba-gil,1,0.016849916661158204,s,"{""calls_per_timing"": 12, ""max"": 0.017143666666621964, ""min"": 0.016613142332062125, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numba-gil,4,0.019489454833092168,s,"{""calls_per_timing"": 12, ""max"": 0.02015576741541736, ""min"": 0.019402555500467617, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numba-gil,8,0.020135447916497167,s,"{""calls_per_timing"": 12, ""max"": 0.02026422567238721, ""min"": 0.019943111091076087, ""repeats"": 7}"
+1,3.14+jit,3.14.6,fit,numpy,,0.10167262493632734,s,"{""calls_per_timing"": 1, ""max"": 0.10329158301465213, ""min"": 0.10111841699108481, ""repeats"": 7}"
+1,3.14+jit,3.14.6,scan125,numpy,,0.7261507499497384,s,"{""calls_per_timing"": 1, ""max"": 0.7395241670310497, ""min"": 0.7231997089693323, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numpy,1,0.3657022499246523,s,"{""calls_per_timing"": 1, ""max"": 0.3691915839444846, ""min"": 0.3645384580595419, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numpy,4,0.36955862503964454,s,"{""calls_per_timing"": 1, ""max"": 0.37167454208247364, ""min"": 0.3681402920046821, ""repeats"": 7}"
+1,3.14+jit,3.14.6,batch64,numpy,8,0.3720371670788154,s,"{""calls_per_timing"": 1, ""max"": 0.3763739999849349, ""min"": 0.3686897089937702, ""repeats"": 7}"
+1,3.14+jit,3.14.6,heartbeat_fit,numba-nogil,,6.465790909714997,ms max,"{""beats"": 324, ""iterations"": 141, ""max_ms"": 6.465790909714997, ""p50_ms"": 1.2634999584406614, ""p99_ms"": 1.8680409993976355}"
+1,3.14+jit,3.14.6,heartbeat_batch,numba-nogil,,1.4179159188643098,ms max,"{""beats"": 330, ""iterations"": 122, ""max_ms"": 1.4179159188643098, ""p50_ms"": 1.2599590700119734, ""p99_ms"": 1.38766597956419}"
+1,3.14+jit,3.14.6,heartbeat_kernel,numba-nogil,,8.919874904677272,ms max,"{""beats"": 360, ""iterations"": 10, ""max_ms"": 8.919874904677272, ""p50_ms"": 1.2617919128388166, ""p99_ms"": 1.6963339876383543}"
+1,3.14+jit,3.14.6,heartbeat_fit,numba-gil,,2.3041670210659504,ms max,"{""beats"": 322, ""iterations"": 142, ""max_ms"": 2.3041670210659504, ""p50_ms"": 1.27670809160918, ""p99_ms"": 2.049165894277394}"
+1,3.14+jit,3.14.6,heartbeat_batch,numba-gil,,1.6706249443814158,ms max,"{""beats"": 322, ""iterations"": 120, ""max_ms"": 1.6706249443814158, ""p50_ms"": 1.3143749674782157, ""p99_ms"": 1.5583339845761657}"
+1,3.14+jit,3.14.6,heartbeat_kernel,numba-gil,,218.78766699228436,ms max,"{""beats"": 11, ""iterations"": 10, ""max_ms"": 218.78766699228436, ""p50_ms"": 211.14820800721645, ""p99_ms"": 218.78766699228436}"
+1,3.14+jit,3.14.6,heartbeat_fit,numpy,,8.553917054086924,ms max,"{""beats"": 249, ""iterations"": 20, ""max_ms"": 8.553917054086924, ""p50_ms"": 1.4282920164987445, ""p99_ms"": 8.307917043566704}"
+1,3.14+jit,3.14.6,heartbeat_batch,numpy,,12.5381660182029,ms max,"{""beats"": 210, ""iterations"": 6, ""max_ms"": 12.5381660182029, ""p50_ms"": 6.383666070178151, ""p99_ms"": 11.982334079220891}"
+1,3.14+jit,3.14.6,loadavg_1min_end,,,6.3251953125,,
+1,3.15,3.15.0b3,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""2.5.4""}"
+1,3.15,3.15.0b3,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+1,3.15,3.15.0b3,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.0.6""}"
+1,3.15,3.15.0b3,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.11.2""}"
+1,3.15,3.15.0b3,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.1.5""}"
+1,3.15,3.15.0b3,install,pykrige,,"source build, Cython from source (compiled Cython: ├─▶ The build backend returned an error)",,"{""error"": """", ""how"": ""source build, Cython from source (compiled Cython: \u251c\u2500\u25b6 The build backend returned an error)"", ""no_wheel_reason"": ""hint: Wheels are required for `pykrige` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 1.9, ""version"": ""1.7.3""}"
+1,3.15,3.15.0b3,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""0.68.0""}"
+1,3.15,3.15.0b3,install,forster,,editable,,
+1,3.15,3.15.0b3,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.028917540912516415, ""ok"": true, ""warning"": []}"
+1,3.15,3.15.0b3,gil_after_import,numpy.random,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,gil_after_import,scipy.linalg,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,gil_after_import,pandas,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,gil_after_import,matplotlib.pyplot,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07372062501963228, ""ok"": true, ""warning"": []}"
+1,3.15,3.15.0b3,gil_after_import,pykrige,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,gil_after_import,numba,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,gil_after_import,forster,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,gil_after_import,forster._kernels,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15,3.15.0b3,measure,,,failed,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)""}"
+1,3.15+jit,3.15.0b3,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""2.5.4""}"
+1,3.15+jit,3.15.0b3,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""1.18.1""}"
+1,3.15+jit,3.15.0b3,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.0.6""}"
+1,3.15+jit,3.15.0b3,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.11.2""}"
+1,3.15+jit,3.15.0b3,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.1.5""}"
+1,3.15+jit,3.15.0b3,install,pykrige,,source build,,"{""error"": """", ""how"": ""source build"", ""no_wheel_reason"": ""hint: Wheels are required for `pykrige` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 0.2, ""version"": ""1.7.3""}"
+1,3.15+jit,3.15.0b3,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""0.68.0""}"
+1,3.15+jit,3.15.0b3,install,forster,,editable,,
+1,3.15+jit,3.15.0b3,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.029797583003528416, ""ok"": true, ""warning"": []}"
+1,3.15+jit,3.15.0b3,gil_after_import,numpy.random,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,gil_after_import,scipy.linalg,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,gil_after_import,pandas,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,gil_after_import,matplotlib.pyplot,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07653558405581862, ""ok"": true, ""warning"": []}"
+1,3.15+jit,3.15.0b3,gil_after_import,pykrige,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,gil_after_import,numba,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,gil_after_import,forster,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,gil_after_import,forster._kernels,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15+jit,3.15.0b3,measure,,,failed,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)""}"
+1,3.14t,3.14.6,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""2.5.4""}"
+1,3.14t,3.14.6,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""1.18.1""}"
+1,3.14t,3.14.6,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.0.6""}"
+1,3.14t,3.14.6,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.11.2""}"
+1,3.14t,3.14.6,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.1.5""}"
+1,3.14t,3.14.6,install,pykrige,,source build,,"{""error"": """", ""how"": ""source build"", ""no_wheel_reason"": ""hint: Wheels are required for `pykrige` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 0.2, ""version"": ""1.7.3""}"
+1,3.14t,3.14.6,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""0.68.0""}"
+1,3.14t,3.14.6,install,PySide6,,failed,,"{""error"": ""\u2570\u2500\u25b6 Because all versions of pyside6 have no wheels with a free-threading"", ""how"": ""failed"", ""no_wheel_reason"": ""\u2570\u2500\u25b6 Because all versions of pyside6 have no wheels with a free-threading"", ""seconds"": 0.2, ""version"": """"}"
+1,3.14t,3.14.6,install,nicegui,,source build without orjson (with it: hint: `orjson` (v3.13.0) was included because `nicegui` (v3.18.0) depends on `orjson`),,"{""error"": """", ""how"": ""source build without orjson (with it: hint: `orjson` (v3.13.0) was included because `nicegui` (v3.18.0) depends on `orjson`)"", ""no_wheel_reason"": ""hint: Wheels are required for `nicegui` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 4.1, ""version"": ""3.18.0""}"
+1,3.14t,3.14.6,install,forster,,editable,,
+1,3.14t,3.14.6,gil_after_import,numpy,,0,,"{""gil"": 0, ""import_s"": 0.031883624964393675, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,numpy.random,,0,,"{""gil"": 0, ""import_s"": 0.0374384589958936, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,scipy.linalg,,0,,"{""gil"": 0, ""import_s"": 0.1034711659885943, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,pandas,,0,,"{""gil"": 0, ""import_s"": 0.16904241603333503, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,matplotlib.pyplot,,0,,"{""gil"": 0, ""import_s"": 0.2044797500129789, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,openpyxl,,0,,"{""gil"": 0, ""import_s"": 0.07859379099681973, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,pykrige,,0,,"{""gil"": 0, ""import_s"": 0.20054508303292096, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,numba,,0,,"{""gil"": 0, ""import_s"": 0.1315350419608876, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,forster,,0,,"{""gil"": 0, ""import_s"": 0.6243874169886112, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,forster._kernels,,0,,"{""gil"": 0, ""import_s"": 0.6314275829354301, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,PySide6.QtWidgets,,,,"{""error"": ""ModuleNotFoundError: No module named 'PySide6'"", ""ok"": false}"
+1,3.14t,3.14.6,gil_after_import,nicegui,,0,,"{""gil"": 0, ""import_s"": 0.24728370900265872, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,gil_after_import,"forster._kernels, nicegui",,0,,"{""gil"": 0, ""import_s"": 0.8662542919628322, ""ok"": true, ""warning"": []}"
+1,3.14t,3.14.6,free_threaded_build,,,1,,
+1,3.14t,3.14.6,jit_available,,,0,,
+1,3.14t,3.14.6,jit_enabled,,,0,,
+1,3.14t,3.14.6,cpu_count,,,12,,
+1,3.14t,3.14.6,loadavg_1min_start,,,6.53564453125,,
+1,3.14t,3.14.6,numba_kernels,,,1,,
+1,3.14t,3.14.6,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+1,3.14t,3.14.6,gil_enabled_during_measure,,,0,,
+1,3.14t,3.14.6,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+1,3.14t,3.14.6,heartbeat_idle,,,1.3035830343142152,ms max,"{""beats"": 325, ""iterations"": 164, ""max_ms"": 1.3035830343142152, ""p50_ms"": 1.2607499957084656, ""p99_ms"": 1.2770829489454627}"
+1,3.14t,3.14.6,fit_first_call,numba-nogil,,0.08925254200585186,s,
+1,3.14t,3.14.6,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14t,3.14.6,fit_first_call,numba-gil,,1.0019342090236023,s,
+1,3.14t,3.14.6,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14t,3.14.6,fit_first_call,numpy,,0.11581529106479138,s,
+1,3.14t,3.14.6,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+1,3.14t,3.14.6,batch64_identical,numba-nogil,4,1,,
+1,3.14t,3.14.6,batch64_identical,numba-nogil,8,1,,
+1,3.14t,3.14.6,batch64_identical,numba-gil,4,1,,
+1,3.14t,3.14.6,batch64_identical,numba-gil,8,1,,
+1,3.14t,3.14.6,batch64_identical,numpy,4,1,,
+1,3.14t,3.14.6,batch64_identical,numpy,8,1,,
+1,3.14t,3.14.6,fit,numba-nogil,,0.015004082932136953,s,"{""calls_per_timing"": 1, ""max"": 0.01517887506633997, ""min"": 0.01455787499435246, ""repeats"": 7}"
+1,3.14t,3.14.6,scan125,numba-nogil,,0.03795641602482647,s,"{""calls_per_timing"": 1, ""max"": 0.03873283299617469, ""min"": 0.03719862503930926, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numba-nogil,1,0.0171153299161233,s,"{""calls_per_timing"": 12, ""max"": 0.017157840241755668, ""min"": 0.016892465248626348, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numba-nogil,4,0.005569142328264813,s,"{""calls_per_timing"": 12, ""max"": 0.005966770831340303, ""min"": 0.005514104171500851, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numba-nogil,8,0.004760208326236655,s,"{""calls_per_timing"": 12, ""max"": 0.005380020835824932, ""min"": 0.004634458338841796, ""repeats"": 7}"
+1,3.14t,3.14.6,fit,numba-gil,,0.01494962489232421,s,"{""calls_per_timing"": 1, ""max"": 0.015059708035551012, ""min"": 0.014553459011949599, ""repeats"": 7}"
+1,3.14t,3.14.6,scan125,numba-gil,,0.03797433292493224,s,"{""calls_per_timing"": 1, ""max"": 0.03828433295711875, ""min"": 0.037609957973472774, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numba-gil,1,0.017003218750081334,s,"{""calls_per_timing"": 12, ""max"": 0.017211763915838674, ""min"": 0.016965749993687496, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numba-gil,4,0.006045461836038157,s,"{""calls_per_timing"": 12, ""max"": 0.009252864576410502, ""min"": 0.005484850669745356, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numba-gil,8,0.0048479444230906665,s,"{""calls_per_timing"": 12, ""max"": 0.00676283683666649, ""min"": 0.004625819410042216, ""repeats"": 7}"
+1,3.14t,3.14.6,fit,numpy,,0.11667545791715384,s,"{""calls_per_timing"": 1, ""max"": 0.12081379094161093, ""min"": 0.11550408299081028, ""repeats"": 7}"
+1,3.14t,3.14.6,scan125,numpy,,0.8716211669379845,s,"{""calls_per_timing"": 1, ""max"": 0.8768074590479955, ""min"": 0.8690288750221953, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numpy,1,0.45246495795436203,s,"{""calls_per_timing"": 1, ""max"": 0.45560174994170666, ""min"": 0.44961841602344066, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numpy,4,0.16088400001171976,s,"{""calls_per_timing"": 1, ""max"": 0.17543116700835526, ""min"": 0.15626600000541657, ""repeats"": 7}"
+1,3.14t,3.14.6,batch64,numpy,8,0.11377729207742959,s,"{""calls_per_timing"": 1, ""max"": 0.11735687498003244, ""min"": 0.10981270798947662, ""repeats"": 7}"
+1,3.14t,3.14.6,heartbeat_fit,numba-nogil,,1.2780000688508153,ms max,"{""beats"": 326, ""iterations"": 138, ""max_ms"": 1.2780000688508153, ""p50_ms"": 1.262499950826168, ""p99_ms"": 1.2740830425173044}"
+1,3.14t,3.14.6,heartbeat_batch,numba-nogil,,1.2933750404044986,ms max,"{""beats"": 327, ""iterations"": 118, ""max_ms"": 1.2933750404044986, ""p50_ms"": 1.2608749093487859, ""p99_ms"": 1.2754159979522228}"
+1,3.14t,3.14.6,heartbeat_kernel,numba-nogil,,1.2966670328751206,ms max,"{""beats"": 350, ""iterations"": 10, ""max_ms"": 1.2966670328751206, ""p50_ms"": 1.2618330074474216, ""p99_ms"": 1.2728750007227063}"
+1,3.14t,3.14.6,heartbeat_fit,numba-gil,,1.5817920211702585,ms max,"{""beats"": 326, ""iterations"": 138, ""max_ms"": 1.5817920211702585, ""p50_ms"": 1.2623330112546682, ""p99_ms"": 1.2766660656780005}"
+1,3.14t,3.14.6,heartbeat_batch,numba-gil,,1.291166990995407,ms max,"{""beats"": 328, ""iterations"": 117, ""max_ms"": 1.291166990995407, ""p50_ms"": 1.2605830561369658, ""p99_ms"": 1.2768330052495003}"
+1,3.14t,3.14.6,heartbeat_kernel,numba-gil,,10.058291954919696,ms max,"{""beats"": 360, ""iterations"": 10, ""max_ms"": 10.058291954919696, ""p50_ms"": 1.2627909891307354, ""p99_ms"": 1.3992090243846178}"
+1,3.14t,3.14.6,heartbeat_fit,numpy,,3.8220409769564867,ms max,"{""beats"": 325, ""iterations"": 17, ""max_ms"": 3.8220409769564867, ""p50_ms"": 1.2622920330613852, ""p99_ms"": 1.3039170298725367}"
+1,3.14t,3.14.6,heartbeat_batch,numpy,,1.4183750608935952,ms max,"{""beats"": 367, ""iterations"": 5, ""max_ms"": 1.4183750608935952, ""p50_ms"": 1.2611669953912497, ""p99_ms"": 1.283459016121924}"
+1,3.14t,3.14.6,loadavg_1min_end,,,6.51220703125,,
+1,3.15t,3.15.0b3,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.3, ""version"": ""2.5.4""}"
+1,3.15t,3.15.0b3,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+1,3.15t,3.15.0b3,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.0.6""}"
+1,3.15t,3.15.0b3,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.11.2""}"
+1,3.15t,3.15.0b3,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.1.5""}"
+1,3.15t,3.15.0b3,install,pykrige,,source build,,"{""error"": """", ""how"": ""source build"", ""no_wheel_reason"": ""hint: Wheels are required for `pykrige` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 0.2, ""version"": ""1.7.3""}"
+1,3.15t,3.15.0b3,install,numba,,source build,,"{""error"": """", ""how"": ""source build"", ""no_wheel_reason"": ""hint: Wheels are required for `numba` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 0.3, ""version"": ""0.68.0""}"
+1,3.15t,3.15.0b3,install,PySide6,,failed,,"{""error"": ""\u2570\u2500\u25b6 Because all versions of pyside6 have no wheels with a free-threading"", ""how"": ""failed"", ""no_wheel_reason"": ""\u2570\u2500\u25b6 Because all versions of pyside6 have no wheels with a free-threading"", ""seconds"": 0.2, ""version"": """"}"
+1,3.15t,3.15.0b3,install,nicegui,,source build without orjson (with it: hint: `orjson` (v3.13.0) was included because `nicegui` (v3.18.0) depends on `orjson`),,"{""error"": """", ""how"": ""source build without orjson (with it: hint: `orjson` (v3.13.0) was included because `nicegui` (v3.18.0) depends on `orjson`)"", ""no_wheel_reason"": ""hint: Wheels are required for `nicegui` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 4.7, ""version"": ""3.18.0""}"
+1,3.15t,3.15.0b3,install,forster,,editable,,
+1,3.15t,3.15.0b3,gil_after_import,numpy,,0,,"{""gil"": 0, ""import_s"": 0.031093667028471828, ""ok"": true, ""warning"": []}"
+1,3.15t,3.15.0b3,gil_after_import,numpy.random,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,scipy.linalg,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,pandas,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,matplotlib.pyplot,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,openpyxl,,0,,"{""gil"": 0, ""import_s"": 0.07775583304464817, ""ok"": true, ""warning"": []}"
+1,3.15t,3.15.0b3,gil_after_import,pykrige,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,numba,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,forster,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,forster._kernels,,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,PySide6.QtWidgets,,,,"{""error"": ""ModuleNotFoundError: No module named 'PySide6'"", ""ok"": false}"
+1,3.15t,3.15.0b3,gil_after_import,nicegui,,0,,"{""gil"": 0, ""import_s"": 0.24992629198823124, ""ok"": true, ""warning"": []}"
+1,3.15t,3.15.0b3,gil_after_import,"forster._kernels, nicegui",,,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)"", ""ok"": false}"
+1,3.15t,3.15.0b3,measure,,,failed,,"{""error"": ""killed by signal 11 (11 is SIGSEGV)""}"
+2,3.13,3.13.11,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""2.5.4""}"
+2,3.13,3.13.11,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+2,3.13,3.13.11,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.0.6""}"
+2,3.13,3.13.11,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.11.2""}"
+2,3.13,3.13.11,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.1.5""}"
+2,3.13,3.13.11,install,pykrige,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""1.7.3""}"
+2,3.13,3.13.11,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""0.68.0""}"
+2,3.13,3.13.11,install,forster,,editable,,
+2,3.13,3.13.11,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.02925312495790422, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,numpy.random,,1,,"{""gil"": 1, ""import_s"": 0.034491874976083636, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,scipy.linalg,,1,,"{""gil"": 1, ""import_s"": 0.09772212500683963, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,pandas,,1,,"{""gil"": 1, ""import_s"": 0.14653000002726912, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,matplotlib.pyplot,,1,,"{""gil"": 1, ""import_s"": 0.18064183299429715, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07008995790965855, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,pykrige,,1,,"{""gil"": 1, ""import_s"": 0.19009433302562684, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,numba,,1,,"{""gil"": 1, ""import_s"": 0.10585562500637025, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,forster,,1,,"{""gil"": 1, ""import_s"": 0.5989805420394987, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,gil_after_import,forster._kernels,,1,,"{""gil"": 1, ""import_s"": 0.5866869579767808, ""ok"": true, ""warning"": []}"
+2,3.13,3.13.11,free_threaded_build,,,0,,
+2,3.13,3.13.11,jit_available,,,0,,
+2,3.13,3.13.11,jit_enabled,,,0,,
+2,3.13,3.13.11,cpu_count,,,12,,
+2,3.13,3.13.11,loadavg_1min_start,,,6.27880859375,,
+2,3.13,3.13.11,numba_kernels,,,1,,
+2,3.13,3.13.11,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+2,3.13,3.13.11,gil_enabled_during_measure,,,1,,
+2,3.13,3.13.11,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+2,3.13,3.13.11,heartbeat_idle,,,1.3048750115558505,ms max,"{""beats"": 328, ""iterations"": 165, ""max_ms"": 1.3048750115558505, ""p50_ms"": 1.261041034013033, ""p99_ms"": 1.2782500125467777}"
+2,3.13,3.13.11,fit_first_call,numba-nogil,,0.09316062496509403,s,
+2,3.13,3.13.11,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.13,3.13.11,fit_first_call,numba-gil,,1.0104993329150602,s,
+2,3.13,3.13.11,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.13,3.13.11,fit_first_call,numpy,,0.10719112493097782,s,
+2,3.13,3.13.11,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.13,3.13.11,batch64_identical,numba-nogil,4,1,,
+2,3.13,3.13.11,batch64_identical,numba-nogil,8,1,,
+2,3.13,3.13.11,batch64_identical,numba-gil,4,1,,
+2,3.13,3.13.11,batch64_identical,numba-gil,8,1,,
+2,3.13,3.13.11,batch64_identical,numpy,4,1,,
+2,3.13,3.13.11,batch64_identical,numpy,8,1,,
+2,3.13,3.13.11,fit,numba-nogil,,0.014400583109818399,s,"{""calls_per_timing"": 1, ""max"": 0.015670333988964558, ""min"": 0.014271957916207612, ""repeats"": 7}"
+2,3.13,3.13.11,scan125,numba-nogil,,0.03747212502639741,s,"{""calls_per_timing"": 1, ""max"": 0.037878541043028235, ""min"": 0.03695579094346613, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numba-nogil,1,0.01649638200372768,s,"{""calls_per_timing"": 12, ""max"": 0.017993086842276778, ""min"": 0.0162404652510304, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numba-nogil,4,0.009834816000269106,s,"{""calls_per_timing"": 12, ""max"": 0.012054291660509383, ""min"": 0.009271951421396807, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numba-nogil,8,0.010978982667438686,s,"{""calls_per_timing"": 12, ""max"": 0.012303854164201766, ""min"": 0.010683027755779525, ""repeats"": 7}"
+2,3.13,3.13.11,fit,numba-gil,,0.014218374970369041,s,"{""calls_per_timing"": 1, ""max"": 0.014621749985963106, ""min"": 0.014087666990235448, ""repeats"": 7}"
+2,3.13,3.13.11,scan125,numba-gil,,0.03736316703725606,s,"{""calls_per_timing"": 1, ""max"": 0.03767600003629923, ""min"": 0.037158959079533815, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numba-gil,1,0.016860958334291354,s,"{""calls_per_timing"": 12, ""max"": 0.017006027754784252, ""min"": 0.016514906252268702, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numba-gil,4,0.01949040625671235,s,"{""calls_per_timing"": 12, ""max"": 0.0208081007488848, ""min"": 0.019254902746373165, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numba-gil,8,0.020002600746617343,s,"{""calls_per_timing"": 12, ""max"": 0.02244742358258615, ""min"": 0.019770506924639147, ""repeats"": 7}"
+2,3.13,3.13.11,fit,numpy,,0.10706737509462982,s,"{""calls_per_timing"": 1, ""max"": 0.10874708299525082, ""min"": 0.10621187498327345, ""repeats"": 7}"
+2,3.13,3.13.11,scan125,numpy,,0.7568627090658993,s,"{""calls_per_timing"": 1, ""max"": 0.759816583013162, ""min"": 0.7501948749413714, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numpy,1,0.3780476249521598,s,"{""calls_per_timing"": 1, ""max"": 0.38089212495833635, ""min"": 0.3757722079753876, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numpy,4,0.3826000830158591,s,"{""calls_per_timing"": 1, ""max"": 0.3841420409735292, ""min"": 0.3807792500592768, ""repeats"": 7}"
+2,3.13,3.13.11,batch64,numpy,8,0.3832622920162976,s,"{""calls_per_timing"": 1, ""max"": 0.3887514170492068, ""min"": 0.3806480000494048, ""repeats"": 7}"
+2,3.13,3.13.11,heartbeat_fit,numba-nogil,,2.0817919867113233,ms max,"{""beats"": 326, ""iterations"": 143, ""max_ms"": 2.0817919867113233, ""p50_ms"": 1.2638750486075878, ""p99_ms"": 1.8366670701652765}"
+2,3.13,3.13.11,heartbeat_batch,numba-nogil,,1.5613749856129289,ms max,"{""beats"": 330, ""iterations"": 124, ""max_ms"": 1.5613749856129289, ""p50_ms"": 1.2607499957084656, ""p99_ms"": 1.4188329223543406}"
+2,3.13,3.13.11,heartbeat_kernel,numba-nogil,,5.468541057780385,ms max,"{""beats"": 351, ""iterations"": 10, ""max_ms"": 5.468541057780385, ""p50_ms"": 1.2620420893654227, ""p99_ms"": 1.2907079653814435}"
+2,3.13,3.13.11,heartbeat_fit,numba-gil,,2.477708039805293,ms max,"{""beats"": 321, ""iterations"": 141, ""max_ms"": 2.477708039805293, ""p50_ms"": 1.2807080056518316, ""p99_ms"": 2.204915974289179}"
+2,3.13,3.13.11,heartbeat_batch,numba-gil,,1.8015829846262932,ms max,"{""beats"": 324, ""iterations"": 119, ""max_ms"": 1.8015829846262932, ""p50_ms"": 1.302666962146759, ""p99_ms"": 1.613499945960939}"
+2,3.13,3.13.11,heartbeat_kernel,numba-gil,,242.16333299409598,ms max,"{""beats"": 10, ""iterations"": 9, ""max_ms"": 242.16333299409598, ""p50_ms"": 214.17199994903058, ""p99_ms"": 242.16333299409598}"
+2,3.13,3.13.11,heartbeat_fit,numpy,,13.605207903310657,ms max,"{""beats"": 248, ""iterations"": 19, ""max_ms"": 13.605207903310657, ""p50_ms"": 1.972750062122941, ""p99_ms"": 8.691499941051006}"
+2,3.13,3.13.11,heartbeat_batch,numpy,,12.964541907422245,ms max,"{""beats"": 209, ""iterations"": 6, ""max_ms"": 12.964541907422245, ""p50_ms"": 6.756459013558924, ""p99_ms"": 12.747916975058615}"
+2,3.13,3.13.11,loadavg_1min_end,,,6.9521484375,,
+2,3.14,3.14.6,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""2.5.4""}"
+2,3.14,3.14.6,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+2,3.14,3.14.6,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.0.6""}"
+2,3.14,3.14.6,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.11.2""}"
+2,3.14,3.14.6,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.1.5""}"
+2,3.14,3.14.6,install,pykrige,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""1.7.3""}"
+2,3.14,3.14.6,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""0.68.0""}"
+2,3.14,3.14.6,install,forster,,editable,,
+2,3.14,3.14.6,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.029618000029586256, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,numpy.random,,1,,"{""gil"": 1, ""import_s"": 0.03385408304166049, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,scipy.linalg,,1,,"{""gil"": 1, ""import_s"": 0.09639987500850111, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,pandas,,1,,"{""gil"": 1, ""import_s"": 0.15137512504588813, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,matplotlib.pyplot,,1,,"{""gil"": 1, ""import_s"": 0.19351362506859004, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07511683402117342, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,pykrige,,1,,"{""gil"": 1, ""import_s"": 0.18420495803002268, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,numba,,1,,"{""gil"": 1, ""import_s"": 0.11067683296278119, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,forster,,1,,"{""gil"": 1, ""import_s"": 0.5707440830301493, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,gil_after_import,forster._kernels,,1,,"{""gil"": 1, ""import_s"": 0.5632593750488013, ""ok"": true, ""warning"": []}"
+2,3.14,3.14.6,free_threaded_build,,,0,,
+2,3.14,3.14.6,jit_available,,,1,,
+2,3.14,3.14.6,jit_enabled,,,0,,
+2,3.14,3.14.6,cpu_count,,,12,,
+2,3.14,3.14.6,loadavg_1min_start,,,6.79541015625,,
+2,3.14,3.14.6,numba_kernels,,,1,,
+2,3.14,3.14.6,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+2,3.14,3.14.6,gil_enabled_during_measure,,,1,,
+2,3.14,3.14.6,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+2,3.14,3.14.6,heartbeat_idle,,,2.6225829496979713,ms max,"{""beats"": 328, ""iterations"": 164, ""max_ms"": 2.6225829496979713, ""p50_ms"": 1.2605000520125031, ""p99_ms"": 1.2857499532401562}"
+2,3.14,3.14.6,fit_first_call,numba-nogil,,0.09979524998925626,s,
+2,3.14,3.14.6,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14,3.14.6,fit_first_call,numba-gil,,0.9768065829994157,s,
+2,3.14,3.14.6,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14,3.14.6,fit_first_call,numpy,,0.10109708306845278,s,
+2,3.14,3.14.6,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14,3.14.6,batch64_identical,numba-nogil,4,1,,
+2,3.14,3.14.6,batch64_identical,numba-nogil,8,1,,
+2,3.14,3.14.6,batch64_identical,numba-gil,4,1,,
+2,3.14,3.14.6,batch64_identical,numba-gil,8,1,,
+2,3.14,3.14.6,batch64_identical,numpy,4,1,,
+2,3.14,3.14.6,batch64_identical,numpy,8,1,,
+2,3.14,3.14.6,fit,numba-nogil,,0.014255415997467935,s,"{""calls_per_timing"": 1, ""max"": 0.01485287502873689, ""min"": 0.01391274994239211, ""repeats"": 7}"
+2,3.14,3.14.6,scan125,numba-nogil,,0.037483541993424296,s,"{""calls_per_timing"": 1, ""max"": 0.037789333960972726, ""min"": 0.03677250002510846, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numba-nogil,1,0.01625972566156027,s,"{""calls_per_timing"": 12, ""max"": 0.016655677085509524, ""min"": 0.016188277756252017, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numba-nogil,4,0.009660319415464377,s,"{""calls_per_timing"": 12, ""max"": 0.010527715251858657, ""min"": 0.009139069414231926, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numba-nogil,8,0.01075791316300941,s,"{""calls_per_timing"": 12, ""max"": 0.011023367997646952, ""min"": 0.01024928474604773, ""repeats"": 7}"
+2,3.14,3.14.6,fit,numba-gil,,0.014104875037446618,s,"{""calls_per_timing"": 1, ""max"": 0.014288957929238677, ""min"": 0.013631833950057626, ""repeats"": 7}"
+2,3.14,3.14.6,scan125,numba-gil,,0.03707812505308539,s,"{""calls_per_timing"": 1, ""max"": 0.0373387080617249, ""min"": 0.036197375040501356, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numba-gil,1,0.01657385576982051,s,"{""calls_per_timing"": 13, ""max"": 0.016831256467132613, ""min"": 0.016415596151581176, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numba-gil,4,0.019470201921649277,s,"{""calls_per_timing"": 13, ""max"": 0.019602609001314983, ""min"": 0.019277727535854165, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numba-gil,8,0.019922496768860862,s,"{""calls_per_timing"": 13, ""max"": 0.02030082054149646, ""min"": 0.01968012185086711, ""repeats"": 7}"
+2,3.14,3.14.6,fit,numpy,,0.10089791694190353,s,"{""calls_per_timing"": 1, ""max"": 0.1019910000031814, ""min"": 0.10055654204916209, ""repeats"": 7}"
+2,3.14,3.14.6,scan125,numpy,,0.7257349580759183,s,"{""calls_per_timing"": 1, ""max"": 0.7348274580435827, ""min"": 0.7226861660601571, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numpy,1,0.3652519170427695,s,"{""calls_per_timing"": 1, ""max"": 0.368216915987432, ""min"": 0.36397025000769645, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numpy,4,0.36837662500329316,s,"{""calls_per_timing"": 1, ""max"": 0.37225945806130767, ""min"": 0.3653099170187488, ""repeats"": 7}"
+2,3.14,3.14.6,batch64,numpy,8,0.3706304579973221,s,"{""calls_per_timing"": 1, ""max"": 0.3879326250171289, ""min"": 0.36921866703778505, ""repeats"": 7}"
+2,3.14,3.14.6,heartbeat_fit,numba-nogil,,1.8234580056741834,ms max,"{""beats"": 324, ""iterations"": 141, ""max_ms"": 1.8234580056741834, ""p50_ms"": 1.2637919280678034, ""p99_ms"": 1.7630839720368385}"
+2,3.14,3.14.6,heartbeat_batch,numba-nogil,,1.5189999248832464,ms max,"{""beats"": 329, ""iterations"": 122, ""max_ms"": 1.5189999248832464, ""p50_ms"": 1.2612079735845327, ""p99_ms"": 1.4364999951794744}"
+2,3.14,3.14.6,heartbeat_kernel,numba-nogil,,1.2908750213682652,ms max,"{""beats"": 351, ""iterations"": 10, ""max_ms"": 1.2908750213682652, ""p50_ms"": 1.2612080899998546, ""p99_ms"": 1.2704579858109355}"
+2,3.14,3.14.6,heartbeat_fit,numba-gil,,2.6251249946653843,ms max,"{""beats"": 319, ""iterations"": 144, ""max_ms"": 2.6251249946653843, ""p50_ms"": 1.323582953773439, ""p99_ms"": 2.2288329200819135}"
+2,3.14,3.14.6,heartbeat_batch,numba-gil,,1.8137500155717134,ms max,"{""beats"": 323, ""iterations"": 122, ""max_ms"": 1.8137500155717134, ""p50_ms"": 1.329749939031899, ""p99_ms"": 1.7191669903695583}"
+2,3.14,3.14.6,heartbeat_kernel,numba-gil,,215.02795908600092,ms max,"{""beats"": 11, ""iterations"": 10, ""max_ms"": 215.02795908600092, ""p50_ms"": 210.09583305567503, ""p99_ms"": 215.02795908600092}"
+2,3.14,3.14.6,heartbeat_fit,numpy,,26.789417024701834,ms max,"{""beats"": 248, ""iterations"": 20, ""max_ms"": 26.789417024701834, ""p50_ms"": 1.5057920245453715, ""p99_ms"": 8.39958293363452}"
+2,3.14,3.14.6,heartbeat_batch,numpy,,12.257875059731305,ms max,"{""beats"": 203, ""iterations"": 6, ""max_ms"": 12.257875059731305, ""p50_ms"": 6.442083045840263, ""p99_ms"": 12.010542093776166}"
+2,3.14,3.14.6,loadavg_1min_end,,,6.65185546875,,
+2,3.14+jit,3.14.6,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""2.5.4""}"
+2,3.14+jit,3.14.6,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+2,3.14+jit,3.14.6,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.0.6""}"
+2,3.14+jit,3.14.6,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.11.2""}"
+2,3.14+jit,3.14.6,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""3.1.5""}"
+2,3.14+jit,3.14.6,install,pykrige,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.7.3""}"
+2,3.14+jit,3.14.6,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""0.68.0""}"
+2,3.14+jit,3.14.6,install,forster,,editable,,
+2,3.14+jit,3.14.6,gil_after_import,numpy,,1,,"{""gil"": 1, ""import_s"": 0.02930875006131828, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,numpy.random,,1,,"{""gil"": 1, ""import_s"": 0.03399879205971956, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,scipy.linalg,,1,,"{""gil"": 1, ""import_s"": 0.10002808296121657, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,pandas,,1,,"{""gil"": 1, ""import_s"": 0.14974179200362414, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,matplotlib.pyplot,,1,,"{""gil"": 1, ""import_s"": 0.1829379169503227, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,openpyxl,,1,,"{""gil"": 1, ""import_s"": 0.07319479191210121, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,pykrige,,1,,"{""gil"": 1, ""import_s"": 0.18620933289639652, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,numba,,1,,"{""gil"": 1, ""import_s"": 0.10997029102873057, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,forster,,1,,"{""gil"": 1, ""import_s"": 0.5678742920281366, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,gil_after_import,forster._kernels,,1,,"{""gil"": 1, ""import_s"": 0.5604059579782188, ""ok"": true, ""warning"": []}"
+2,3.14+jit,3.14.6,free_threaded_build,,,0,,
+2,3.14+jit,3.14.6,jit_available,,,1,,
+2,3.14+jit,3.14.6,jit_enabled,,,1,,
+2,3.14+jit,3.14.6,cpu_count,,,12,,
+2,3.14+jit,3.14.6,loadavg_1min_start,,,6.599609375,,
+2,3.14+jit,3.14.6,numba_kernels,,,1,,
+2,3.14+jit,3.14.6,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+2,3.14+jit,3.14.6,gil_enabled_during_measure,,,1,,
+2,3.14+jit,3.14.6,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+2,3.14+jit,3.14.6,heartbeat_idle,,,1.2956249993294477,ms max,"{""beats"": 325, ""iterations"": 165, ""max_ms"": 1.2956249993294477, ""p50_ms"": 1.261750003322959, ""p99_ms"": 1.284583006054163}"
+2,3.14+jit,3.14.6,fit_first_call,numba-nogil,,0.10119795799255371,s,
+2,3.14+jit,3.14.6,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14+jit,3.14.6,fit_first_call,numba-gil,,0.9967892919667065,s,
+2,3.14+jit,3.14.6,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14+jit,3.14.6,fit_first_call,numpy,,0.10166470799595118,s,
+2,3.14+jit,3.14.6,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14+jit,3.14.6,batch64_identical,numba-nogil,4,1,,
+2,3.14+jit,3.14.6,batch64_identical,numba-nogil,8,1,,
+2,3.14+jit,3.14.6,batch64_identical,numba-gil,4,1,,
+2,3.14+jit,3.14.6,batch64_identical,numba-gil,8,1,,
+2,3.14+jit,3.14.6,batch64_identical,numpy,4,1,,
+2,3.14+jit,3.14.6,batch64_identical,numpy,8,1,,
+2,3.14+jit,3.14.6,fit,numba-nogil,,0.014555500005371869,s,"{""calls_per_timing"": 1, ""max"": 0.015120624913834035, ""min"": 0.014282749965786934, ""repeats"": 7}"
+2,3.14+jit,3.14.6,scan125,numba-nogil,,0.03729508293326944,s,"{""calls_per_timing"": 1, ""max"": 0.037898499984294176, ""min"": 0.037235792027786374, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numba-nogil,1,0.01650220492350248,s,"{""calls_per_timing"": 12, ""max"": 0.019020541668093454, ""min"": 0.016387854169200484, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numba-nogil,4,0.009923197911120951,s,"{""calls_per_timing"": 12, ""max"": 0.0107472395854226, ""min"": 0.009374583334041139, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numba-nogil,8,0.010983840339273835,s,"{""calls_per_timing"": 12, ""max"": 0.01294832641724497, ""min"": 0.010448131923718998, ""repeats"": 7}"
+2,3.14+jit,3.14.6,fit,numba-gil,,0.014393790974281728,s,"{""calls_per_timing"": 1, ""max"": 0.01488754095043987, ""min"": 0.01429283304605633, ""repeats"": 7}"
+2,3.14+jit,3.14.6,scan125,numba-gil,,0.03780895797535777,s,"{""calls_per_timing"": 1, ""max"": 0.038204874959774315, ""min"": 0.03632820793427527, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numba-gil,1,0.01686618749711973,s,"{""calls_per_timing"": 12, ""max"": 0.017200434085680172, ""min"": 0.016635812498861924, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numba-gil,4,0.019703045167261735,s,"{""calls_per_timing"": 12, ""max"": 0.019866819503173854, ""min"": 0.019415677088545635, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numba-gil,8,0.020287444417287286,s,"{""calls_per_timing"": 12, ""max"": 0.02077773608228502, ""min"": 0.019933326412380364, ""repeats"": 7}"
+2,3.14+jit,3.14.6,fit,numpy,,0.1016284580109641,s,"{""calls_per_timing"": 1, ""max"": 0.1021074999589473, ""min"": 0.10053079097997397, ""repeats"": 7}"
+2,3.14+jit,3.14.6,scan125,numpy,,0.7251999579602852,s,"{""calls_per_timing"": 1, ""max"": 0.7324822080554441, ""min"": 0.7192558329552412, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numpy,1,0.364403959014453,s,"{""calls_per_timing"": 1, ""max"": 0.3661006250185892, ""min"": 0.36194529104977846, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numpy,4,0.36998812505044043,s,"{""calls_per_timing"": 1, ""max"": 0.37666012498084456, ""min"": 0.36555350001435727, ""repeats"": 7}"
+2,3.14+jit,3.14.6,batch64,numpy,8,0.37010749999899417,s,"{""calls_per_timing"": 1, ""max"": 0.37249999993946403, ""min"": 0.36583912500645965, ""repeats"": 7}"
+2,3.14+jit,3.14.6,heartbeat_fit,numba-nogil,,2.909249975346029,ms max,"{""beats"": 324, ""iterations"": 142, ""max_ms"": 2.909249975346029, ""p50_ms"": 1.2636249884963036, ""p99_ms"": 1.6083329683169723}"
+2,3.14+jit,3.14.6,heartbeat_batch,numba-nogil,,1.4107919996604323,ms max,"{""beats"": 327, ""iterations"": 123, ""max_ms"": 1.4107919996604323, ""p50_ms"": 1.2601660564541817, ""p99_ms"": 1.3795829145237803}"
+2,3.14+jit,3.14.6,heartbeat_kernel,numba-nogil,,1.2964169727638364,ms max,"{""beats"": 355, ""iterations"": 10, ""max_ms"": 1.2964169727638364, ""p50_ms"": 1.262082951143384, ""p99_ms"": 1.285000005736947}"
+2,3.14+jit,3.14.6,heartbeat_fit,numba-gil,,13.371207984164357,ms max,"{""beats"": 318, ""iterations"": 140, ""max_ms"": 13.371207984164357, ""p50_ms"": 1.2909580254927278, ""p99_ms"": 3.1487499363720417}"
+2,3.14+jit,3.14.6,heartbeat_batch,numba-gil,,1.9005410140380263,ms max,"{""beats"": 325, ""iterations"": 121, ""max_ms"": 1.9005410140380263, ""p50_ms"": 1.3139169896021485, ""p99_ms"": 1.7045410349965096}"
+2,3.14+jit,3.14.6,heartbeat_kernel,numba-gil,,215.39358305744827,ms max,"{""beats"": 11, ""iterations"": 10, ""max_ms"": 215.39358305744827, ""p50_ms"": 210.09033301379532, ""p99_ms"": 215.39358305744827}"
+2,3.14+jit,3.14.6,heartbeat_fit,numpy,,8.784041041508317,ms max,"{""beats"": 252, ""iterations"": 20, ""max_ms"": 8.784041041508317, ""p50_ms"": 1.5623329672962427, ""p99_ms"": 8.554958971217275}"
+2,3.14+jit,3.14.6,heartbeat_batch,numpy,,26.25041699502617,ms max,"{""beats"": 215, ""iterations"": 6, ""max_ms"": 26.25041699502617, ""p50_ms"": 6.467249942943454, ""p99_ms"": 14.943416928872466}"
+2,3.14+jit,3.14.6,loadavg_1min_end,,,6.59326171875,,
+2,3.14t,3.14.6,install,numpy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""2.5.4""}"
+2,3.14t,3.14.6,install,scipy,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.1, ""version"": ""1.18.1""}"
+2,3.14t,3.14.6,install,pandas,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.0.6""}"
+2,3.14t,3.14.6,install,matplotlib,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.11.2""}"
+2,3.14t,3.14.6,install,openpyxl,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""3.1.5""}"
+2,3.14t,3.14.6,install,pykrige,,source build,,"{""error"": """", ""how"": ""source build"", ""no_wheel_reason"": ""hint: Wheels are required for `pykrige` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 0.2, ""version"": ""1.7.3""}"
+2,3.14t,3.14.6,install,numba,,wheel,,"{""error"": """", ""how"": ""wheel"", ""no_wheel_reason"": """", ""seconds"": 0.2, ""version"": ""0.68.0""}"
+2,3.14t,3.14.6,install,PySide6,,failed,,"{""error"": ""\u2570\u2500\u25b6 Because all versions of pyside6 have no wheels with a free-threading"", ""how"": ""failed"", ""no_wheel_reason"": ""\u2570\u2500\u25b6 Because all versions of pyside6 have no wheels with a free-threading"", ""seconds"": 0.2, ""version"": """"}"
+2,3.14t,3.14.6,install,nicegui,,source build without orjson (with it: hint: `orjson` (v3.13.0) was included because `nicegui` (v3.18.0) depends on `orjson`),,"{""error"": """", ""how"": ""source build without orjson (with it: hint: `orjson` (v3.13.0) was included because `nicegui` (v3.18.0) depends on `orjson`)"", ""no_wheel_reason"": ""hint: Wheels are required for `nicegui` because building from source is disabled for all packages (i.e., with `--no-build`)"", ""seconds"": 4.3, ""version"": ""3.18.0""}"
+2,3.14t,3.14.6,install,forster,,editable,,
+2,3.14t,3.14.6,gil_after_import,numpy,,0,,"{""gil"": 0, ""import_s"": 0.029606333002448082, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,numpy.random,,0,,"{""gil"": 0, ""import_s"": 0.034200832946226, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,scipy.linalg,,0,,"{""gil"": 0, ""import_s"": 0.10176633298397064, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,pandas,,0,,"{""gil"": 0, ""import_s"": 0.15383504098281264, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,matplotlib.pyplot,,0,,"{""gil"": 0, ""import_s"": 0.1926732090068981, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,openpyxl,,0,,"{""gil"": 0, ""import_s"": 0.07533262495417148, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,pykrige,,0,,"{""gil"": 0, ""import_s"": 0.19468979095108807, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,numba,,0,,"{""gil"": 0, ""import_s"": 0.12689241697080433, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,forster,,0,,"{""gil"": 0, ""import_s"": 0.5832787919789553, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,forster._kernels,,0,,"{""gil"": 0, ""import_s"": 0.583961124997586, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,PySide6.QtWidgets,,,,"{""error"": ""ModuleNotFoundError: No module named 'PySide6'"", ""ok"": false}"
+2,3.14t,3.14.6,gil_after_import,nicegui,,0,,"{""gil"": 0, ""import_s"": 0.23271916690282524, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,gil_after_import,"forster._kernels, nicegui",,0,,"{""gil"": 0, ""import_s"": 0.8137439580168575, ""ok"": true, ""warning"": []}"
+2,3.14t,3.14.6,free_threaded_build,,,1,,
+2,3.14t,3.14.6,jit_available,,,0,,
+2,3.14t,3.14.6,jit_enabled,,,0,,
+2,3.14t,3.14.6,cpu_count,,,12,,
+2,3.14t,3.14.6,loadavg_1min_start,,,5.298828125,,
+2,3.14t,3.14.6,numba_kernels,,,1,,
+2,3.14t,3.14.6,numba_kernels_nogil,,,1,,"{""numba"": ""0.68.0""}"
+2,3.14t,3.14.6,gil_enabled_during_measure,,,0,,
+2,3.14t,3.14.6,numpy25_orientation_shim,,,1,,"{""numpy"": ""2.5.4""}"
+2,3.14t,3.14.6,heartbeat_idle,,,1.2819170951843262,ms max,"{""beats"": 330, ""iterations"": 166, ""max_ms"": 1.2819170951843262, ""p50_ms"": 1.254832954145968, ""p99_ms"": 1.266542007215321}"
+2,3.14t,3.14.6,fit_first_call,numba-nogil,,0.08385695796459913,s,
+2,3.14t,3.14.6,result_days,numba-nogil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14t,3.14.6,fit_first_call,numba-gil,,0.9769051249604672,s,
+2,3.14t,3.14.6,result_days,numba-gil,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14t,3.14.6,fit_first_call,numpy,,0.11311954201664776,s,
+2,3.14t,3.14.6,result_days,numpy,,5.136659052877484,days,"{""scan_candidates"": 125, ""scan_days"": 6.099782625292011}"
+2,3.14t,3.14.6,batch64_identical,numba-nogil,4,1,,
+2,3.14t,3.14.6,batch64_identical,numba-nogil,8,1,,
+2,3.14t,3.14.6,batch64_identical,numba-gil,4,1,,
+2,3.14t,3.14.6,batch64_identical,numba-gil,8,1,,
+2,3.14t,3.14.6,batch64_identical,numpy,4,1,,
+2,3.14t,3.14.6,batch64_identical,numpy,8,1,,
+2,3.14t,3.14.6,fit,numba-nogil,,0.014053083024919033,s,"{""calls_per_timing"": 1, ""max"": 0.014188291039317846, ""min"": 0.013876832905225456, ""repeats"": 7}"
+2,3.14t,3.14.6,scan125,numba-nogil,,0.03714624990243465,s,"{""calls_per_timing"": 1, ""max"": 0.03835299995262176, ""min"": 0.03668283298611641, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numba-nogil,1,0.01631921174703166,s,"{""calls_per_timing"": 12, ""max"": 0.016452190999795373, ""min"": 0.016238840248358127, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numba-nogil,4,0.004994357586838305,s,"{""calls_per_timing"": 12, ""max"": 0.005264100667166834, ""min"": 0.004983305581845343, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numba-nogil,8,0.003997527741982291,s,"{""calls_per_timing"": 12, ""max"": 0.004068916663527489, ""min"": 0.003911024240854506, ""repeats"": 7}"
+2,3.14t,3.14.6,fit,numba-gil,,0.014011416002176702,s,"{""calls_per_timing"": 1, ""max"": 0.014202707912772894, ""min"": 0.013710833038203418, ""repeats"": 7}"
+2,3.14t,3.14.6,scan125,numba-gil,,0.03639387502335012,s,"{""calls_per_timing"": 1, ""max"": 0.03698341699782759, ""min"": 0.035791583941318095, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numba-gil,1,0.016216435926393248,s,"{""calls_per_timing"": 13, ""max"": 0.016274083307227835, ""min"": 0.01615636853966862, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numba-gil,4,0.005017919850965532,s,"{""calls_per_timing"": 13, ""max"": 0.005071669924431122, ""min"": 0.004942227531081209, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numba-gil,8,0.004026676304280185,s,"{""calls_per_timing"": 13, ""max"": 0.004143467925202388, ""min"": 0.003923423077839498, ""repeats"": 7}"
+2,3.14t,3.14.6,fit,numpy,,0.1124161669285968,s,"{""calls_per_timing"": 1, ""max"": 0.11354570905677974, ""min"": 0.111479084007442, ""repeats"": 7}"
+2,3.14t,3.14.6,scan125,numpy,,0.8345084999455139,s,"{""calls_per_timing"": 1, ""max"": 0.8392042499035597, ""min"": 0.831808082992211, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numpy,1,0.431307208025828,s,"{""calls_per_timing"": 1, ""max"": 0.43345387501176447, ""min"": 0.42820979200769216, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numpy,4,0.1350543750450015,s,"{""calls_per_timing"": 1, ""max"": 0.14704075001645833, ""min"": 0.13423608301673084, ""repeats"": 7}"
+2,3.14t,3.14.6,batch64,numpy,8,0.0950978749897331,s,"{""calls_per_timing"": 1, ""max"": 0.09785933292005211, ""min"": 0.09073958301451057, ""repeats"": 7}"
+2,3.14t,3.14.6,heartbeat_fit,numba-nogil,,1.2720839586108923,ms max,"{""beats"": 327, ""iterations"": 147, ""max_ms"": 1.2720839586108923, ""p50_ms"": 1.2565830256789923, ""p99_ms"": 1.269084052182734}"
+2,3.14t,3.14.6,heartbeat_batch,numba-nogil,,1.3003749772906303,ms max,"{""beats"": 330, ""iterations"": 121, ""max_ms"": 1.3003749772906303, ""p50_ms"": 1.2557919835671782, ""p99_ms"": 1.2889999197795987}"
+2,3.14t,3.14.6,heartbeat_kernel,numba-nogil,,1.2982089538127184,ms max,"{""beats"": 347, ""iterations"": 10, ""max_ms"": 1.2982089538127184, ""p50_ms"": 1.2557079317048192, ""p99_ms"": 1.2904169270768762}"
+2,3.14t,3.14.6,heartbeat_fit,numba-gil,,1.2874590465798974,ms max,"{""beats"": 329, ""iterations"": 147, ""max_ms"": 1.2874590465798974, ""p50_ms"": 1.2563340133056045, ""p99_ms"": 1.2652500299736857}"
+2,3.14t,3.14.6,heartbeat_batch,numba-gil,,1.2885829200968146,ms max,"{""beats"": 326, ""iterations"": 122, ""max_ms"": 1.2885829200968146, ""p50_ms"": 1.2565000215545297, ""p99_ms"": 1.2794999638572335}"
+2,3.14t,3.14.6,heartbeat_kernel,numba-gil,,1.2903750175610185,ms max,"{""beats"": 343, ""iterations"": 10, ""max_ms"": 1.2903750175610185, ""p50_ms"": 1.2561660259962082, ""p99_ms"": 1.276457915082574}"
+2,3.14t,3.14.6,heartbeat_fit,numpy,,1.294833025895059,ms max,"{""beats"": 333, ""iterations"": 18, ""max_ms"": 1.294833025895059, ""p50_ms"": 1.2569170212373137, ""p99_ms"": 1.2802500277757645}"
+2,3.14t,3.14.6,heartbeat_batch,numpy,,1.2856250395998359,ms max,"{""beats"": 354, ""iterations"": 5, ""max_ms"": 1.2856250395998359, ""p50_ms"": 1.256000017747283, ""p99_ms"": 1.2779159005731344}"
+2,3.14t,3.14.6,loadavg_1min_end,,,4.64697265625,,
