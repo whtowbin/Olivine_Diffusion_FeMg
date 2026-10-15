@@ -48,9 +48,7 @@ import scipy.linalg as sla
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity
 from forster.grid import (
     STABILITY_RATIO,
-    UNSTABLE_RATIO,
     actual_dx_um,
-    stability_ratio,
     stable_dt,
 )
 from forster.model import (
@@ -62,6 +60,7 @@ from forster.model import (
     Orientation,
     Profile,
     _diffusion_model,
+    _explicit_substeps,
     _run_past_best_fit,
     fe_mg_diffusivity,
     scheme_grid,
@@ -244,16 +243,16 @@ def scan_grid(
     profile: Profile | None = None,
     scheme: str = "central",
 ) -> Grid:
-    """``grid`` with dt set so D_max dt / dx^2 = ``stability``, D_max over every
-    candidate's compositions (edge, core, plateau); dx and max time unchanged. One grid
+    """``grid`` with dt raised so D_max dt / dx^2 = ``stability``, D_max over every
+    candidate's compositions (edge, core, plateau); a larger dt (set to resolve the fit;
+    the run takes stable substeps within it) is kept. dx and max time unchanged. One grid
     for every candidate, so their chi-squared values stay comparable. With ``profile``
     the spacing `fit_profile` will actually use with the explicit ``scheme`` is taken
     (`forster.grid.actual_dx_um`)."""
     lo, hi = _fo_span(candidates)
     dx = grid.dx_um if profile is None else actual_dx_um(profile, grid.dx_um, candidates[0], scheme)
-    return replace(
-        grid, dt_s=stable_dt(dx, [(diffusivity, (lo, hi))], conditions, orientation, stability)
-    )
+    stable = stable_dt(dx, [(diffusivity, (lo, hi))], conditions, orientation, stability)
+    return replace(grid, dt_s=max(stable, grid.dt_s))
 
 
 def step_offsets(initial: InitialCondition, offsets_um: Sequence[float]) -> list[InitialCondition]:
@@ -360,9 +359,25 @@ def run_candidates(
     x, y = points_in_domain(model_x, profile.distance_um, profile.fo)
     W = interpolation_matrix(model_x, x)
     at_points, complete, advances, lasts = [], [], [], []
+    explicit = scheme != "implicit"
     for i, initial in enumerate(candidates):
+        substeps = (
+            _explicit_substeps(
+                diffusivity, conditions, orientation, initial, None, None, grid, dx_um
+            )
+            if explicit
+            else 1
+        )
         start, advance = _diffusion_model(
-            scheme, conditions, orientation, initial, grid, diffusivity, model_x, dx_um
+            scheme,
+            conditions,
+            orientation,
+            initial,
+            grid,
+            diffusivity,
+            model_x,
+            dx_um,
+            substeps=substeps,
         )
         if stop_early:
             curves = _run_past_best_fit(start, advance, grid.timesteps, W, y)
@@ -513,20 +528,12 @@ def scan_initial_conditions(
         prior, initials = candidates, candidates.candidates
     else:
         prior, initials = None, tuple(candidates)
-    explicit = scheme != "implicit"  # the implicit scheme is stable at any dt
-    if explicit and stability is not None:
+    # The implicit scheme is stable at any dt; an explicit run takes stable substeps
+    # within a dt above its limit (`forster.model._explicit_substeps`).
+    if scheme != "implicit" and stability is not None:
         grid = scan_grid(
             grid, initials, conditions, orientation, diffusivity, stability, profile, scheme
         )
-    elif explicit:
-        lo, hi = _fo_span(initials)
-        dx = actual_dx_um(profile, grid.dx_um, initials[0], scheme)
-        ratio = stability_ratio(dx, grid.dt_s, [(diffusivity, (lo, hi))], conditions, orientation)
-        if ratio > UNSTABLE_RATIO:
-            raise ValueError(
-                f"scan grid unstable for some candidates: D_max dt / dx^2 = {ratio:.2f} > "
-                f"{UNSTABLE_RATIO}"
-            )
     runs = run_candidates(
         profile,
         conditions,

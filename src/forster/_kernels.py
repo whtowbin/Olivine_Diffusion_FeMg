@@ -20,8 +20,9 @@ def _d(a, k, ref, x):
 
 
 @njit(cache=True)
-def central_steps(c0, a, k, ref, lo, hi, dt, dx, n):
-    """`engine.timestepper`: lo and hi held one node outside, central cross term."""
+def central_steps(c0, a, k, ref, lo, hi, dt, dx, n, every=1):
+    """`engine.timestepper`: lo and hi held one node outside, central cross term.
+    ``every`` steps of ``dt`` per row returned (n + 1 rows)."""
     m = c0.size
     out = np.empty((n + 1, m))
     out[0] = c0
@@ -32,21 +33,23 @@ def central_steps(c0, a, k, ref, lo, hi, dt, dx, n):
     d[0] = _d(a, k, ref, lo)
     d[m + 1] = _d(a, k, ref, hi)
     for t in range(n):
-        for i in range(m):
-            d[i + 1] = _d(a, k, ref, c[i])
-        for i in range(m):
-            cm = c[i - 1] if i > 0 else lo
-            cp = c[i + 1] if i < m - 1 else hi
-            lap = (cp - 2.0 * c[i] + cm) * d[i + 1]
-            new[i] = c[i] + delta * (lap + (cp - cm) * (d[i + 2] - d[i]) / 4)
-        c, new = new, c
+        for _ in range(every):
+            for i in range(m):
+                d[i + 1] = _d(a, k, ref, c[i])
+            for i in range(m):
+                cm = c[i - 1] if i > 0 else lo
+                cp = c[i + 1] if i < m - 1 else hi
+                lap = (cp - 2.0 * c[i] + cm) * d[i + 1]
+                new[i] = c[i] + delta * (lap + (cp - cm) * (d[i + 2] - d[i]) / 4)
+            c, new = new, c
         out[t + 1] = c
     return out
 
 
 @njit(cache=True)
-def dipra_steps(c0, a, k, ref, lo, hi, dt, dx, n):
-    """`dipra.timestepper`: forward cross term, dD/dX = -k ln(10) D."""
+def dipra_steps(c0, a, k, ref, lo, hi, dt, dx, n, every=1):
+    """`dipra.timestepper`: forward cross term, dD/dX = -k ln(10) D. ``every`` steps of
+    ``dt`` per row returned (n + 1 rows)."""
     m = c0.size
     out = np.empty((n + 1, m))
     out[0] = c0
@@ -55,14 +58,15 @@ def dipra_steps(c0, a, k, ref, lo, hi, dt, dx, n):
     slope = -k * math.log(10.0)
     delta = dt / dx**2
     for t in range(n):
-        for i in range(m):
-            cm = c[i - 1] if i > 0 else lo
-            cp = c[i + 1] if i < m - 1 else hi
-            di = _d(a, k, ref, c[i])
-            new[i] = c[i] + delta * (
-                (cp - c[i]) * (cp - c[i]) * slope * di + (cp - 2 * c[i] + cm) * di
-            )
-        c, new = new, c
+        for _ in range(every):
+            for i in range(m):
+                cm = c[i - 1] if i > 0 else lo
+                cp = c[i + 1] if i < m - 1 else hi
+                di = _d(a, k, ref, c[i])
+                new[i] = c[i] + delta * (
+                    (cp - c[i]) * (cp - c[i]) * slope * di + (cp - 2 * c[i] + cm) * di
+                )
+            c, new = new, c
         out[t + 1] = c
     return out
 

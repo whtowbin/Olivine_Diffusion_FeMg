@@ -215,7 +215,7 @@ One row per model run. Fo is a fraction throughout.
 | `core_fo` | fraction | required | Initial Fo after the last step (core side). |
 | `step_fo` | fraction | optional | Initial Fo of the plateau between two steps; required with two steps. |
 | `dx_um` | µm | optional | Grid spacing of the final fit. Leave empty to have it chosen for about 1% accuracy in the fitted time; a value you give is kept, with a warning if it is coarse, wastefully fine, or too coarse for the initial steps. |
-| `dt_s` | s | optional | Time step of the final fit. Leave empty to have it chosen: 1/400 of the fitted time (implicit), or the stable step D dt / dx² = 0.4 (central, dipra; above 0.5 is unstable and refused). |
+| `dt_s` | s | optional | Time step of the final fit, which sets how finely the fitted time is resolved. Leave empty to have it chosen: 1/400 of the fitted time. The explicit schemes (central, dipra) split a dt above their stability limit (D dt / dx² = 0.5) into stable steps and keep only the rows at whole time steps (not with growth stages, which need a stable dt). |
 | `max_time_days` | days | optional | Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate of the time). |
 | `scheme` |  | optional | implicit (default since 2026-10-13: rim on the end node, steps not snapped to nodes, any time step), central (the engine's explicit scheme, used before) or dipra (DIPRA's forward-difference scheme, Girona and Costa 2013; a numerical scheme, not the diffusivity law). With uncertainty = legacy the default is central. |
 | `diffusivity` |  | optional | Fe-Mg diffusivity equation. One of dipra: Classic DIPRA (Dohmen & Chakraborty 2007), preset dohmen_chakraborty2007; refit: FORSTER refit (2026), preset femg_refit2026; dfens_tamed: DFENS TaMED (Mutch et al. 2019), preset mutch2019_tamed; dfens_global: DFENS Global (Mutch et al. 2019), preset mutch2019_global. dipra is the default. Every choice but dipra carries a covariance, which adds the law_ range to summary.csv; refit also carries the spread between laboratories (the all_ range). Any other preset name, or a name from diffusivities.csv (then run forster fit with --diffusivities), also works. |
@@ -230,7 +230,7 @@ One row per model run. Fo is a fraction throughout.
 | `step_fo_range` | fraction | optional | ± half-width on step_fo (uniform). |
 | `scan_points` |  | optional | Grid points per uncertain parameter (default 13 for one, 9 for two, 5 for more). |
 | `scan_dx_um` | µm | optional | Grid spacing of the initial-condition scan's runs. Empty: chosen for about 5% accuracy (coarser and faster than the final fit). |
-| `scan_dt_s` | s | optional | Time step of the scan's runs. Empty: D dt / dx² = 0.4 for every candidate. |
+| `scan_dt_s` | s | optional | Time step of the scan's runs. Empty: 1/80 of the nominal fit's time, and for central or dipra at least D dt / dx² = 0.4 for every candidate. |
 | `scan_max_time_days` | days | optional | Longest time the scan's runs model. Empty: max_time_days if given, else 3x the fitted time. |
 | `notes` |  | optional | Free text for your own records. |
 
@@ -298,7 +298,7 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `scan_dropped` |  | Grid points left out as invalid (steps out of order or domain, Fo outside 0-1). |
 | `grid_resolution` |  | Diffusion length sqrt(D t) at the fit over the grid spacing: for 1% accuracy in the fitted time about 5 (implicit) or 240 (central, dipra). |
 | `grid_error_pct` | % | Estimated worst-case error of the fitted time from the grid spacing (implicit: 0.2 x (dx / l)²; central, dipra: 2.4 x dx / l; l the diffusion length; measured on 35 real profiles). |
-| `grid_stability` |  | D dt / dx² of the final fit (central, dipra: stable up to 0.5; empty for implicit). |
+| `grid_stability` |  | D dt / dx² of the final fit's time step (central, dipra: above 0.5 each step is split into stable steps; empty for implicit). |
 
 Parameter tables in the two older layouts of this project, the round robin
 spreadsheets and the tables of Towbin and Plank (2026), are read too.
@@ -321,9 +321,11 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   gives the diffusion length l = sqrt(D t). With the default implicit scheme the final
   fit uses dx = l / 8 and dt = 1/400 of the fitted time (within 0.3% of a converged
   value on all 35 real profiles), scans dx = l / 4 and 1/80. With `central` or `dipra`:
-  dx = l / 240 for 1% and l / 48 for scans, and dt the stable step D dt / dx² = 0.4.
-  A grid you give is kept and checked: unstable grids are refused, and coarse or
-  wastefully fine ones get a warning. `grid_resolution`, `grid_error_pct` and
+  dx = l / 240 for 1% and l / 48 for scans, with the same dt; within each time step
+  they take as many stable steps (D dt / dx² = 0.4) as they need and keep only the
+  rows at whole time steps. A grid you give is kept and checked: coarse or wastefully
+  fine ones get a warning, and an explicit dt above the stability limit is split into
+  stable steps (refused only with growth stages). `grid_resolution`, `grid_error_pct` and
   `grid_stability` in summary.csv say how well each fit was resolved.
   [docs/references/grid-choice.md](docs/references/grid-choice.md) gives the
   measurements behind these numbers.

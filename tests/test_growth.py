@@ -200,7 +200,8 @@ def test_stages_need_time_after_the_last_one_and_the_correlated_method():
 
 def test_explicit_fit_refuses_an_unstable_stage():
     """dt stable for the initial condition's Fo (0.86-0.90) is not for a zone of Fo 0.75,
-    whose D is larger; the explicit run would diverge, so `fit_profile` refuses it."""
+    whose D is larger; the explicit run would diverge, so `fit_profile` refuses it (stage
+    starts fall on whole time steps, so a staged run cannot substep)."""
     dt = 0.3 * (DX_UM * 1e-6) ** 2 / d_fo(np.array([EARLY_RIM])).max()  # 0.40 at Fo 0.82
     grid = Grid(DX_UM, dt, max_time_days=TOTAL_DAYS)
     dummy = Profile(X_UM, np.full(len(X_UM), 0.88) + 1e-4 * np.sin(X_UM))
@@ -208,7 +209,7 @@ def test_explicit_fit_refuses_an_unstable_stage():
     low = Stage(STAGE_DAYS * DAY, rim_um=0.0, zone_value=0.75)
     with pytest.raises(ValueError, match="unstable grid"):
         fit_profile(*args, stop_early=False, stages=[low], scheme="central")
-    with pytest.raises(ValueError, match="unstable grid"):
-        fit_profile(*args, stop_early=False, rim_fo=0.75, scheme="dipra")
+    # Without stages a dt above the stable step is split into stable steps instead.
+    fit_profile(*args, stop_early=False, rim_fo=0.75, scheme="dipra")
     fit_profile(*args, stop_early=False, stages=[GROWTH], scheme="central")  # Fo 0.82: stable
     fit_profile(*args, stop_early=False, stages=[low], scheme="implicit")  # stable at any dt

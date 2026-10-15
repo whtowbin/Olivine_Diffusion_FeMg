@@ -34,10 +34,11 @@ from forster.grid import (
     diffusion_length_um,
     fo_range,
     narrowest_gap_um,
+    resolving_dt,
     stability_ratio,
     stable_dt,
 )
-from forster.model import Profile
+from forster.model import Profile, _stepper
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +79,15 @@ def test_choose_grid_meets_its_tolerance(two_step):
     assert scan.estimated_error <= 0.05 + 1e-9
     assert final.resolution == pytest.approx(240, rel=0.02)
     assert scan.grid.dx_um == pytest.approx(5 * final.grid.dx_um, rel=0.05)
-    assert final.stability_ratio == pytest.approx(0.4)
+    # dt resolves the fit (the explicit run takes stable substeps within it), unless the
+    # stable step is longer.
+    sp = [(run.diffusivity, fo_range(run.initial))]
+    final_dx = actual_dx_um(profile, final.grid.dx_um, run.initial, "central")
+    assert final.grid.dt_s == max(
+        resolving_dt(final.coarse_time_days, 0.01),
+        stable_dt(final_dx, sp, run.conditions, run.orientation),
+    )
+    assert final.stability_ratio > 100  # hundreds of stable steps per kept row
     # Against a converged reference: the implicit scheme at l / dx = 40 (an explicit
     # reference would share the explicit first-order bias). The final explicit grid
     # (l / dx = 240) is too slow for a test; the scan grid is checked.
@@ -101,8 +110,8 @@ def test_check_grid_messages(two_step):
     sp = [(run.diffusivity, fo_range(run.initial))]
     dx = actual_dx_um(profile, 0.5, run.initial, "central")
     good_dt = stable_dt(dx, sp, run.conditions, run.orientation)
-    with pytest.raises(ValueError, match="unstable grid"):
-        check_grid(Grid(0.5, 2 * good_dt / 0.4 * 0.5 + good_dt, 100), *args, scheme="central")
+    # A dt above the stable step is split into stable steps by fit_profile: no complaint.
+    assert check_grid(Grid(0.5, 10 * good_dt, 100), *args, scheme="central") == []
     assert (
         check_grid(Grid(0.5, good_dt, 100), *args, time_days=71, purpose="scan", scheme="central")
         == []
@@ -127,10 +136,12 @@ def test_grid_request_fills_in_what_is_missing(two_step):
     args = (profile, run.conditions, run.orientation, run.initial, run.diffusivity)
     given_dx = GridRequest(dx_um=2.0).resolve(*args, time_days=71, scheme="central")
     assert given_dx.grid.dx_um == 2.0
-    assert given_dx.stability_ratio == pytest.approx(0.4)
+    dx = actual_dx_um(profile, 2.0, run.initial, "central")
+    stable = stable_dt(dx, [(run.diffusivity, fo_range(run.initial))], *args[1:3])
+    assert given_dx.grid.dt_s == max(stable, resolving_dt(71, 0.01))
     assert given_dx.grid.max_time_days == pytest.approx(3 * 71)
-    with pytest.raises(ValueError, match="unstable grid"):
-        GridRequest(dt_s=1e9).resolve(*args, time_days=71, scheme="central")
+    # A given dt is kept, whatever its stability: the explicit run substeps within it.
+    assert GridRequest(dt_s=1e5).resolve(*args, time_days=71, scheme="central").grid.dt_s == 1e5
     # The implicit scheme (the default) keeps a given dt: it is stable at any dt.
     implicit = GridRequest(dx_um=2.0).resolve(*args, time_days=71)
     assert implicit.grid.dt_s == pytest.approx(71 * 86400 * 0.01 / 4)
@@ -169,3 +180,37 @@ def test_a_coarse_user_grid_is_fitted_with_a_warning(blank_grid_template):
         warnings.simplefilter("always")
         fit_run(coarse, profiles)
     assert any("may be off by up to" in str(w.message) for w in caught)
+
+
+@pytest.mark.parametrize("scheme", ["central", "dipra"])
+@pytest.mark.parametrize("fast", [True, False])
+def test_explicit_substeps_match_a_stable_run_row_for_row(two_step, scheme, fast):
+    """A dt 3x the stable step runs as 3 stable steps per kept row: the kept rows are
+    those of the stable run at every third step (compiled and NumPy steppers)."""
+    run, _ = two_step
+    diffusivity = run.diffusivity
+    D, dD = diffusivity.functions(run.conditions, run.orientation)
+    dx_um = 1.0
+    fo = np.array(run.initial.fo_values)
+    dt = 0.35 * (dx_um * 1e-6) ** 2 / float(D(fo).max())
+    x = np.arange(0.0, 300.0, dx_um)
+    start = np.where(x < 20, run.initial.edge_fo, run.initial.core_fo)
+    bounds = (run.initial.edge_fo, run.initial.core_fo)
+    stable = _stepper(scheme, D, dD, bounds, dt, dx_um * 1e-6, fast)(start, 300)
+    coarse = _stepper(scheme, D, dD, bounds, 3 * dt, dx_um * 1e-6, fast, substeps=3)(start, 100)
+    assert coarse.shape == (101, len(x))
+    np.testing.assert_allclose(coarse, stable[::3], rtol=0, atol=1e-13)
+
+
+def test_fit_with_a_dt_above_the_stable_step_substeps(two_step):
+    """fit_profile with dt 3x the stable step: the same best fit as the stable grid, to
+    within the coarser time resolution, and a third of the rows kept."""
+    run, profile = two_step
+    sp = [(run.diffusivity, fo_range(run.initial))]
+    dx = actual_dx_um(profile, 1.0, run.initial, "central")
+    dt = stable_dt(dx, sp, run.conditions, run.orientation, ratio=0.35)
+    args = (profile, run.conditions, run.orientation, run.initial)
+    fine = fit_profile(*args, Grid(1.0, dt, 120), None, run.diffusivity, scheme="central")
+    coarse = fit_profile(*args, Grid(1.0, 3 * dt, 120), None, run.diffusivity, scheme="central")
+    assert abs(coarse.time_days - fine.time_days) <= 1.5 * 3 * dt / 86400
+    assert len(coarse.curves) <= len(fine.curves) // 3 + 2

@@ -37,18 +37,25 @@ def _parameters(D: object) -> tuple[float, float, float] | None:
 
 
 def explicit_stepper(
-    scheme: str, D: object, bounds: tuple[float, float], dt_s: float, dx_m: float
+    scheme: str,
+    D: object,
+    bounds: tuple[float, float],
+    dt_s: float,
+    dx_m: float,
+    substeps: int = 1,
 ) -> Advance | None:
     """``advance(c, n, first_row=0)`` for "central" or "dipra", or None if it cannot be
-    compiled (no Numba, or D not log-linear)."""
+    compiled (no Numba, or D not log-linear). Each row is ``substeps`` steps of
+    ``dt_s / substeps``."""
     params = _parameters(D)
     if params is None or _kernels is None:
         return None
     steps = _kernels.central_steps if scheme == "central" else _kernels.dipra_steps
     lo, hi = float(bounds[0]), float(bounds[1])
+    step_s = dt_s / substeps
 
     def advance(c: np.ndarray, n: int, first_row: int = 0) -> np.ndarray:
-        return steps(np.asarray(c, dtype=float), *params, lo, hi, dt_s, dx_m, n)
+        return steps(np.asarray(c, dtype=float), *params, lo, hi, step_s, dx_m, n, substeps)
 
     return advance
 

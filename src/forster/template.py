@@ -89,9 +89,11 @@ PARAMETER_COLUMNS = (
         "dt_s",
         "s",
         "optional",
-        "Time step of the final fit. Leave empty to have it chosen: 1/400 of the fitted "
-        "time (implicit), or the stable step D dt / dx² = 0.4 (central, dipra; above 0.5 "
-        "is unstable and refused).",
+        "Time step of the final fit, which sets how finely the fitted time is resolved. "
+        "Leave empty to have it chosen: 1/400 of the fitted time. The explicit schemes "
+        "(central, dipra) split a dt above their stability limit (D dt / dx² = 0.5) into "
+        "stable steps and keep only the rows at whole time steps (not with growth stages, "
+        "which need a stable dt).",
     ),
     Column(
         "max_time_days",
@@ -164,7 +166,8 @@ PARAMETER_COLUMNS = (
         "scan_dt_s",
         "s",
         "optional",
-        "Time step of the scan's runs. Empty: D dt / dx² = 0.4 for every candidate.",
+        "Time step of the scan's runs. Empty: 1/80 of the nominal fit's time, and for "
+        "central or dipra at least D dt / dx² = 0.4 for every candidate.",
     ),
     Column(
         "scan_max_time_days",
@@ -317,7 +320,8 @@ SUMMARY_COLUMNS = (
         "grid_stability",
         "",
         "",
-        "D dt / dx² of the final fit (central, dipra: stable up to 0.5; empty for implicit).",
+        "D dt / dx² of the final fit's time step (central, dipra: above 0.5 each step is "
+        "split into stable steps; empty for implicit).",
     ),
 )
 

@@ -29,7 +29,13 @@ from forster import (
     read_runs,
 )
 from forster.boundary import RimPath, Stage
-from forster.grid import check_grid, choose_grid, diffusion_length_um, fo_range
+from forster.grid import (
+    STABILITY_RATIO,
+    check_grid,
+    choose_grid,
+    diffusion_length_um,
+    fo_range,
+)
 from forster.implicit import cell_average, node_grid, stepper
 
 DAY = 86400.0
@@ -264,7 +270,9 @@ def test_chosen_implicit_grid_meets_its_tolerance_on_a_real_profile(two_step):
         *args, purpose="scan", time_days=final.coarse_time_days, scheme="central"
     )
     assert final.grid.dx_um > 5 * explicit.grid.dx_um
-    assert final.grid.dt_s > 10 * explicit.grid.dt_s
+    # The explicit run steps at its stable step, below its kept dt (substeps).
+    explicit_step = explicit.grid.dt_s * STABILITY_RATIO / explicit.stability_ratio
+    assert final.grid.dt_s > 10 * explicit_step
     explicit_fit = fit_profile(*fit_args, explicit.grid, None, run.diffusivity, scheme="central")
     assert explicit_fit.time_days == pytest.approx(ref.time_days, rel=0.05)
 
@@ -274,8 +282,8 @@ def test_check_grid_for_the_implicit_scheme(two_step):
     args = (profile, run.conditions, run.orientation, run.initial, run.diffusivity)
     # Far beyond the explicit stability limit: fine for the implicit scheme.
     big_dt = Grid(2.0, 0.15 * DAY, 200)
-    with pytest.raises(ValueError, match="unstable"):
-        check_grid(big_dt, *args, scheme="central")
+    # The explicit schemes substep within it (fit_profile), so it is no error either.
+    assert check_grid(big_dt, *args, scheme="central") == []
     assert check_grid(big_dt, *args, scheme="implicit") == []
     assert check_grid(big_dt, *args, scheme="implicit", time_days=70) == []
     coarse_dt = replace(big_dt, dt_s=10 * DAY)

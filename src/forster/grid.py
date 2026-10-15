@@ -4,6 +4,13 @@ The explicit schemes need D_max dt / dx^2 <= 0.5 to be stable; `stable_dt` gives
 time step at ``STABILITY_RATIO`` (0.4) of that, for the largest diffusivity of every
 species over the compositions it passes through. Raising dt to that ratio changed
 fitted times by under 0.2% (``docs/references/likelihood-method.md``, section 7).
+Since 2026-10-15 a ``Grid.dt_s`` above that limit is not refused: `fit_profile` splits
+each time step into enough stable steps (`forster.model._explicit_substeps`) and keeps
+only the rows at whole time steps, so dt sets the fit's time resolution for every
+scheme. `choose_grid` gives the explicit schemes the larger of the stable step and the
+step that resolves the fit (`resolving_dt`). Before, a final explicit grid kept every
+stable step: 426,385 rows of 1,530 nodes (5.2 GB, 13 s) for the packaged example,
+where about 1,200 rows resolve the fit as well.
 
 The grid spacing sets the accuracy. For the explicit schemes the error in the fitted
 time falls as 1/k with k = l / dx, l the diffusion length sqrt(D t) at the fit: they
@@ -179,9 +186,10 @@ def needed_dx_um(length_um: float, tolerance: float, scheme: str, purpose: str) 
     return length_um * tolerance / ERROR_COEFFICIENT
 
 
-def implicit_dt(time_days: float, tolerance: float) -> float:
-    """Implicit time step: `IMPLICIT_STEPS_PER_TOLERANCE` / tolerance steps up to
-    ``time_days``, so the fitted time (a whole step) is within tolerance / 8 from that."""
+def resolving_dt(time_days: float, tolerance: float) -> float:
+    """Time step that resolves the fit: `IMPLICIT_STEPS_PER_TOLERANCE` / tolerance steps
+    up to ``time_days``, so the fitted time (a whole step) is within tolerance / 8 from
+    that. The implicit scheme's dt; the explicit schemes substep within it."""
     return time_days * SECONDS_PER_DAY * tolerance / IMPLICIT_STEPS_PER_TOLERANCE
 
 
@@ -284,10 +292,9 @@ def choose_grid(
     if scheme != "implicit":
         target = min(target, narrowest_gap_um(initial) / MIN_NODES_PER_GAP)
     request, dx = dx_not_above(profile, target, initial, scheme)
-    if scheme == "implicit":
-        dt = implicit_dt(time_days, tolerance)
-    else:
-        dt = stable_dt(dx, species, conditions, orientation)
+    dt = resolving_dt(time_days, tolerance)
+    if scheme != "implicit":
+        dt = max(dt, stable_dt(dx, species, conditions, orientation))
     grid = Grid(request, dt, max_time_days or MAX_TIME_FACTOR * time_days)
     return GridChoice(
         grid,
@@ -332,8 +339,7 @@ def check_grid(
     if time_days is not None:
         length = diffusion_length_um(time_days, species, conditions, orientation)
         messages += _spacing_messages(dx, length, tolerance, scheme, purpose)
-        if scheme == "implicit":
-            messages += _implicit_dt_messages(grid.dt_s, time_days, tolerance)
+        messages += _dt_messages(grid.dt_s, time_days, tolerance, scheme)
     return messages
 
 
@@ -345,14 +351,9 @@ def _explicit_messages(
     conditions: Conditions,
     orientation: Orientation,
 ) -> list[str]:
-    """Raise if unstable; warn of too few nodes across a gap or a needlessly small dt."""
-    ratio = stability_ratio(dx, grid.dt_s, species, conditions, orientation)
+    """Warn of too few nodes across a gap or a dt below the stable step (a dt above it
+    is split into stable steps by `fit_profile`)."""
     good = stable_dt(dx, species, conditions, orientation)
-    if ratio > UNSTABLE_RATIO:
-        raise ValueError(
-            f"unstable grid: D_max dt / dx^2 = {ratio:.2f} > {UNSTABLE_RATIO} (dx {dx:.4g} um, "
-            f"dt {grid.dt_s:.4g} s); use dt <= {good:.4g} s or a larger dx"
-        )
     messages = []
     gap = narrowest_gap_um(initial)
     if gap / dx < MIN_NODES_PER_GAP:
@@ -388,8 +389,10 @@ def _spacing_messages(
     return []
 
 
-def _implicit_dt_messages(dt_s: float, time_days: float, tolerance: float) -> list[str]:
-    good = implicit_dt(time_days, tolerance)
+def _dt_messages(dt_s: float, time_days: float, tolerance: float, scheme: str) -> list[str]:
+    """Too few time steps to resolve the fit (any scheme); needlessly many (implicit;
+    the explicit schemes have their own note about the stable step)."""
+    good = resolving_dt(time_days, tolerance)
     steps = time_days * SECONDS_PER_DAY / dt_s
     if dt_s > good:
         return [
@@ -397,7 +400,7 @@ def _implicit_dt_messages(dt_s: float, time_days: float, tolerance: float) -> li
             f"is resolved to about {0.5 / steps:.0%} (aim for {tolerance:.0%}: "
             f"dt <= {good:.4g} s)"
         ]
-    if dt_s * COST_FACTOR < good:
+    if scheme == "implicit" and dt_s * COST_FACTOR < good:
         return [
             f"dt {dt_s:.4g} s is {good / dt_s:.0f}x smaller than needed for {tolerance:.0%} "
             f"({good:.4g} s would do): slower, no more accurate"
@@ -429,8 +432,8 @@ class GridRequest:
         species: Sequence[Species] | None = None,
         scheme: str = DEFAULT_SCHEME,
     ) -> GridChoice:
-        """The grid with the missing parts chosen; given parts are kept (and a given
-        dt that would be unstable on the chosen dx raises)."""
+        """The grid with the missing parts chosen; given parts are kept. With a given dx
+        and an explicit scheme, dt is at least the stable step on that dx."""
         choice = choose_grid(
             profile,
             conditions,
@@ -449,7 +452,10 @@ class GridRequest:
             grid = replace(grid, dx_um=self.dx_um)
             if scheme != "implicit":  # the implicit dt does not depend on dx
                 dx = actual_dx_um(profile, self.dx_um, initial, scheme)
-                grid = replace(grid, dt_s=stable_dt(dx, sp, conditions, orientation))
+                stable = stable_dt(dx, sp, conditions, orientation)
+                grid = replace(
+                    grid, dt_s=max(stable, resolving_dt(choice.coarse_time_days, choice.tolerance))
+                )
         if self.dt_s is not None:
             grid = replace(grid, dt_s=self.dt_s)
         check_grid(

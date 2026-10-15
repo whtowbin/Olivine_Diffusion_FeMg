@@ -391,6 +391,7 @@ def _diffusion_model(
     dx_um: float,
     rim: Rim | None = None,
     fast: bool = True,
+    substeps: int = 1,
 ) -> tuple[np.ndarray, Advance]:
     """The step-function start and a function advancing a profile by n time steps.
 
@@ -402,7 +403,8 @@ def _diffusion_model(
     `forster.implicit` (cell-averaged start, values held on the end nodes). ``rim`` is
     the value held at the rim (default ``initial.edge_fo``); a function of time needs
     "implicit". ``fast``: use the compiled steppers when available (`forster.compiled`);
-    False keeps NumPy (bit-identical to earlier versions).
+    False keeps NumPy (bit-identical to earlier versions). ``substeps`` (explicit
+    schemes): each time step of ``grid.dt_s`` is that many stable steps.
     """
     D, dD_dfo = diffusivity.functions(conditions, orientation)
     rim = initial.edge_fo if rim is None else rim
@@ -413,7 +415,7 @@ def _diffusion_model(
         raise ValueError('a rim value that changes in time needs scheme="implicit"')
     start = engine.step_condition(model_x, list(initial.steps_um), list(initial.fo_values))
     bounds = (float(rim), initial.core_fo)
-    return start, _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_um * 1e-6, fast)
+    return start, _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_um * 1e-6, fast, substeps)
 
 
 def _implicit_stepper(
@@ -438,15 +440,18 @@ def _stepper(
     dt_s: float,
     dx_m: float,
     fast: bool = True,
+    substeps: int = 1,
 ) -> Advance:
     """``advance(c, n, first_row=0)``: n time steps with Fo held at ``bounds`` beyond
     both ends (``first_row`` is not needed: the bounds are fixed). ``fast``: compiled
-    when available."""
-    advance = fast and compiled.explicit_stepper(scheme, D, bounds, dt_s, dx_m)
+    when available. Each time step is ``substeps`` steps of ``dt_s / substeps``, and
+    only the rows at whole time steps are kept."""
+    advance = fast and compiled.explicit_stepper(scheme, D, bounds, dt_s, dx_m, substeps)
     if advance:
         return advance
+    step_s = dt_s / substeps
 
-    def advance(c: np.ndarray, n: int, first_row: int = 0) -> np.ndarray:
+    def steps(c: np.ndarray, n: int) -> np.ndarray:
         if scheme == "central":
             return engine.timestepper(
                 vector_c_in=c,
@@ -455,9 +460,17 @@ def _stepper(
                 bounds_c=bounds,
                 timesteps=n,
                 dx=dx_m,
-                dt=dt_s,
+                dt=step_s,
             )
-        return dipra.timestepper(c, D, dD_dfo, bounds, n, dt=dt_s, dx=dx_m)
+        return dipra.timestepper(c, D, dD_dfo, bounds, n, dt=step_s, dx=dx_m)
+
+    def advance(c: np.ndarray, n: int, first_row: int = 0) -> np.ndarray:
+        if substeps == 1:
+            return steps(c, n)
+        rows = [np.asarray(c, dtype=float)]
+        for _ in range(n):
+            rows.append(steps(rows[-1], substeps)[-1])
+        return np.array(rows)
 
     return advance
 
@@ -676,7 +689,7 @@ def _correlated_run(
     )
 
 
-def _check_stable(
+def _explicit_substeps(
     diffusivity: Diffusivity,
     conditions: Conditions,
     orientation: Orientation,
@@ -685,12 +698,15 @@ def _check_stable(
     rim_fo: Rim | None,
     grid: Grid,
     dx_um: float,
-) -> None:
-    """Explicit schemes: raise if D_max dt / dx^2 exceeds the stability limit, D_max over
-    every Fo the run holds (initial condition, each stage's zone and rim, a fixed
-    ``rim_fo``). `forster.grid` checks the initial condition's range only; a stage or rim
-    of lower Fo has a larger D."""
-    from forster.grid import UNSTABLE_RATIO
+) -> int:
+    """Explicit schemes: the stable steps per time step of ``grid.dt_s``, from D_max dt /
+    dx^2 with D_max over every Fo the run holds (initial condition, each stage's zone and
+    rim, a fixed ``rim_fo``). 1 when that ratio is within the stability limit (then the
+    run is exactly as before); otherwise enough steps to bring it to `STABILITY_RATIO`,
+    so ``grid.dt_s`` only sets which rows are kept (the fit's time resolution). Runs
+    with growth stages need a stable ``grid.dt_s`` (their stage starts fall on its
+    steps) and raise instead."""
+    from forster.grid import STABILITY_RATIO, UNSTABLE_RATIO
 
     values = list(initial.fo_values)
     values += [float(rim_fo)] if isinstance(rim_fo, int | float) else []
@@ -699,12 +715,15 @@ def _check_stable(
         values += [stage.held_value]
     D, _ = diffusivity.functions(conditions, orientation)
     ratio = float(np.max(D(np.array(values, dtype=float)))) * grid.dt_s / (dx_um * 1e-6) ** 2
-    if ratio > UNSTABLE_RATIO:
-        raise ValueError(
-            f"unstable grid: D_max dt / dx^2 = {ratio:.2f} > {UNSTABLE_RATIO} over Fo "
-            f"{min(values):.3f}-{max(values):.3f} (dx {dx_um:.4g} um, dt {grid.dt_s:.4g} s); "
-            'use a smaller dt or scheme="implicit"'
-        )
+    if ratio <= UNSTABLE_RATIO:
+        return 1
+    if history is None:
+        return math.ceil(ratio / STABILITY_RATIO)
+    raise ValueError(
+        f"unstable grid for growth stages: D_max dt / dx^2 = {ratio:.2f} > {UNSTABLE_RATIO} "
+        f"over Fo {min(values):.3f}-{max(values):.3f} (dx {dx_um:.4g} um, dt "
+        f'{grid.dt_s:.4g} s); use a smaller dt or scheme="implicit"'
+    )
 
 
 def _check_options(
@@ -819,8 +838,11 @@ def fit_profile(
     x, y = profile.distance_um, profile.fo
     step_x, dx_um, (low_idx, high_idx) = scheme_grid(scheme, x, grid, domain, rims)
     model_x = step_x[low_idx : high_idx + 1]
+    substeps = 1
     if scheme in EXPLICIT_SCHEMES:
-        _check_stable(diffusivity, conditions, orientation, initial, history, rim_fo, grid, dx_um)
+        substeps = _explicit_substeps(
+            diffusivity, conditions, orientation, initial, history, rim_fo, grid, dx_um
+        )
     # Only the legacy method fits a kriged profile; the correlated method fits the
     # measured points, so it skips kriging (and leaves the kriged fields empty).
     interp_x = interp_fo = interp_sigma = np.empty(0)
@@ -849,6 +871,7 @@ def fit_profile(
             dx_um,
             rim_fo,
             fast=uncertainty != "legacy",
+            substeps=substeps,
         )
     elif scheme == "implicit":
         prefix, start, advance, offset = _implicit_staged_prefix(
