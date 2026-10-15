@@ -4,19 +4,21 @@ from pathlib import Path
 
 # Define the directory to search (current directory or specify a path)
 # The fit CSVs are written next to this file by Round_Robin_Diffusion_Modeling Part 2.py.
-data_dir = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+here = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+# The fit tables live in the private round robin submodule (fits/).
+data_dir = here.parents[1] / "Diffusion Round Robin" / "fits"
 
 # Initialize dictionaries
 data_interp_dfs = {}
 model_bestfits_dfs = {}
 
 # Find and load _data_interp.csv files
-for file in data_dir.glob("*_data_interp.csv"):
+for file in data_dir.rglob("*_data_interp.csv"):
     key = file.stem.replace("_data_interp", "")
     data_interp_dfs[key] = pd.read_csv(file)
 
 # Find and load _model_bestfits.csv files
-for file in data_dir.glob("*_model_bestfits.csv"):
+for file in data_dir.rglob("*_model_bestfits.csv"):
     key = file.stem.replace("_model_bestfits", "")
     model_bestfits_dfs[key] = pd.read_csv(file)
 

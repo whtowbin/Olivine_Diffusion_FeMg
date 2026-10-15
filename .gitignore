@@ -17,7 +17,6 @@ wheels/
 *.zip
 *_data_interp.csv
 *_model_bestfits.csv
-/analyses/round_robin/*_model.png
 
 # Quarto previews of the Markdown docs
 docs/**/*.html
