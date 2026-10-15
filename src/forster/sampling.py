@@ -78,9 +78,11 @@ from forster.uncertainty import (
 METHODS = ("auto", "laplace", "nested")
 DEFAULT_SAMPLES = 1024
 DEFAULT_NLIVE = 200
-# Below this effective sample size per sample, "auto" falls back to nested sampling.
-# Provisional (2026-10-15): the flat-prior failures had 0.02-0.06, every good case
-# above 0.4; to be set from analyses/ic_sampling/references.csv.
+# Below this effective sample size per sample, "auto" falls back to nested sampling. On
+# 35 real profiles x 2 priors against a nested-sampling reference (nlive 1000;
+# analyses/ic_sampling/references.csv), every case Laplace kept at a threshold of
+# 0.15-0.40 was within 0.81% on p16/50/84; the six cases more than 2% off all had 0.11
+# or less, and the next case above 0.25 had 0.26 (0.6% off).
 ESS_FALLBACK = 0.25
 PROPOSAL_DF = 5
 PROPOSAL_INFLATION = 1.5
@@ -314,19 +316,30 @@ class _Samples:
     rows: np.ndarray  # (samples, time steps) log likelihood
 
 
+def _log_t_density(z: np.ndarray, loc: np.ndarray, chol: np.ndarray, df: float) -> np.ndarray:
+    """Log density of a multivariate t with scale ``chol @ chol.T``, from the Cholesky
+    factor itself (scipy's multivariate_t refits it and can reject a nearly singular
+    matrix that factorised: 11 of 70 validation cases with wide priors)."""
+    d = len(loc)
+    m = np.sum(sla.solve_triangular(chol, (z - loc).T, lower=True) ** 2, axis=0)
+    return (
+        special.gammaln((df + d) / 2)
+        - special.gammaln(df / 2)
+        - d / 2 * math.log(df * math.pi)
+        - float(np.sum(np.log(np.diag(chol))))
+        - (df + d) / 2 * np.log1p(m / df)
+    )
+
+
 def _importance(like: ICLikelihood, z0: np.ndarray, n: int, seed: int) -> tuple[_Samples, float]:
     cov = _laplace_covariance(like, z0, -_log_post(like, z0)) * PROPOSAL_INFLATION**2
     d = len(z0)
     u = stats.qmc.Sobol(d + 1, scramble=True, seed=seed).random(n)
     u = np.clip(u, 1e-12, 1 - 1e-12)
     chi = stats.chi2.ppf(u[:, d], PROPOSAL_DF)
-    z = (
-        z0
-        + (stats.norm.ppf(u[:, :d]) @ np.linalg.cholesky(cov).T)
-        / np.sqrt(chi / PROPOSAL_DF)[:, None]
-    )
-    log_q = stats.multivariate_t(loc=z0, shape=cov, df=PROPOSAL_DF).logpdf(z)
-    log_q = np.atleast_1d(log_q) - float(np.sum(np.log(like.spread)))  # density in theta
+    chol = np.linalg.cholesky(cov)
+    z = z0 + (stats.norm.ppf(u[:, :d]) @ chol.T) / np.sqrt(chi / PROPOSAL_DF)[:, None]
+    log_q = _log_t_density(z, z0, chol, PROPOSAL_DF) - float(np.sum(np.log(like.spread)))
     thetas, log_ws, rows = [], [], []
     for zi, lq in zip(z, log_q, strict=True):
         theta = like.nominal + zi * like.spread

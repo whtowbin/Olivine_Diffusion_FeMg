@@ -199,3 +199,16 @@ def test_table_runs_default_to_auto_and_the_summary_refits(tmp_path):
         read_runs(path)
     # InitialCondition is reused unchanged by the sampler.
     assert isinstance(post.best_initial, InitialCondition)
+
+
+def test_proposal_density_matches_scipy():
+    """`_log_t_density` (from the Cholesky factor) equals scipy's multivariate t."""
+    from scipy import stats
+
+    rng = np.random.default_rng(0)
+    a = rng.normal(size=(4, 4))
+    cov = a @ a.T + 0.1 * np.eye(4)
+    loc, z = rng.normal(size=4), rng.normal(size=(50, 4))
+    expected = stats.multivariate_t(loc=loc, shape=cov, df=5).logpdf(z)
+    got = S._log_t_density(z, loc, np.linalg.cholesky(cov), 5)
+    np.testing.assert_allclose(got, expected, rtol=0, atol=1e-12)

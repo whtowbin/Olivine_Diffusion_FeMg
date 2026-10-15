@@ -72,6 +72,7 @@
 ### Fixed
 
 - **Euler-angle tables work with NumPy 2.5 (2026-10-15).** `forster.orientation.vector_direction` called `float()` on a 1x1 matrix, which NumPy 2.5 turned from a deprecation into a TypeError, so `read_runs` failed on any row given as Euler angles (the packaged template included) for a fresh install, which gets NumPy 2.5. It now takes `.item()`; the angles are identical to the last bit on NumPy 2.3 and 2.5.4, and the full test suite passes on both. Found by the Python-version benchmark (`docs/plans/2026-10-15-python-versions.md`).
+- **The importance-sampling proposal no longer fails on a nearly singular Laplace covariance (2026-10-15).** scipy's multivariate t refactorised the matrix and could reject one that had already factorised; the density is now computed from the Cholesky factor itself (`sampling._log_t_density`, equal to scipy's to 1e-12). In the validation harness's copy of the method this failed 11 of 70 cases (wide priors).
 - CSV tables are read with exact float parsing (`float_precision="round_trip"`). pandas' default parser returned some values 1 ulp off, so a table written by FORSTER did not refit identically.
 - Two step positions without `step_fo` (or three or more steps) are now an error naming the problem; the engine used to fail with an IndexError.
 
