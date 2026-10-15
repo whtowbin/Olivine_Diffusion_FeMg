@@ -9,7 +9,7 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
-from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS, require_round_robin
 
 from forster import fit_run, read_profiles, read_runs
 from forster.model import Profile
@@ -30,6 +30,7 @@ OFFSETS = range(-6, 7)
 
 @pytest.fixture(scope="module")
 def setup():
+    require_round_robin()
     run = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS)}["KS20-527_2-transect-1"]
     profiles = read_profiles(ROUND_ROBIN_DATA)
     shifted = replace(run.initial, steps_um=(run.initial.steps_um[0] + SHIFT_UM,))

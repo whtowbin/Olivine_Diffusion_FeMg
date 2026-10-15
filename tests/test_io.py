@@ -3,7 +3,14 @@ import math
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from conftest import (
+    PAPER_DATA,
+    PAPER_PARAMS,
+    ROUND_ROBIN_DATA,
+    ROUND_ROBIN_PARAMS,
+    require_round_robin,
+    requires_round_robin,
+)
 
 from forster import RunDefaults, engine, fit_run, orientation, read_profiles, read_runs
 from forster.io import Run
@@ -11,6 +18,7 @@ from forster.io import Run
 
 @pytest.fixture(scope="module")
 def round_robin_runs():
+    require_round_robin()
     return {run.name: run for run in read_runs(ROUND_ROBIN_PARAMS)}
 
 
@@ -61,6 +69,7 @@ def test_paper_layout_converts_euler_angles_and_buffer(paper_runs):
         assert (run.grid.dx_um, run.grid.dt_s) == (row["dx"], row["dt"])
 
 
+@requires_round_robin
 def test_max_time_from_table_or_defaults():
     raw = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl").set_index("Sample")
     runs = read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(max_time_days=123))
@@ -72,6 +81,7 @@ def test_max_time_from_table_or_defaults():
     assert {run.grid.max_time_days for run in from_default} == {123}
 
 
+@requires_round_robin
 def test_read_profiles_drops_flagged_rows_and_sorts():
     raw = pd.read_excel(ROUND_ROBIN_DATA, engine="openpyxl")
     profiles = read_profiles(ROUND_ROBIN_DATA)
@@ -83,6 +93,7 @@ def test_read_profiles_drops_flagged_rows_and_sorts():
         assert profile.fo.max() <= 1
 
 
+@requires_round_robin
 def test_csv_tables_read_like_excel(tmp_path):
     csv = tmp_path / "params.csv"
     pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl").to_csv(csv, index=False)
@@ -108,6 +119,7 @@ def test_unrecognised_table_names_both_layouts(tmp_path):
         read_runs(bad)
 
 
+@requires_round_robin
 def test_duplicate_run_names_are_rejected(tmp_path):
     table = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
     table = pd.concat([table, table.iloc[[0]]])
@@ -134,6 +146,7 @@ def test_paper_run_fits_end_to_end():
     assert result.time_minus_s <= 0 <= result.time_plus_s
 
 
+@requires_round_robin
 def test_scheme_column_is_read_per_run(tmp_path):
     table = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
     table["scheme"] = None
@@ -146,6 +159,7 @@ def test_scheme_column_is_read_per_run(tmp_path):
     assert {r.scheme for r in read_runs(path, defaults=RunDefaults(scheme="dipra"))} == {"dipra"}
 
 
+@requires_round_robin
 def test_bad_scheme_in_table_is_an_error(tmp_path):
     table = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
     table["scheme"] = "crank_nicolson"

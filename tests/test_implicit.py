@@ -13,7 +13,7 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS, require_round_robin, requires_round_robin
 from scipy.special import erfc
 
 from forster import (
@@ -215,6 +215,7 @@ def test_staged_implicit_run_matches_an_on_node_reference():
     assert np.abs(result.curves[row] - ref).max() < 1e-4
 
 
+@requires_round_robin
 def test_changing_rims_need_the_implicit_scheme_and_delay_early_stopping():
     profiles = read_profiles(ROUND_ROBIN_DATA)
     runs = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(200))}
@@ -237,6 +238,7 @@ def test_changing_rims_need_the_implicit_scheme_and_delay_early_stopping():
 
 @pytest.fixture(scope="module")
 def two_step():
+    require_round_robin()
     runs = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(730))}
     run = runs["KS20-527-8_transect-2"]
     m = read_profiles(ROUND_ROBIN_DATA)[run.profile_name]

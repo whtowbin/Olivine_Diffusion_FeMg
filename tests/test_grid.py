@@ -13,7 +13,7 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS, require_round_robin
 
 from forster import (
     Grid,
@@ -44,6 +44,7 @@ from forster.model import Profile, _stepper
 @pytest.fixture(scope="module")
 def two_step():
     """KS20-527-8_transect-2: steps at 20 and 110 um, a plateau between."""
+    require_round_robin()
     runs = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(730))}
     run = runs["KS20-527-8_transect-2"]
     m = read_profiles(ROUND_ROBIN_DATA)[run.profile_name]

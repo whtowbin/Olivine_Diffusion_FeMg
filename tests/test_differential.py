@@ -12,7 +12,7 @@ import hashlib
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from conftest import HAS_ROUND_ROBIN, ROUND_ROBIN_DATA, ROUND_ROBIN_MISSING, ROUND_ROBIN_PARAMS
 from reference import round_robin_model_diffusion as ref
 
 from forster import KrigingSettings, RunDefaults, fit_run, read_profiles, read_runs
@@ -37,6 +37,9 @@ BATCH_DEFAULTS = RunDefaults(
     ),
     uncertainty="legacy",  # the reference is the old kriged-grid chi-squared rule
 )
+
+if not HAS_ROUND_ROBIN:
+    pytest.skip(ROUND_ROBIN_MISSING, allow_module_level=True)
 
 PARAMS = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
 DATA = pd.read_excel(ROUND_ROBIN_DATA, engine="openpyxl")

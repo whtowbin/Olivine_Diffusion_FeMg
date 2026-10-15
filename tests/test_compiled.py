@@ -8,7 +8,7 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
-from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS, requires_round_robin
 
 from forster import (
     DIFFUSIVITY_PRESETS,
@@ -74,6 +74,7 @@ def test_a_custom_diffusivity_falls_back_to_numpy():
     assert compiled.implicit_stepper(D, 0.8, 0.9, 1.0, np.linspace(0, 10, 11)) is None
 
 
+@requires_round_robin
 @pytest.mark.parametrize("scheme", ["implicit", "central"])
 def test_fits_are_the_same_with_and_without_numba(monkeypatch, scheme):
     runs = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(730))}

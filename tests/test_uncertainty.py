@@ -13,7 +13,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS, require_round_robin, requires_round_robin
 from test_differential import BATCH_DEFAULTS
 
 from forster import (
@@ -104,6 +104,7 @@ def test_noise_model_finds_no_correlation_in_white_noise():
 @pytest.fixture(scope="module")
 def round_robin_fit():
     """KS20-527_2-transect-1 (29 points), fitted with the default method."""
+    require_round_robin()
     runs = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults())}
     return fit_run(runs["KS20-527_2-transect-1"], read_profiles(ROUND_ROBIN_DATA))
 
@@ -134,6 +135,7 @@ def test_coverage_is_close_to_68_percent(round_robin_fit, correlated_sigma, low,
     assert low <= hits / trials <= high
 
 
+@requires_round_robin
 def test_default_fit_reports_a_range_around_the_best_fit(round_robin_fit):
     r = round_robin_fit
     assert r.uncertainty == "correlated"
@@ -162,6 +164,7 @@ def test_unknown_uncertainty_method_is_an_error():
         )
 
 
+@requires_round_robin
 def test_uncertainty_column_is_read_per_run(tmp_path):
     table = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
     table["uncertainty"] = None
@@ -232,6 +235,7 @@ def test_grid_edge_warning_only_for_a_profile_wide_misfit():
         fit_noise_model(x, trend)
 
 
+@requires_round_robin
 def test_early_stopping_gives_the_same_fit_as_the_full_run(monkeypatch):
     """Two-step profile; also with stop settings so tight that the run has to be extended."""
     import forster.model as model

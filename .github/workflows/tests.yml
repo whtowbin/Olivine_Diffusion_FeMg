@@ -1,0 +1,62 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.11"
+            numba: "on"
+          - python: "3.13"
+            numba: "on"
+            lint: true
+          - python: "3.13"
+            numba: "off" # the NumPy steppers (no Numba, or a custom diffusivity)
+    name: py${{ matrix.python }} numba-${{ matrix.numba }}
+    env:
+      FORSTER_NO_NUMBA: ${{ matrix.numba == 'off' && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The round robin data (other labs' samples) is a private submodule, read with a
+      # read-only deploy key. Without the secret (pull requests from forks) its tests skip.
+      - name: Round robin data (private submodule)
+        env:
+          KEY: ${{ secrets.ROUND_ROBIN_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "No ROUND_ROBIN_DEPLOY_KEY: the round robin tests will skip."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/round_robin
+          chmod 600 ~/.ssh/round_robin
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git -c core.sshCommand="ssh -i ~/.ssh/round_robin -o IdentitiesOnly=yes" \
+              -c url."git@github.com:".insteadOf="https://github.com/" \
+              submodule update --init "Diffusion Round Robin"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        run: uv sync --locked
+
+      - name: Tests
+        run: uv run pytest -n auto -p no:warnings -rs
+
+      - name: Lint, format, types, complexity
+        if: matrix.lint
+        run: |
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+          uv run ty check
+          uv run complexipy src/forster --max-complexity-allowed 25

@@ -447,6 +447,22 @@ Fe-Mg law to the published experiments, and at the round robin and paper fO2 the
 refits differ from the default by up to 0.85 log units in D, mostly through the fO2
 exponent (`docs/plans/2026-10-13-femg-refit.md`).
 
+## Development
+
+```
+git clone https://github.com/whtowbin/Olivine_Diffusion_FeMg.git
+cd Olivine_Diffusion_FeMg
+uv sync
+uv run pytest -n 8
+```
+
+Part of the test suite (the differential replay against the original scripts, and
+several fits) uses the olivine diffusion round robin profiles. Those are other
+laboratories' samples, kept in a private repository until the round robin is published
+and checked out as the git submodule `Diffusion Round Robin`. With access, run
+`git submodule update --init` first; without it those tests skip and the rest run.
+CI (`.github/workflows/tests.yml`) reads the submodule with a read-only deploy key.
+
 ## Citing
 
 Towbin, W. H., and Plank, T. (2026). Journal of Petrology 67(9), egag077.
