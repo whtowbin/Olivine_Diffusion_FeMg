@@ -139,6 +139,23 @@ def test_summary_reads_back_as_the_same_runs(tmp_path, example):
     assert rerun == replace(run, metadata={}, grid=result.inputs["grid"])
 
 
+def test_summary_with_a_stage_and_rim_fo_reads_back_and_refits(tmp_path, example, example_row):
+    staged = dict(example_row, domain_start_um=8.0, dx_um=1.5, dt_s=2000.0, max_time_days=20)
+    staged.update(rim_fo=0.912, stage_days=1.5, stage_rim_um=2.5, stage_zone_fo=0.911)
+    run = _read_row(tmp_path, staged)
+    assert run.stages and run.rim_fo == 0.912
+    profiles = read_profiles(example / "profiles.csv")
+    result = fit_run(run, profiles)
+    row = summary_row(result)
+    assert set(row) - {c.name for c in (*PARAMETER_COLUMNS, *SUMMARY_COLUMNS)} == set()
+    assert (row["rim_fo"], row["stage_days"], row["stage_rim_um"]) == (0.912, "1.5", "2.5")
+    assert row["time_since_last_stage_days"] == result.time_since_last_stage_days
+    rerun = _read_row(tmp_path, dict(row, profile=run.profile_name))
+    assert rerun == replace(run, metadata={})
+    again = fit_run(rerun, profiles)
+    assert (again.time_s, again.indices) == (result.time_s, result.indices)
+
+
 def test_readme_documents_every_template_column():
     readme = (REPO_ROOT / "README.md").read_text()
     assert column_table(PROFILE_COLUMNS) in readme

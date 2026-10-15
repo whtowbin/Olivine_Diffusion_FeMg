@@ -78,6 +78,49 @@ PARAMETER_COLUMNS = (
         "Initial Fo of the plateau between two steps; required with two steps.",
     ),
     Column(
+        "rim_fo",
+        "fraction",
+        "optional",
+        "Fo held at the rim (domain_start_um) during diffusion, when it differs from "
+        "edge_fo, which stays the start profile's edge value. Empty: edge_fo. With growth "
+        "stages it holds until the first stage. No initial-condition scan with rim_fo.",
+    ),
+    Column(
+        "stage_days",
+        "days",
+        "optional",
+        "Growth stages: when each stage starts, in days after the start of the run, one "
+        'entry per stage ("2, 5" for two). At its start a stage moves the rim out to '
+        "stage_rim_um, where a new zone of Fo stage_zone_fo appears and diffuses with the "
+        "older crystal; the domain, step and Fo columns above describe the crystal before "
+        "the first stage. Only times after the last stage are fitted; time_days counts "
+        "from the start. Needs dx_um and dt_s, the correlated uncertainty method, and no "
+        "initial-condition scan (no _sd or _range columns).",
+    ),
+    Column(
+        "stage_rim_um",
+        "µm",
+        "optional",
+        "Rim position from each stage on, one entry per stage: at or below the previous "
+        "rim (domain_start_um before the first stage). The previous rim itself changes "
+        "only the rim's Fo (stage_rim_fo). Required with stage_days.",
+    ),
+    Column(
+        "stage_zone_fo",
+        "fraction",
+        "optional",
+        "Fo of the zone each stage adds between the old and the new rim, one entry per "
+        'stage; needed by every stage that moves the rim. Leave an entry empty ("0.91, ") '
+        "for a stage that only changes the rim's Fo.",
+    ),
+    Column(
+        "stage_rim_fo",
+        "fraction",
+        "optional",
+        "Fo held at the rim from each stage on, one entry per stage. Empty, or an empty "
+        "entry: that stage's stage_zone_fo.",
+    ),
+    Column(
         "dx_um",
         "µm",
         "optional",
@@ -205,6 +248,13 @@ SUMMARY_COLUMNS = (
         "Display name of the diffusivity equation (the diffusivity column holds its preset name).",
     ),
     Column("time_days", "days", "", "Best-fit time."),
+    Column(
+        "time_since_last_stage_days",
+        "days",
+        "",
+        "Best-fit time since the start of the last growth stage (stage_days); equal to "
+        "time_days without stages.",
+    ),
     Column("low_days", "days", "", "Low end of the 1-sigma range."),
     Column("high_days", "days", "", "High end of the 1-sigma range."),
     Column(

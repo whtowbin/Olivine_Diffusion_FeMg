@@ -8,7 +8,10 @@ Three parameter-table layouts are recognised from their columns:
   a fraction, ``steps_um`` and ``step_fo`` for the initial condition. Orientation
   is ``alpha_deg``, ``beta_deg``, ``gamma_deg`` or EBSD Euler angles ``phi1_deg``,
   ``Phi_deg``, ``phi2_deg`` with ``profile_angle_deg``; fO2 is ``fO2_Pa`` or
-  ``fO2_buffer`` with ``fO2_delta_log``;
+  ``fO2_buffer`` with ``fO2_delta_log``. Optional ``rim_fo`` (a fixed rim value other
+  than ``edge_fo``) and growth stages (`STAGE_COLUMNS`, list-valued like ``steps_um``,
+  one entry per `forster.boundary.Stage`) give `fit_profile`'s ``rim_fo`` and
+  ``stages``;
 - round robin: ``Sample`` (run name), ``File_Name`` (profile), ``alpha``,
   ``beta``, ``gamma`` (degrees to [100], [010], [001]), ``T_C``, ``P_Pa``,
   ``fO2_Pa``, ``dx_um``, ``dt_s``, optional ``max_model_time_days``;
@@ -35,7 +38,7 @@ from __future__ import annotations
 import ast
 import math
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -43,6 +46,7 @@ from typing import Any, NamedTuple
 import numpy as np
 import pandas as pd
 
+from forster.boundary import BoundaryHistory, Rim, Stage
 from forster.diffusivity import (
     DEFAULT_DIFFUSIVITY,
     ArrheniusDiffusivity,
@@ -123,6 +127,10 @@ UNCERTAINTY_COLUMNS = (
     ("core_fo", "core_fo_sd", "core_fo_range"),
     ("step_fo", "step_fo_sd", "step_fo_range"),
 )
+# Growth stages (template layout): list-valued like steps_um, one entry per stage, as
+# `forster.boundary.Stage` (start in days, new rim position, new zone's Fo, rim Fo).
+# The first two are needed for every stage; an empty entry in the others is None.
+STAGE_COLUMNS = ("stage_days", "stage_rim_um", "stage_zone_fo", "stage_rim_fo")
 METADATA_COLUMNS = ("Descriptive_Name", "Category", "Uncert_Category", "Notes", "notes")
 MIN_PROFILE_POINTS = 3  # Profile needs at least this many points
 
@@ -163,6 +171,10 @@ class Run:
     diffusivity: Diffusivity
     scheme: str = DEFAULT_SCHEME
     uncertainty: str = "correlated"
+    # Growth stages after ``initial`` and the fixed Fo held at the rim (None: edge_fo);
+    # `fit_profile`'s ``stages`` and ``rim_fo``.
+    stages: tuple[Stage, ...] = ()
+    rim_fo: float | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
     # Uncertain initial-condition parameters (template layout): scanned by `scan_run`.
     uncertainties: Mapping[str, Uncertainty] = field(default_factory=dict)
@@ -497,6 +509,84 @@ def _template_uncertainties(row: pd.Series, initial: InitialCondition) -> dict[s
     return out
 
 
+def _number_list(row: pd.Series, column: str) -> tuple[float | None, ...] | None:
+    """A list-valued cell, numbers separated by commas as in ``steps_um`` (``"2, 5.5"``);
+    an empty entry (``"0.91, "``) is None. None when the cell is empty."""
+    if not _given(row, column):
+        return None
+    value = row[column]
+    entries = value.strip().strip("()[]").split(",") if isinstance(value, str) else [value]
+    try:
+        values = tuple(None if str(e).strip() == "" else float(e) for e in entries)
+    except (TypeError, ValueError):
+        values = (math.nan,)
+    if not all(v is None or math.isfinite(v) for v in values):
+        raise ValueError(
+            f"run {row['run']!r}: {column} {value!r}: give numbers separated by commas, "
+            'such as "2, 5.5"'
+        )
+    return values
+
+
+def _every_stage(row: pd.Series, column: str, values: tuple[float | None, ...]) -> list[float]:
+    present = [v for v in values if v is not None]
+    if len(present) != len(values):
+        raise ValueError(f"run {row['run']!r}: {column} needs a value for every stage")
+    return present
+
+
+def _template_stages(row: pd.Series) -> tuple[Stage, ...]:
+    """The growth stages of a template row (`STAGE_COLUMNS`); () when none are given."""
+    lists = {c: _number_list(row, c) for c in STAGE_COLUMNS}
+    given = {c: v for c, v in lists.items() if v is not None}
+    if not given:
+        return ()
+    name = row["run"]
+    missing = [c for c in STAGE_COLUMNS[:2] if c not in given]
+    if missing:
+        raise ValueError(
+            f"run {name!r}: growth stages need {' and '.join(missing)} (one entry per stage)"
+        )
+    n = len(given["stage_days"])
+    for column, values in given.items():
+        if len(values) != n:
+            raise ValueError(
+                f"run {name!r}: {column} has {len(values)} entries for {n} stages (stage_days)"
+            )
+    days = _every_stage(row, "stage_days", given["stage_days"])
+    rims = _every_stage(row, "stage_rim_um", given["stage_rim_um"])
+    if any(b <= a for a, b in zip([0.0, *days], days, strict=False)):
+        raise ValueError(
+            f"run {name!r}: stage_days must increase and be after 0 (the start); got "
+            f"{_steps_text(tuple(days))}"
+        )
+    zones = given.get("stage_zone_fo", (None,) * n)
+    held = given.get("stage_rim_fo", (None,) * n)
+    return tuple(
+        Stage(d * SECONDS_PER_DAY, r, rim_value=h, zone_value=z)
+        for d, r, z, h in zip(days, rims, zones, held, strict=True)
+    )
+
+
+def _template_rim_fo(row: pd.Series) -> float | None:
+    rim_fo = _optional_float(row, "rim_fo")
+    if rim_fo is not None and not (math.isfinite(rim_fo) and 0.0 < rim_fo <= 1.0):
+        raise ValueError(f"run {row['run']!r}: rim_fo {rim_fo} must be a fraction (0-1)")
+    return rim_fo
+
+
+def _check_history(
+    row: pd.Series, initial: InitialCondition, stages: tuple[Stage, ...], rim_fo: float | None
+) -> None:
+    """The stages' order, rims and values (`BoundaryHistory.check`), naming the run."""
+    if not stages:
+        return
+    try:
+        BoundaryHistory.from_initial(initial, stages, rim_fo)
+    except ValueError as error:
+        raise ValueError(f"run {row['run']!r}: {error}") from None
+
+
 def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Diffusivity]) -> Run:
     initial = InitialCondition(
         domain_um=(row["domain_start_um"], row["domain_end_um"]),
@@ -505,6 +595,8 @@ def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Di
         steps_um=_steps(row["steps_um"]),
         step_fo=float(row["step_fo"]) if _given(row, "step_fo") else None,
     )
+    stages, rim_fo = _template_stages(row), _template_rim_fo(row)
+    _check_history(row, initial, stages, rim_fo)
     return Run(
         name=str(row["run"]),
         profile_name=str(row["profile"]),
@@ -516,6 +608,8 @@ def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Di
         diffusivity=_diffusivity(row, defaults, custom),
         scheme=_scheme(row, defaults),
         uncertainty=_uncertainty(row, defaults),
+        stages=stages,
+        rim_fo=rim_fo,
         metadata={c: row[c] for c in METADATA_COLUMNS if _given(row, c)},
         uncertainties=_template_uncertainties(row, initial),
         scan_points=int(row["scan_points"]) if _given(row, "scan_points") else None,
@@ -600,6 +694,35 @@ def _steps_text(steps: tuple[float, ...]) -> str:
     return ", ".join(repr(float(s)).removesuffix(".0") for s in steps)
 
 
+def _list_text(values: Sequence[float | None]) -> str | None:
+    """A list-valued cell as `_number_list` reads it: ``"0.91, "`` for (0.91, None);
+    None (an empty cell) when every value is None."""
+    if all(v is None for v in values):
+        return None
+    return ", ".join("" if v is None else _steps_text((v,)) for v in values)
+
+
+def _fixed(value: Rim | None) -> float | None:
+    if value is None or isinstance(value, int | float):
+        return value
+    raise ValueError(
+        "a rim value that changes in time (RimPath or a function) has no parameter-table "
+        "form, so summary_row cannot write it"
+    )
+
+
+def _boundary_columns(inputs: Mapping[str, Any]) -> dict[str, Any]:
+    """``rim_fo`` and the growth-stage columns (`STAGE_COLUMNS`), as `read_runs` reads them."""
+    stages: tuple[Stage, ...] = inputs.get("stages", ())
+    return {
+        "rim_fo": _fixed(inputs.get("rim_fo")),
+        "stage_days": _list_text([s.start_s / SECONDS_PER_DAY for s in stages]),
+        "stage_rim_um": _list_text([s.rim_um for s in stages]),
+        "stage_zone_fo": _list_text([s.zone_value for s in stages]),
+        "stage_rim_fo": _list_text([_fixed(s.rim_value) for s in stages]),
+    }
+
+
 def _law_columns(result: FitResult) -> dict[str, float]:
     """The ranges with the diffusivity law's uncertainty (NaN without one)."""
     if result.law_sigma_log10 is None:
@@ -639,6 +762,7 @@ def summary_row(result: FitResult) -> dict[str, Any]:
     return {
         "run": result.name,
         "time_days": result.time_days,
+        "time_since_last_stage_days": result.time_since_last_stage_days,
         "low_days": result.time_days + result.time_minus_days,
         "high_days": result.time_days + result.time_plus_days,
         **_law_columns(result),
@@ -658,6 +782,7 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "edge_fo": initial.edge_fo,
         "core_fo": initial.core_fo,
         "step_fo": initial.step_fo,
+        **_boundary_columns(inputs),
         "dx_um": grid.dx_um,
         "dt_s": grid.dt_s,
         "max_time_days": grid.max_time_days,
@@ -725,9 +850,19 @@ def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = Tru
     A grid with parts left blank (`GridRequest`) is completed by `choose_grid` for a
     final fit (1%); a grid given in full is checked (`check_grid`): unstable raises,
     and after the fit any accuracy or cost concerns are issued as warnings.
+
+    ``run.stages`` and ``run.rim_fo`` go to `fit_profile`. The grid choice and checks
+    model the crystal before any stage, with ``edge_fo`` at the rim, so a run with
+    stages needs its grid given in full (dx_um and dt_s); its accuracy checks use the
+    time since the last stage, all the youngest zone boundaries have had to diffuse.
     """
     profile = _profile(run, profiles)
     args = (profile, run.conditions, run.orientation, run.initial)
+    if run.stages and isinstance(run.grid, GridRequest):
+        raise ValueError(
+            f"run {run.name!r}: growth stages need dx_um and dt_s (the grid choice does not "
+            "model the stages)"
+        )
     if isinstance(run.grid, GridRequest):
         grid = run.grid.resolve(*args, run.diffusivity, scheme=run.scheme).grid
         given = False
@@ -743,11 +878,12 @@ def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = Tru
         run.scheme,
         run.uncertainty,
         stop_early=stop_early,
+        stages=run.stages,
+        rim_fo=run.rim_fo,
     )
     if given:
-        for message in check_grid(
-            grid, *args, run.diffusivity, time_days=result.time_days, scheme=run.scheme
-        ):
+        since = max(result.time_since_last_stage_days, grid.dt_s / SECONDS_PER_DAY)
+        for message in check_grid(grid, *args, run.diffusivity, time_days=since, scheme=run.scheme):
             warnings.warn(f"run {run.name!r}: {message}", stacklevel=2)
     return result
 
@@ -795,10 +931,12 @@ def scan_run(
     posterior (`forster.sampling.fit_initial_condition`, seeded by ``run.scan_seed``).
     Either runs on ``run.scan_grid`` with blank parts chosen for a 5% scan
     (`choose_grid`, purpose "scan"), using ``time_days`` (the nominal fit's time, if
-    known) to size it; otherwise a coarse fit estimates the time.
+    known) to size it; otherwise a coarse fit estimates the time. The scan does not
+    model growth stages or a ``rim_fo``: a run with either raises.
     """
     if not run.uncertainties:
         raise ValueError(f"run {run.name!r} has no initial-condition uncertainties to scan")
+    _check_scannable(run)
     profile = _profile(run, profiles)
     candidates = None
     if run.scan_method == "grid":  # built first: a grid too large fails before any run
@@ -848,10 +986,24 @@ def scan_run(
     )
 
 
+def _check_scannable(run: Run) -> None:
+    """`forster.scan` runs each candidate from its initial condition alone."""
+    given = [what for what, used in (("growth stages", run.stages), ("rim_fo", run.rim_fo)) if used]
+    if given:
+        raise ValueError(
+            f"run {run.name!r}: the initial-condition scan does not model "
+            f"{' or '.join(given)}; remove the _sd and _range columns to fit without a scan"
+        )
+
+
 def scan_size(run: Run, *, max_candidates: int = MAX_CANDIDATES) -> int:
     """Number of candidates (model runs) a grid scan of ``run`` would make; 0 for a run
-    without uncertainties or fitted by sampling (`forster.sampling`)."""
-    if not run.uncertainties or run.scan_method != "grid":
+    without uncertainties or fitted by sampling (`forster.sampling`). Raises, like
+    `scan_run`, for a run the scan cannot model."""
+    if not run.uncertainties:
+        return 0
+    _check_scannable(run)
+    if run.scan_method != "grid":
         return 0
     return len(
         candidate_grid(
