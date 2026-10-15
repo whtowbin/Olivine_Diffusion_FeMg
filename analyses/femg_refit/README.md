@@ -6,7 +6,8 @@ diffusivity law with a full parameter covariance. Plan and results:
 
 ## The preset: verified data, 6x anisotropy (2026-10-15)
 
-`femg_refit2026` is fitted to the verified compilation (every value stated in the
+`femg_refit2026` (the equation and its values: `docs/references/femg-refit2026.md`) is fitted
+to the verified compilation (every value stated in the
 sources' tables or text; `docs/references/data-to-source.md`) plus Holzapfel et al.'s
 Au-capsule runs, whose unbuffered fO2 is taken at Ni-NiO with a sd of 2 log units.
 

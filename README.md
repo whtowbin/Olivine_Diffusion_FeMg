@@ -394,7 +394,8 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   [001] and the activation volume fitted. The fit weights each value by its published
   error and the errors in its temperature, fO2, composition and pressure, and lets each
   laboratory and each experiment sit off the average by its own offset
-  ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
+  ([analyses/femg_refit](analyses/femg_refit/README.md)). The equation, its fitted values and
+  their correlations: [docs/references/femg-refit2026.md](docs/references/femg-refit2026.md). An Fo
   profile depends on D t, so an error in log D is the same error in log time, and
   no extra model runs are needed. Fits with it report three ranges:
   `low_days`/`high_days` (the profile alone; use these to compare crystals fitted

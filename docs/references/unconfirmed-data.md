@@ -11,7 +11,7 @@ Numbers: `analyses/femg_refit/results/verified/{variants,candidates,odr_check,mu
 
 ## The preset
 
-`femg_refit2026` is forster's refitted Fe-Mg diffusion equation for olivine. "KS20" below is D along [001] at the conditions of round-robin crystal KS20 (1200 C, fO2 1.4e-3 Pa, Fo85, 42 MPa); "SH63" is the round-robin crystal at 1102 C; "paper" is 1250 C, QFM+0.3, 0.5 GPa. Each is given as log10 D minus that of DC07, the Dohmen and Chakraborty (2007) equation that forster uses by default. "1 sigma" is the uncertainty of the fitted equation for D in an average laboratory; "one new lab" adds the spread between laboratories (tau).
+`femg_refit2026` is forster's refitted Fe-Mg diffusion equation for olivine (the equation and its values: `femg-refit2026.md`). "KS20" below is D along [001] at the conditions of round-robin crystal KS20 (1200 C, fO2 1.4e-3 Pa, Fo85, 42 MPa); "SH63" is the round-robin crystal at 1102 C; "paper" is 1250 C, QFM+0.3, 0.5 GPa. Each is given as log10 D minus that of DC07, the Dohmen and Chakraborty (2007) equation that forster uses by default. "1 sigma" is the uncertainty of the fitted equation for D in an average laboratory; "one new lab" adds the spread between laboratories (tau).
 
 | Version | Values | Studies | KS20 vs DC07 | 1 sigma / one new lab | tau | fO2 exponent | E (kJ/mol) |
 |---|---|---|---|---|---|---|---|
