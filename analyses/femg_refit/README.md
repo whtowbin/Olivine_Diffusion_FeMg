@@ -4,21 +4,27 @@ Experimental Fe-Mg diffusion coefficients in olivine, compiled to refit the
 diffusivity law with a full parameter covariance. Plan and results:
 `docs/plans/2026-10-13-femg-refit.md`.
 
-## The preset: verified data only (2026-10-14)
+## The preset: verified data, 6x anisotropy (2026-10-15)
 
 `femg_refit2026` is fitted to the verified compilation: every value stated in the
 sources' tables or text (`docs/references/data-to-source.md`).
 
-- **Data:** Chakraborty 1997, Dohmen et al. 2007 (fO2 > 1e-10 Pa), Petry et al. 2004,
-  Holzapfel et al. 2007 (Ni-NiO capsules only) and Oeser et al. 2026 (depth profiles),
-  153 points.
+- **Form:** the Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent and
+  the composition coefficient fitted; [100] and [010] six times slower than [001] and
+  V = 7 cm3/mol fixed (`fit_verified.FORM`). Random offsets per study (REML).
+- **Data:** Chakraborty 1997, Dohmen et al. 2007 (fO2 > 1e-10 Pa), Petry et al. 2004 and
+  Holzapfel et al. 2007 (Ni-NiO capsules only); 118 points.
 - **Scripts:**
-  - `fit_verified.py`: `verified()`, the preset's fit, and the Holzapfel Au-capsule
-    variants at Ni-NiO with a wide fO2 prior. Writes `results/verified/`.
-  - `export_preset.py`: builds the preset from that fit and checks the shipped one.
-  - `unconfirmed_figures.py`: `figures/unconfirmed/`, showing the unconfirmed data and
-    the melt-contact evidence against the verified law
-    (`docs/references/unconfirmed-data.md`).
+  - `fit_verified.py`: `verified()`, `oeser_dp()`, the preset's fit, and the Holzapfel
+    Au-capsule variants. Writes `results/verified/`.
+  - `export_preset.py`: builds the preset and checks the shipped one.
+  - `unconfirmed_figures.py`, `anisotropy_figures.py` and `oeser_fo2_figures.py`:
+    `figures/unconfirmed/`, `figures/anisotropy/` and `figures/oeser_fo2/`, the
+    unconfirmed data and scenarios (Oeser et al. 2026; melt contact) against the
+    preset (`docs/references/unconfirmed-data.md`).
+  - `transcribe_oeser2026.py`: Oeser et al. (2026) Tables 1-3.
+  - `transcribe_mutch_ds06.py`: Mutch et al. (2021) Data Set S6, behind the
+    `mutch2019_*` presets.
 - **The rest of this folder** (`fit_models.py` and `results/*.csv`) is the full
   compilation as first analysed; it is kept for comparison.
 

@@ -313,24 +313,56 @@ DOHMEN_CHAKRABORTY_2007 = _EngineFeMg(
 _REFIT_2026 = (
     "Refit of the verified Fe-Mg data, every value stated in the sources' tables or text "
     "(docs/references/data-to-source.md): Chakraborty 1997; Dohmen et al. 2007, fO2 > "
-    "1e-10 Pa; Petry et al. 2004; Holzapfel et al. 2007, Ni-NiO capsules only; Oeser et "
-    "al. 2026, depth profiles (153 points, 5 studies). Dohmen and Chakraborty (2007) form "
-    "with log D0, E, the fO2 exponent, the composition coefficient and both anisotropy "
-    "factors fitted and V fixed at 7 cm3/mol; least squares with a random offset per study "
-    "(REML). Melt contact (Spandler and O'Neill 2010) is not included. analyses/femg_refit "
+    "1e-10 Pa; Petry et al. 2004; Holzapfel et al. 2007, Ni-NiO capsules only (118 points, "
+    "4 studies). Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent and "
+    "the composition coefficient fitted; [100] and [010] 6x slower than [001] and V = 7 "
+    "cm3/mol fixed; least squares with a random offset per study (REML). Not included: "
+    "melt contact (Spandler and O'Neill 2010) and Oeser et al. 2026, whose [010] is about "
+    "2x slower than [001], not 6x (both unconfirmed scenarios). analyses/femg_refit "
     "(fit_verified.py, export_preset.py)."
 )
 
 
+# Mutch et al. (2019) parameters (a, b, c, q, j, h) as forster's: log10 D0, the fO2
+# exponent, the composition coefficient, E, the pressure coefficient, V. Each is a
+# coefficient times a constant, so the covariance maps by that diagonal.
+_MUTCH_PARAMETERS = (
+    "log10_D0_001",
+    "fO2_exponent",
+    "fo_coefficient",
+    "activation_energy_J_mol",
+    "pressure_coefficient_per_Pa",
+    "activation_volume_m3_mol",
+)
+_MUTCH_SCALE = (
+    1 / math.log(10),
+    1.0,
+    -1 / math.log(10),
+    -R_J_MOL_K,
+    1 / math.log(10),
+    -R_J_MOL_K,
+)
+
+
 def _mutch2019(
-    name: str, data: str, a: float, b: float, c: float, q: float, j: float, h: float
+    name: str,
+    element: str,
+    data: str,
+    coefficients: tuple[float, float, float, float, float, float],
+    covariance: tuple[tuple[float, ...], ...],
+    anisotropy: float = 6.0,
 ) -> ArrheniusDiffusivity:
-    """Mutch et al. (2019) regression ln D[001] = a + b ln fO2(bar) + c X_Fo + q/T + j P + h P/T."""
+    """Mutch et al. (2019) regression ln D[001] = a + b ln fO2(bar) + c X_Fo + q/T + j P +
+    h P/T, at full precision with its covariance (Mutch et al. 2021, Data Set S6)."""
+    a, b, c, q, j, h = coefficients
     ln10 = math.log(10)
+    off_axis = a / ln10 - math.log10(anisotropy)
+    s = np.array(_MUTCH_SCALE)
+    cov = np.array(covariance) * np.outer(s, s)
     return ArrheniusDiffusivity(
         name=name,
-        element="Fe-Mg",
-        log10_D0_m2_s=(a / ln10 - LOG10_6, a / ln10 - LOG10_6, a / ln10),
+        element=element,
+        log10_D0_m2_s=(off_axis, off_axis, a / ln10),
         activation_energy_J_mol=(-q * R_J_MOL_K,) * 3,
         fO2_exponent=b,
         fO2_ref_Pa=1e5,  # fO2 in bar in the regression
@@ -340,10 +372,16 @@ def _mutch2019(
         P_ref_Pa=0.0,
         pressure_coefficient_per_Pa=j / ln10,
         source=(
-            "Mutch et al. (2019), Nature Geoscience 12, 569-574, Supplementary Table 1 "
-            f"({name.removeprefix('mutch2019_')}: regressed on {data}), as printed to 3 "
-            "figures; [001], with [100] and [010] 6x slower as in DFENS (Mutch et al. 2021). "
-            "Covariance: Supplementary Table 2."
+            f"Mutch et al. (2019), Nature Geoscience 12, 569-574 ({data}); coefficients and "
+            "covariance at full precision from Mutch et al. (2021), G-cubed 22, "
+            "e2020GC009303, Data Set S6 (Version 1, fO2 in bar). [001], with [100] and "
+            f"[010] {anisotropy:g}x slower as in DFENS, which carries no anisotropy "
+            "uncertainty."
+        ),
+        uncertainty=LawUncertainty(
+            parameters=_MUTCH_PARAMETERS,
+            covariance=tuple(map(tuple, (cov + cov.T) / 2)),
+            source="Mutch et al. (2021), Data Set S6: the regression's OLS covariance.",
         ),
     )
 
@@ -354,32 +392,124 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
         DOHMEN_CHAKRABORTY_2007,
         _mutch2019(
             "mutch2019_tamed",
-            "the TaMED-regime Fe-Mg data only",
-            -6.76,
-            0.224,
-            -7.18,
-            -26700,
-            -5.21e-10,
-            -1.03e-7,
+            "Fe-Mg",
+            "regressed on the TaMED-regime Fe-Mg data, fO2 > 1e-10 Pa",
+            (-6.755, 0.2244, -7.181, -26740, -5.213e-10, -1.028e-07),
+            (
+                (
+                    0.719988227888066,
+                    0.0136049442637915,
+                    -0.137206914066245,
+                    -316.542691119953,
+                    -5.10703480738867e-11,
+                    3.56565852966258e-08,
+                ),
+                (
+                    0.0136049442637915,
+                    0.000824692307620194,
+                    0.00022482943325554,
+                    11.8157816556034,
+                    -1.60520420649397e-12,
+                    2.06662706021798e-10,
+                ),
+                (
+                    -0.137206914066245,
+                    0.00022482943325554,
+                    0.133506645898472,
+                    44.4762047396756,
+                    1.76263206439128e-12,
+                    -5.04771041057526e-09,
+                ),
+                (
+                    -316.542691119953,
+                    11.8157816556034,
+                    44.4762047396756,
+                    819871.010459364,
+                    8.11565428517953e-09,
+                    -3.61035571275858e-05,
+                ),
+                (
+                    -5.10703480738867e-11,
+                    -1.60520420649397e-12,
+                    1.76263206439128e-12,
+                    8.11565428517953e-09,
+                    2.07869617518516e-19,
+                    -3.45519816705532e-16,
+                ),
+                (
+                    3.56565852966258e-08,
+                    2.06662706021798e-10,
+                    -5.04771041057526e-09,
+                    -3.61035571275858e-05,
+                    -3.45519816705532e-16,
+                    5.82629996012315e-13,
+                ),
+            ),
         ),
         _mutch2019(
             "mutch2019_global",
-            "all the Fe-Mg data, TaMED and PED",
-            -7.86,
-            0.187,
-            -7.21,
-            -26600,
-            -4.15e-10,
-            -1.54e-7,
+            "Fe-Mg",
+            "regressed on all the Fe-Mg data, TaMED and PED",
+            (-7.861, 0.1868, -7.208, -26580, -4.148e-10, -1.54e-07),
+            (
+                (
+                    0.497039964543917,
+                    0.00363381377240425,
+                    -0.132319267271482,
+                    -378.453948506284,
+                    -2.76790679156379e-11,
+                    2.69463943024172e-08,
+                ),
+                (
+                    0.00363381377240425,
+                    0.000431162727069159,
+                    0.00107609125043613,
+                    10.2162808414763,
+                    -6.40646254133509e-13,
+                    -1.98771926260489e-10,
+                ),
+                (
+                    -0.132319267271482,
+                    0.00107609125043613,
+                    0.149124060624799,
+                    51.0034229198428,
+                    -1.46324714807073e-13,
+                    -4.70997758933153e-09,
+                ),
+                (
+                    -378.453948506284,
+                    10.2162808414763,
+                    51.0034229198428,
+                    839580.703219708,
+                    1.33015759093729e-08,
+                    -3.94295445360981e-05,
+                ),
+                (
+                    -2.76790679156379e-11,
+                    -6.40646254133509e-13,
+                    -1.46324714807073e-13,
+                    1.33015759093729e-08,
+                    2.33230090554607e-19,
+                    -3.91323758633186e-16,
+                ),
+                (
+                    2.69463943024172e-08,
+                    -1.98771926260489e-10,
+                    -4.70997758933153e-09,
+                    -3.94295445360981e-05,
+                    -3.91323758633186e-16,
+                    6.61290384810696e-13,
+                ),
+            ),
         ),
         ArrheniusDiffusivity(
             name="femg_refit2026",
             element="Fe-Mg",
-            log10_D0_m2_s=(-9.586299961735767, -9.354378833632861, -8.804672145012669),
-            activation_energy_J_mol=(213487.15084701846, 213487.15084701846, 213487.15084701846),
-            fO2_exponent=0.22078036442391086,
+            log10_D0_m2_s=(-9.664453254441487, -9.664453254441487, -8.886302004057843),
+            activation_energy_J_mol=(211176.2670377092, 211176.2670377092, 211176.2670377092),
+            fO2_exponent=0.19839422703684906,
             fO2_ref_Pa=1e-7,
-            fo_coefficient=3.175136811172211,
+            fo_coefficient=3.169189994736193,
             fo_ref=0.9,
             activation_volume_m3_mol=7e-6,
             P_ref_Pa=1e5,
@@ -390,63 +520,150 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
                     "activation_energy_J_mol",
                     "fO2_exponent",
                     "fo_coefficient",
-                    "log10_100_vs_001",
-                    "log10_010_vs_001",
                 ),
                 covariance=(
                     (
-                        0.07932162356085508,
-                        1703.092845617954,
-                        -0.002435873750752523,
-                        0.00751620019957468,
-                        -0.00109251493675279,
-                        -0.000993820876148971,
+                        0.07576918024679295,
+                        1764.5050727872188,
+                        -0.002625035661086241,
+                        0.007236651329692506,
                     ),
                     (
-                        1703.092845617954,
-                        43683145.868223906,
-                        -49.790948279513984,
-                        201.00005875974767,
-                        -12.862921058153741,
-                        -8.88754561500423,
+                        1764.5050727872188,
+                        45079753.469182335,
+                        -55.98383659595887,
+                        201.67235194822538,
                     ),
                     (
-                        -0.002435873750752523,
-                        -49.790948279513984,
-                        0.0002972937863277569,
-                        -0.0002204845346820101,
-                        7.7191525311247e-06,
-                        2.6327846448380077e-05,
+                        -0.002625035661086241,
+                        -55.98383659595887,
+                        0.00032281485314227914,
+                        -0.00017699455123920574,
                     ),
                     (
-                        0.00751620019957468,
-                        201.00005875974767,
-                        -0.0002204845346820101,
-                        0.019536877918848925,
-                        -5.5968896851872664e-05,
-                        -3.4674036945216574e-05,
-                    ),
-                    (
-                        -0.00109251493675279,
-                        -12.862921058153741,
-                        7.7191525311247e-06,
-                        -5.5968896851872664e-05,
-                        0.0029241584483444914,
-                        0.0014392904858712035,
-                    ),
-                    (
-                        -0.000993820876148971,
-                        -8.88754561500423,
-                        2.6327846448380077e-05,
-                        -3.4674036945216574e-05,
-                        0.0014392904858712035,
-                        0.0030662098781429636,
+                        0.007236651329692506,
+                        201.67235194822538,
+                        -0.00017699455123920574,
+                        0.018906829881934407,
                     ),
                 ),
-                between_study_log10=0.23514656398189437,
+                between_study_log10=0.14278524946544716,
                 source=(
                     "Covariance of the law averaged over laboratories; between-study sd "
-                    "0.235 log10 (95% 0.11-0.64, 5 studies)."
+                    "0.143 log10 (95% 0.04-0.57, 4 studies)."
+                ),
+            ),
+        ),
+        _mutch2019(
+            "mutch2019_ni",
+            "Ni",
+            "Ni diffusion",
+            (-11.09, 0.2769, -2.185, -25080, -1.246e-09, 9.967e-07),
+            (
+                (
+                    3.32788082296725,
+                    0.0108660968622702,
+                    -1.77375521776915,
+                    -2186.61589865981,
+                    -1.40203650629739e-10,
+                    1.90307239581102e-07,
+                ),
+                (
+                    0.0108660968622702,
+                    0.00216784683169149,
+                    -0.0152818744193823,
+                    85.006525908944,
+                    -1.98169090924804e-12,
+                    -1.97548792434352e-09,
+                ),
+                (
+                    -1.77375521776915,
+                    -0.0152818744193823,
+                    1.87806040681595,
+                    -339.86176883119,
+                    2.67755733941985e-11,
+                    -2.60844977093618e-08,
+                ),
+                (
+                    -2186.61589865981,
+                    85.006525908944,
+                    -339.86176883119,
+                    6793292.28743474,
+                    9.49540857947479e-08,
+                    -0.000320505347787139,
+                ),
+                (
+                    -1.40203650629739e-10,
+                    -1.98169090924804e-12,
+                    2.67755733941985e-11,
+                    9.49540857947479e-08,
+                    2.22508365973983e-19,
+                    -3.68519013721069e-16,
+                ),
+                (
+                    1.90307239581102e-07,
+                    -1.97548792434352e-09,
+                    -2.60844977093618e-08,
+                    -0.000320505347787139,
+                    -3.68519013721069e-16,
+                    6.24915157004132e-13,
+                ),
+            ),
+            anisotropy=10.7,
+        ),
+        _mutch2019(
+            "mutch2019_mn",
+            "Mn",
+            "Mn diffusion",
+            (-7.548, 0.1963, -7.153, -26720, -9.504e-10, 7.195e-07),
+            (
+                (
+                    3.23909781874242,
+                    0.00394323922982214,
+                    -0.678808849146587,
+                    -3680.51039678914,
+                    -1.94956354613448e-10,
+                    2.68546039329982e-07,
+                ),
+                (
+                    0.00394323922982214,
+                    0.00347810091754163,
+                    0.002784587490056,
+                    119.28822156565,
+                    -4.0328467747652e-12,
+                    -2.03960098719852e-09,
+                ),
+                (
+                    -0.678808849146587,
+                    0.002784587490056,
+                    0.323011631927977,
+                    726.306288511926,
+                    2.81952079772358e-11,
+                    -5.3690017575469e-08,
+                ),
+                (
+                    -3680.51039678914,
+                    119.28822156565,
+                    726.306288511926,
+                    8787975.0418876,
+                    9.60676117507748e-08,
+                    -0.00039878531957198,
+                ),
+                (
+                    -1.94956354613448e-10,
+                    -4.0328467747652e-12,
+                    2.81952079772358e-11,
+                    9.60676117507748e-08,
+                    2.83349563026499e-19,
+                    -4.64960532776102e-16,
+                ),
+                (
+                    2.68546039329982e-07,
+                    -2.03960098719852e-09,
+                    -5.3690017575469e-08,
+                    -0.00039878531957198,
+                    -4.64960532776102e-16,
+                    7.86972428160841e-13,
                 ),
             ),
         ),

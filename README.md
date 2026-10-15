@@ -209,7 +209,7 @@ One row per model run. Fo is a fraction throughout.
 | `dt_s` | s | optional | Time step of the final fit. Leave empty to have it chosen: 1/400 of the fitted time (implicit), or the stable step D dt / dx² = 0.4 (central, dipra; above 0.5 is unstable and refused). |
 | `max_time_days` | days | optional | Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate of the time). |
 | `scheme` |  | optional | implicit (default since 2026-10-13: rim on the end node, steps not snapped to nodes, any time step), central (the engine's explicit scheme, used before) or dipra (Girona and Costa 2013). With uncertainty = legacy the default is central. |
-| `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or mutch2019_tamed, mutch2019_global, femg_refit2026: the only one with a covariance, which adds the law_ and all_ ranges to summary.csv) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
+| `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or femg_refit2026, mutch2019_tamed, mutch2019_global: these three carry a covariance, which adds the law_ range to summary.csv, and femg_refit2026 also the spread between laboratories, the all_ range) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
 | `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule; reproduces old results). |
 | `steps_sd_um` | µm | optional | Uncertainty (1 sigma, Gaussian) on the step position(s): one value, or one per step ("2, 5"); 0 keeps a step fixed. Or give steps_range_um. |
 | `steps_range_um` | µm | optional | Uncertainty (± half-width, uniform) on the step position(s), as steps_sd_um. |
@@ -327,15 +327,16 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
   differs from earlier versions.
 - The range does not include the diffusivity law's own uncertainty either, unless
   the law carries a covariance. `femg_refit2026` does: our refit of the verified
-  Fe-Mg data (153 points, five studies, every value stated in the sources' tables or
+  Fe-Mg data (118 points, four studies, every value stated in the sources' tables or
   text; [docs/references/data-to-source.md](docs/references/data-to-source.md)) in the
-  Dohmen and Chakraborty (2007) form, with a random offset per study ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
+  Dohmen and Chakraborty (2007) form with [100] and [010] six times slower than [001],
+  with a random offset per study ([analyses/femg_refit](analyses/femg_refit/README.md)). An Fo
   profile depends on D t, so an error in log D is the same error in log time, and
   no extra model runs are needed. Fits with it report three ranges:
   `low_days`/`high_days` (the profile alone; use these to compare crystals fitted
   with the same law, whose error is common to all of them), `law_low_days`/
-  `law_high_days` (plus the law's calibration, about ±0.11 log at 1200 °C), and
-  `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.24 log;
+  `law_high_days` (plus the law's calibration, about ±0.09 log at 1200 °C), and
+  `all_low_days`/`all_high_days` (plus the spread between laboratories, 0.14 log;
   for an absolute time, if the crystal may sit off the laboratories' average as one
   more experiment would). From Python: `result.time_range_days("fit" | "law" |
   "law_and_studies")`. Not available for fits with growth stages, a rim value that
@@ -346,7 +347,9 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
 - The default diffusivity, `dohmen_chakraborty2007`, is the Fe-Mg equation DIPRA
   uses (Dohmen and Chakraborty 2007; Girona and Costa 2013, Table 1). The presets
   `mutch2019_tamed` and `mutch2019_global` are the regressions of Mutch et al.
-  (2019); DIPRA's Ni, Mn and Ca equations are listed for reference but cannot be
+  (2019) with their covariance at full precision (Mutch et al. 2021, DFENS Data Set
+  S6), so they also give the `law_` range; `mutch2019_ni` and `mutch2019_mn` are the
+  same paper's Ni and Mn regressions (for Ni, [001] 10.7x faster as in DFENS). DIPRA's Ni, Mn and Ca equations are listed for reference but cannot be
   used to fit Fo profiles. For Ni, `petry2004_ni` is Petry et al. (2004)'s own
   constant-fO2 law; DIPRA's `girona_costa2013_ni` (the default for Ni fits) pairs
   its pre-factor with the activation energy of a different fit, which makes Ni 0.14

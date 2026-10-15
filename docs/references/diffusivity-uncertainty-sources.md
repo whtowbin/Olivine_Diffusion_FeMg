@@ -189,7 +189,8 @@ all the TaMED data (not only DC07's Table 3) with a covariance and a between-stu
 term, propagated analytically to the fitted time (`FitResult.time_range_days`); see
 `docs/plans/2026-10-13-law-uncertainty.md`. For Fo fits option 1 no longer needs a
 Monte Carlo: a law's covariance maps onto log time directly. The Mutch et al. (2019)
-covariances are still not transcribed. Where the analytic mapping holds and where it
+covariances are now in the presets at full precision (2026-10-15), from Mutch et al. (2021), DFENS
+Data Set S6; both Fe-Mg matrices are positive definite. Where the analytic mapping holds and where it
 does not (changing rims, growth stages, element fits): `law-uncertainty-limits.md`.
 
 Ranked by what they buy for the work they cost:

@@ -109,12 +109,15 @@ def linear_vs_mc(n=4000) -> pd.DataFrame:
     d0 = LAW.log10_D0_m2_s
 
     def law(d):
+        def draw(name):  # a parameter the covariance leaves out (fixed anisotropy) is exact
+            return d[index[name]] if name in index else 0.0
+
         base = d0[2] + d[index["log10_D0_001"]]
         return replace(
             LAW,
             log10_D0_m2_s=(
-                base + d0[0] - d0[2] + d[index["log10_100_vs_001"]],
-                base + d0[1] - d0[2] + d[index["log10_010_vs_001"]],
+                base + d0[0] - d0[2] + draw("log10_100_vs_001"),
+                base + d0[1] - d0[2] + draw("log10_010_vs_001"),
                 base,
             ),
             activation_energy_J_mol=tuple(

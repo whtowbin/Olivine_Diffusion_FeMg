@@ -10,11 +10,17 @@ Verified: every value the fit uses is stated in the source paper's tables or tex
 - Holzapfel et al. (2007): the Ni-NiO-capsule runs only, buffered at Ni-NiO. In the
   Au-capsule runs fO2 was not buffered; the authors estimate it as close to or slightly
   above Ni-NiO.
-- Oeser et al. (2026): the depth-profile runs. Runs 7, 14 and 15 are linescans,
-  convolution corrected, and sit about 0.7 log above the rest; held out.
-- Not in the preset: Spandler and O'Neill (2010), melt contact (see
-  melt-contact-diffusion.md); Shea et al. (2023), Jurewicz and Watson (1988) and Meissner
-  (2000), which lack values or details only their sources can supply.
+- Not in the preset:
+  - Oeser et al. (2026). Their values are tabulated, but their [010] is about 2x slower
+    than [001], against 6x in Dohmen et al. (2007) and in this form. Following DC07,
+    DIPRA and DFENS, the preset keeps 6x (decided 2026-10-14); Oeser's anisotropy is
+    reported as an unconfirmed scenario (`oeser_dp()`; unconfirmed-data.md).
+  - Spandler and O'Neill (2010): melt contact (see melt-contact-diffusion.md).
+  - Shea et al. (2023), Jurewicz and Watson (1988) and Meissner (2000): they lack values
+    or details only their sources can supply.
+
+The form is the Dohmen and Chakraborty (2007) form: log D0, E, the fO2 exponent and the
+composition coefficient fitted; D[100] = D[010] = D[001]/6 and V = 7 cm3/mol fixed.
 
 Variants: the Holzapfel Au-capsule runs added at fO2 = Ni-NiO with a prior sd of 0 (as
 before), 1, 2 or 3 log units on fO2, carried as extra variance (ln10 m sigma)^2 on
@@ -39,7 +45,16 @@ from scipy import optimize
 HERE = Path(__file__).parent
 OUT = HERE / "results" / "verified"
 LN10 = math.log(10)
-FORM = F.FORMS["dc07_free"]
+LN6 = math.log(6)
+_FREE = F.FORMS["dc07_free"]
+# The preset's form: dc07_free with both anisotropy factors fixed at 6 (DC07, as DIPRA and
+# DFENS). Not added to fit_models.FORMS, whose every form fit_models.main fits.
+FORM = F.Form(
+    "dc07_x6",
+    _FREE.params[:4],
+    lambda v: _FREE.design(v)[:, :4],
+    lambda v: _FREE.offset(v) - LN6 * (v.i100 + v.i010),
+)
 FO2_PRIOR_SD = (0.0, 1.0, 2.0, 3.0)  # log units, for the Au-capsule runs at Ni-NiO
 CONDITIONS = {k.split(",")[0]: v for k, v in F._conditions().items()}
 
@@ -60,7 +75,12 @@ def verified() -> pd.DataFrame:
     """The data the femg_refit2026 preset is fitted to."""
     t = F.tamed()
     keep = (t["source"] != "spandler_oneill2010").to_numpy() & ~_is_au(t)
-    return pd.concat([t[keep], X.oeser(True)], ignore_index=True)
+    return t[keep].reset_index(drop=True)
+
+
+def oeser_dp() -> pd.DataFrame:
+    """Oeser et al. (2026) depth-profile runs: verified values, out of the preset (6x)."""
+    return X.oeser(True)
 
 
 def holzapfel_au_rows() -> pd.DataFrame:
@@ -138,7 +158,7 @@ def with_au(prior_sd: float) -> tuple[dict, int]:
     return fit, len(df)
 
 
-def row(name: str, fit: dict, n: int, studies: int) -> dict:
+def row(name: str, fit: dict, n: int, studies: int, form: F.Form = FORM) -> dict:
     b = fit["beta"]
     se = np.sqrt(np.diag(fit["cov"]))
     out = {"variant": name, "n_points": n, "n_studies": studies}
@@ -146,7 +166,7 @@ def row(name: str, fit: dict, n: int, studies: int) -> dict:
     out |= {"log10_D0": b[0], "E_kJ_mol": b[1] / 1e3, "m_fO2": b[2], "n_X": b[3]}
     out |= {"m_fO2_se": se[2], "E_se_kJ_mol": se[1] / 1e3}
     for label, c in CONDITIONS.items():
-        mu, s = F.predict(FORM, b, fit["cov"], c)
+        mu, s = F.predict(form, b, fit["cov"], c)
         out[f"{label}_vs_dc07"] = mu - F._dc07_preset(c)
         out[f"{label}_se_law"] = s
         out[f"{label}_se_new_lab"] = math.hypot(s, fit["tau"] / LN10)
@@ -178,7 +198,7 @@ def main() -> None:
         mu, se_law = F.predict(FORM, preset["beta"], preset["cov"], c)
         preds.append(
             {
-                "form": "dc07_free",
+                "form": FORM.name,
                 "method": "random study",
                 "condition": name,
                 "log10_D001": mu,
@@ -192,9 +212,10 @@ def main() -> None:
     rows = [
         row(
             "previous preset (full compilation, Spandler as a study)",
-            F.fit_random(FORM, old),
+            F.fit_random(_FREE, old),
             len(old),
             old["source"].nunique(),
+            _FREE,
         ),
         row("verified (the preset)", preset, len(df), studies),
     ]

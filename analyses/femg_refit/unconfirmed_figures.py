@@ -40,8 +40,8 @@ import pandas as pd  # noqa: E402
 OUT = HERE / "figures" / "unconfirmed"
 RESULTS = HERE / "results" / "verified"
 LN10 = math.log(10)
-FORM = F.FORMS["dc07_free"]
-N = len(FORM.params)
+FORM = V.FORM  # the preset: DC07 form, 6x anisotropy
+FREE = F.FORMS["dc07_free"]  # anisotropy fitted (the presets before 2026-10-15)
 SEED = 20261014
 AU, OESER_LS, SHEA = "holzapfel2007_au", "oeser2026_linescan", "shea2023"
 FO2_BAR = 2.0  # log units drawn on the Au runs' assumed fO2
@@ -55,7 +55,7 @@ STYLE = {
 # Filled markers, kept in the legend when faded: every unconfirmed set.
 FILLED = MF.FILLED | {AU, OESER_LS, M.SPANDLER}
 HATCHES = ("//", "..", "xx")  # one per melt-contact box, so the legend tells them apart
-VERIFIED = ("chakraborty1997", "dohmen2007_part1", "petry2004", "holzapfel2007", "oeser2026")
+VERIFIED = ("chakraborty1997", "dohmen2007_part1", "petry2004", "holzapfel2007")
 # Melt-contact evidence without per-point conditions: (label, T range C, mean, sd vs DC07).
 BOXES = (
     ("Jurewicz & Watson 1988\n(read from Shea Fig 6)", (1219, 1298), 0.71, 0.19, False),
@@ -73,9 +73,11 @@ def frames():
     t = F.tamed()
     spandler = t[t["source"] == M.SPANDLER]
     shea = M.shea_femg_rows(M.load_shea())
+    dp = V.oeser_dp()
     show = pd.concat(
         [
             ver,
+            dp,
             au.assign(source=AU),
             ls.assign(source=OESER_LS),
             spandler,
@@ -88,20 +90,32 @@ def frames():
     sigma[show["source"].isin(["oeser2026", OESER_LS]).to_numpy()] = 0.0  # not given
     au_rows = show["source"] == AU
     sigma[au_rows.to_numpy()] = np.hypot(0.3, 0.22 * FO2_BAR)  # with the fO2 prior
-    return ver, {"au": au, "ls": ls, "spandler": spandler, "shea": shea}, show, sigma
+    return ver, {"au": au, "ls": ls, "dp": dp, "spandler": spandler, "shea": shea}, show, sigma
 
 
 def scenarios(ver, add) -> dict[str, tuple[F.Form, dict, int]]:
     """Each fit: (form, fit, n). Melt-term fits predict for solid contact."""
     out = {
-        "previous preset (all data, Spandler a study)": (FORM, F.fit_random(FORM, F.tamed()), 135)
+        "first preset (all data, fitted anisotropy, Spandler a study)": (
+            FREE,
+            F.fit_random(FREE, F.tamed()),
+            135,
+        )
     }
     out["verified (the preset)"] = (FORM, F.fit_random(FORM, ver), len(ver))
     for sd in V.FO2_PRIOR_SD:
         fit, n = V.with_au(sd)
         out[f"+ Holzapfel Au, NNO, sd {sd:g} log"] = (FORM, fit, n)
-    d = pd.concat([ver, add["ls"]], ignore_index=True)
-    out["+ Oeser linescan runs"] = (FORM, F.fit_random(FORM, d), len(d))
+    dp = add["dp"]
+    for label, extra in (
+        ("+ Oeser depth profiles", dp),
+        ("+ Oeser [001] and [100] only", dp[dp["axis"] != "[010]"]),
+        ("+ Oeser, all runs incl. linescans", pd.concat([dp, add["ls"]])),
+    ):
+        d = pd.concat([ver, extra], ignore_index=True)
+        out[label] = (FORM, F.fit_random(FORM, d), len(d))
+    d = pd.concat([ver, dp], ignore_index=True)
+    out["+ Oeser depth profiles, fitted anisotropy"] = (FREE, F.fit_random(FREE, d), len(d))
     d = pd.concat([ver, add["spandler"]], ignore_index=True)
     out["+ Spandler as a study"] = (FORM, F.fit_random(FORM, d), len(d))
     out["+ Spandler, melt term"] = (
@@ -121,7 +135,7 @@ def scenarios(ver, add) -> dict[str, tuple[F.Form, dict, int]]:
 def table(fits) -> pd.DataFrame:
     rows = []
     conds = {k.split(",")[0]: v for k, v in F._conditions().items()}
-    for name, (_, fit, n) in fits.items():
+    for name, (form, fit, n) in fits.items():
         b, cov, tau = fit["beta"], fit["cov"], fit["tau"] / LN10
         row = {
             "scenario": name,
@@ -130,10 +144,11 @@ def table(fits) -> pd.DataFrame:
             "m_fO2": b[2],
             "E_kJ_mol": b[1] / 1e3,
         }
-        if len(b) > N:
-            row |= {"melt_log10": b[N], "melt_se": math.sqrt(cov[N, N])}
+        k = len(form.params)
+        if len(b) > k:
+            row |= {"melt_log10": b[k], "melt_se": math.sqrt(cov[k, k])}
         for label, c in conds.items():
-            mu, se = F.predict(FORM, b[:N], cov[:N, :N], c)
+            mu, se = F.predict(form, b[:k], cov[:k, :k], c)
             row |= {
                 f"{label}_vs_dc07": mu - F._dc07_preset(c),
                 f"{label}_se_law": se,

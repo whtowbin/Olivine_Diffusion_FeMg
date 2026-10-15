@@ -8,6 +8,7 @@ transcription of its source, and the general formula against the engine.
 import itertools
 import math
 from dataclasses import fields, replace
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -113,24 +114,49 @@ def test_petry2004_ni_is_petry_s_constant_fo2_fit():
     assert offset == pytest.approx(0.142, abs=0.001)
 
 
-@pytest.mark.parametrize(
-    ("name", "coefficients"),
-    [
-        ("mutch2019_tamed", (-6.76, 0.224, -7.18, -26700, -5.21e-10, -1.03e-7)),
-        ("mutch2019_global", (-7.86, 0.187, -7.21, -26600, -4.15e-10, -1.54e-7)),
-    ],
-)
-def test_mutch_presets_match_the_published_regression(name, coefficients):
-    """Mutch et al. (2019) Supplementary Table 1: ln D[001] = a + b ln fO2(bar) + c X_Fo
-    + q/T + j P + h P/T, with [100] and [010] six times slower."""
-    a, b, c_fo, q, j, h = coefficients
+# Mutch et al. (2021) Data Set S6 (the Mutch et al. 2019 regressions at full precision).
+DS06 = Path(__file__).parents[1] / "analyses/femg_refit/data/mutch2021_dfens_ds06_olivine.csv"
+MUTCH_PRESETS = [
+    ("mutch2019_tamed", "FeMg (TaMED)", 6.0),
+    ("mutch2019_global", "FeMg (Global)", 6.0),
+    ("mutch2019_ni", "Ni", 10.7),
+    ("mutch2019_mn", "Mn", 6.0),
+]
+
+
+def _ds06(law):
+    rows = pd.read_csv(DS06).query("law == @law")
+    return rows["value"].to_numpy(), rows[[f"cov_{p}" for p in "abcqjh"]].to_numpy()
+
+
+@pytest.mark.parametrize(("name", "law", "anisotropy"), MUTCH_PRESETS)
+def test_mutch_presets_match_the_published_regression(name, law, anisotropy):
+    """Mutch et al. (2019; full precision in Mutch et al. 2021, Data Set S6): ln D[001] = a
+    + b ln fO2(bar) + c X_Fo + q/T + j P + h P/T, with [100] and [010] slower by the
+    anisotropy DFENS uses (6, or 10.7 for Ni)."""
+    (a, b, c_fo, q, j, h), _ = _ds06(law)
     d = DIFFUSIVITY_PRESETS[name]
     for c, o in cases():
         T, P = c.T_K, c.P_Pa
         D001 = np.exp(a + b * np.log(c.fO2_Pa / 1e5) + c_fo * FO + q / T + j * P + h * P / T)
+        slow = D001 / anisotropy
         np.testing.assert_allclose(
-            d.functions(c, o)[0](FO), along((D001 / 6, D001 / 6, D001), o), rtol=1e-12
+            d.functions(c, o)[0](FO), along((slow, slow, D001), o), rtol=1e-12
         )
+
+
+@pytest.mark.parametrize(("name", "law", "anisotropy"), MUTCH_PRESETS)
+def test_mutch_presets_carry_the_published_covariance(name, law, anisotropy):
+    """The preset's sigma of log10 D equals the Data Set S6 covariance propagated in Mutch's
+    own parameters, g = (1, ln fO2(bar), X_Fo, 1/T, P, P/T), at every case (anisotropy is
+    exact, as in DFENS, so the orientation does not matter)."""
+    _, cov = _ds06(law)
+    d = DIFFUSIVITY_PRESETS[name]
+    for c, o in cases():
+        for x in (0.7, 0.85, 0.95):
+            g = np.array([1, math.log(c.fO2_Pa / 1e5), x, 1 / c.T_K, c.P_Pa, c.P_Pa / c.T_K])
+            expected = math.sqrt(g @ cov @ g) / math.log(10)
+            assert d.log10_sigma(c, o, x) == pytest.approx(expected, rel=1e-9)
 
 
 @pytest.mark.parametrize("name", list(DIFFUSIVITY_PRESETS))

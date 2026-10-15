@@ -16,46 +16,44 @@ was measured; the scripts are in `docs/plans/2026-10-14-review-fixes/`
 The method is linear error propagation, not a Monte Carlo, and it needs no model
 runs beyond the fit itself:
 
-1. The law carries a covariance C over its parameters (`LawUncertainty`; at
-   present only `femg_refit2026` has one: log D0, E, the fO2 exponent, the
-   composition coefficient and the two anisotropy offsets, from the refit in
-   `analyses/femg_refit`).
+1. The law carries a covariance C over its parameters (`LawUncertainty`).
+   `femg_refit2026` has one over log D0, E, the fO2 exponent and the composition
+   coefficient, from the refit in `analyses/femg_refit`. Its anisotropy is fixed at
+   6x, so it is exact. The Mutch presets carry their published covariance
+   (Mutch et al. 2021, Data Set S6).
 2. At the run's temperature, pressure, fO2, orientation and a composition X, the
    gradient g of log10 D with respect to those parameters is known in closed form,
    so the law's 1-sigma in log10 D is sigma = sqrt(g' C g)
    (`ArrheniusDiffusivity.log10_sigma`). At the round robin KS20 conditions along
-   [001] it is 0.114 log (0.122 for the preset before 2026-10-14).
+   [001] it is 0.087 log (0.114 for the preset of 2026-10-14, and 0.122 before that).
 3. **The D t argument.** The diffusion equation with D(X) = D_level f(X) and fixed
    boundary values is unchanged by trading D_level for time: the profile after time t
    with D_level is the profile after time 2t with D_level / 2. So an error delta in
    log10 D_level is an error -delta in the fitted log10 t, exactly.
 4. Each side of the fit's own range is combined with sigma in quadrature in log10
    time (`forster.uncertainty.widen_log10`), so an asymmetric range stays
-   asymmetric. "law_and_studies" also adds the between-study spread tau (0.235 log for
-   `femg_refit2026`) in quadrature: hypot(0.114, 0.235) = 0.261 log at KS20.
+   asymmetric. "law_and_studies" also adds the between-study spread tau (0.143 log for
+   `femg_refit2026`) in quadrature: hypot(0.087, 0.143) = 0.167 log at KS20.
 
 ### Checked: linear propagation against a Monte Carlo over the covariance
 
-log10 D is linear in every parameter except the two anisotropy offsets, which
-enter through log10 of the cos^2-weighted sum of the three axes' D. For a profile
-off the crystal axes that weighting is the only nonlinearity. 4000 draws from the
-preset's covariance, log10 D at Fo 0.85 (`linear_vs_mc.csv`):
+log10 D is linear in every parameter except anisotropy offsets, which enter through
+log10 of the cos^2-weighted sum of the three axes' D. Since 2026-10-15 the preset's
+anisotropy is fixed (6x) and outside the covariance, so log10 D is exactly linear and
+sigma is the same along every direction. The check is then a control. With the
+fitted anisotropy of the earlier presets, it agreed to within 1.6% on every axis and
+oblique direction. 4000 draws from the preset's covariance, log10 D at Fo 0.85
+(`linear_vs_mc.csv`):
 
 | conditions | orientation | linear sigma | Monte Carlo sd | MC 16-84% half-width |
 |---|---|---|---|---|
-| 1200 C, 0.042 GPa, KS20 fO2 | [001] | 0.1141 | 0.1138 | 0.1137 |
-| 1200 C, 0.042 GPa, KS20 fO2 | [100] | 0.1213 | 0.1209 | 0.1215 |
-| 1200 C, 0.042 GPa, KS20 fO2 | oblique (50, 70, 46.5) | 0.1134 | 0.1131 | 0.1139 |
-| 1200 C, 0.042 GPa, KS20 fO2 | equal angles (54.7) | 0.1134 | 0.1130 | 0.1141 |
-| 900 C, 0.1 GPa, 1e-9 Pa | [001] | 0.1276 | 0.1283 | 0.1280 |
-| 900 C, 0.1 GPa, 1e-9 Pa | oblique (50, 70, 46.5) | 0.1271 | 0.1280 | 0.1286 |
-| 1300 C, 1 atm, 1e-2 Pa | [100] | 0.1252 | 0.1246 | 0.1246 |
-| 1300 C, 1 atm, 1e-2 Pa | equal angles (54.7) | 0.1178 | 0.1174 | 0.1171 |
+| 1200 C, 0.042 GPa, KS20 fO2 | every direction | 0.0868 | 0.0862 | 0.0860 |
+| 900 C, 0.1 GPa, 1e-9 Pa | every direction | 0.0987 | 0.0986 | 0.0983 |
+| 1300 C, 1 atm, 1e-2 Pa | every direction | 0.0934 | 0.0930 | 0.0927 |
 
 The two agree within the Monte Carlo's own sampling error (about 1.1% of sigma at
-4000 draws; every row is within 1.6%, and the [001] rows, where the propagation is
-exactly linear, differ by -0.3% to +0.5%, so the differences are the draws, not the
-method; table regenerated for the preset of 2026-10-14). A Monte Carlo over the law adds
+4000 draws; every row is within 0.7%; table regenerated for the preset of
+2026-10-15). A Monte Carlo over the law adds
 nothing for an Fo fit for which the D t argument holds.
 
 ## Where the D t argument holds (measured)
@@ -70,8 +68,8 @@ Where the argument holds, the fitted log10 t moves by -delta
 | fixed rim (control) | -0.1221 | -0.3010 | 1.00 |
 | fixed `rim_fo`, not the edge Fo | -0.1216 | -0.3010 | 1.00 |
 | rim changing (`RimPath` 0.86 to 0.82) over days 0-0.5 | -0.1158 | -0.2825 | 0.94-0.95 |
-| rim changing (`RimPath` 0.86 to 0.82) over days 0-3 | -0.0803 | -0.1714 | 0.57-0.66 |
-| growth stage (Fo 0.82 zone) at day 3 | -0.0723 | -0.1487 | 0.49-0.59 |
+| rim changing (`RimPath` 0.86 to 0.82) over days 0-3 | -0.0795 | -0.1779 | 0.59-0.65 |
+| growth stage (Fo 0.82 zone) at day 3 | -0.0731 | -0.1591 | 0.53-0.60 |
 
 The control and the fixed `rim_fo` miss by at most 0.0004 log, within the time-step
 resolution of the fit (dt 0.01 d on 6 d). So the argument is exact, to the grid's resolution, for every fit whose
@@ -93,7 +91,7 @@ close to the D t result (0.94-0.95 of it when the change ends at 1/12 of the tim
 `forster` does not try to judge "early enough".
 
 **2. Growth stages** (`fit_profile(..., stages=...)`). The same reason: stage times
-are fixed in seconds. The measured fraction (0.49-0.59) is between the D t result
+are fixed in seconds. The measured fraction (0.53-0.60) is between the D t result
 and the result if only the time after the stage scaled (0.465 for delta = 0.122
 here), and it depends on delta, so there is no simple correction. **No law range.**
 
@@ -125,7 +123,7 @@ range, and is cruder than the usual case.
   time shift for dn = 0.3 matched -dn (X_ref - X) at that X to 0.0011 log; the
   midpoint missed by up to 0.005 (`test_the_composition_term_moves_time_as_evaluated_a_third_of_the_way_in`).
   For `femg_refit2026` it barely matters: sigma changes by 0.0005 log over X =
-  0.80-0.90, because the composition coefficient's own variance is small (sd 0.140).
+  0.80-0.90, because the composition coefficient's own variance is small (sd 0.138).
   A law with a much less certain composition term, or a profile spanning a much
   wider Fo range, would need this checked again.
 - **The plateau Fo** of a two-step initial condition is not used to place X.
@@ -136,9 +134,9 @@ range, and is cruder than the usual case.
   REML estimate of tau).
 - **Gaussian in log10 D.** Both the law's covariance and tau are 1-sigma Gaussian
   quantities in log10; the fit's range is a 68% likelihood interval. The widened
-  range is a 68% range under those assumptions. tau is poorly determined from five
-  studies (95% range 0.11-0.64 log), and the "law_and_studies" range moves with it:
-  hypot(0.114, tau) is 0.157 to 0.647 log over that interval at KS20.
+  range is a 68% range under those assumptions. tau is poorly determined from four
+  studies (95% range 0.04-0.57 log), and the "law_and_studies" range moves with it:
+  hypot(0.087, tau) is 0.096 to 0.573 log over that interval at KS20.
 
 ## What the covariance does not contain
 

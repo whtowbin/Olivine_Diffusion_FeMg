@@ -109,8 +109,9 @@ PARAMETER_COLUMNS = (
         "",
         "optional",
         f"Fe-Mg diffusivity equation: a preset ({DEFAULT_DIFFUSIVITY}, the default and "
-        "DIPRA's, or mutch2019_tamed, mutch2019_global, femg_refit2026: the only one with a "
-        "covariance, which adds the law_ and all_ ranges to summary.csv) or a name from "
+        "DIPRA's, or femg_refit2026, mutch2019_tamed, mutch2019_global: these three carry a "
+        "covariance, which adds the law_ range to summary.csv, and femg_refit2026 also the "
+        "spread between laboratories, the all_ range) or a name from "
         "diffusivities.csv "
         "(then run forster fit with --diffusivities).",
     ),
