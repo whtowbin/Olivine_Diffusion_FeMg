@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import tempfile
 import warnings
@@ -62,6 +63,7 @@ PROFILES, PARAMETERS, DIFFUSIVITIES, STATE = (
     "project.json",
 )
 WORK = ".forster"  # cache and autosave, inside the project folder
+_KEY = re.compile(r"[0-9a-f]{24}")  # a cache key (`Project.result_key`)
 # Table columns that do not change the nominal fit (the run's name, notes, and the
 # initial-condition scan and Monte Carlo settings), left out of the cache key.
 _NOT_IN_FIT = {"run", *METADATA_COLUMNS} | {
@@ -163,6 +165,16 @@ class Project:
         state = {}
         if (folder / STATE).exists():
             state = json.loads((folder / STATE).read_text())
+            if not isinstance(state, dict):
+                raise ValueError(f"{folder / STATE}: not a FORSTER project file")
+            # project.json comes from whoever sent the folder: keep only well-formed cache
+            # keys, which are used to build paths (and to delete stale entries).
+            results = state.get("results", {})
+            state["results"] = {
+                str(k): v
+                for k, v in (results.items() if isinstance(results, dict) else ())
+                if isinstance(v, str) and _KEY.fullmatch(v)
+            }
             if state.get("format", FORMAT_VERSION) > FORMAT_VERSION:
                 raise ValueError(
                     f"{folder / STATE} was written by a newer FORSTER (format "
@@ -407,6 +419,8 @@ class Project:
         return h.hexdigest()[:24]
 
     def _cache(self, key: str) -> Path:
+        if not _KEY.fullmatch(key):
+            raise ValueError(f"not a cache key: {key!r}")
         return self.folder / WORK / "cache" / key
 
     def fit_task(self, name: str) -> FitTask:
@@ -424,8 +438,18 @@ class Project:
             results = self.state.setdefault("results", {})
             old = results.get(task.name)
             results[task.name] = task.key
-            if old and old != task.key and old not in results.values():
-                shutil.rmtree(self._cache(old), ignore_errors=True)
+            if (
+                isinstance(old, str)
+                and _KEY.fullmatch(old)
+                and old != task.key
+                and old not in results.values()
+            ):
+                stale = self._cache(old)
+                if (
+                    not stale.is_symlink()
+                    and stale.resolve().parent == (self.folder / WORK / "cache").resolve()
+                ):
+                    shutil.rmtree(stale, ignore_errors=True)
         return current
 
     def fit(self, name: str) -> FitResult:

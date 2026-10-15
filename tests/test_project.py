@@ -1,5 +1,6 @@
 """`forster.project`: open, edit, save and reopen a project folder; the result cache."""
 
+import json
 import subprocess
 import sys
 import zipfile
@@ -271,3 +272,22 @@ def test_selected_run_and_views_are_saved(project):
     project.save()
     again = Project.open(project.folder)
     assert again.selected_run == EXAMPLE and again.view(EXAMPLE) == {"xlim": [0, 50]}
+
+
+def test_a_crafted_project_file_cannot_delete_outside_the_cache(project, tmp_path):
+    """project.json comes from whoever sent the folder: a cache key that is a path must
+    not be used to build paths or to delete anything."""
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    (victim / "keep.txt").write_text("keep")
+    project.save()
+    state = json.loads((project.folder / "project.json").read_text())
+    state["results"] = {EXAMPLE: "../../../victim"}
+    (project.folder / "project.json").write_text(json.dumps(state))
+    opened = Project.open(project.folder)
+    assert opened.state["results"] == {}  # the malformed key is dropped on open
+    opened.state["results"] = {EXAMPLE: "../../../victim"}  # even if set in memory
+    opened.fit(EXAMPLE)
+    assert (victim / "keep.txt").read_text() == "keep"
+    with pytest.raises(ValueError, match="not a cache key"):
+        opened._cache("../x")
