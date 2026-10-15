@@ -190,3 +190,31 @@ def test_fo2_and_orientation_follow_the_form_they_were_entered_in(project):
     assert plain.euler_form is None
     project.save()
     assert Project.open(project.folder).run(EXAMPLE) == plain
+
+
+def test_links_in_a_project_folder_are_not_followed(project, tmp_path):
+    """A shared project folder may hold symbolic links: export must not package what
+    they point to, and saving or caching must not write through them."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("private key")
+    (project.folder / "notes.txt").symlink_to(secret)
+    archive = project.export_zip(tmp_path / "shared")
+    with zipfile.ZipFile(archive) as z:
+        assert not any("notes" in n for n in z.namelist())
+        assert all(b"private key" not in z.read(n) for n in z.namelist())
+    outside = tmp_path / "elsewhere.json"
+    outside.write_text("{}")
+    project.save()
+    (project.folder / "project.json").unlink()
+    (project.folder / "project.json").symlink_to(outside)
+    with pytest.raises(ValueError, match="symbolic link"):
+        project.save()
+    assert outside.read_text() == "{}"
+    (project.folder / "project.json").unlink()
+    elsewhere = tmp_path / "cache_elsewhere"
+    elsewhere.mkdir()
+    (project.folder / WORK).mkdir(exist_ok=True)
+    (project.folder / WORK / "cache").symlink_to(elsewhere, target_is_directory=True)
+    with pytest.raises(ValueError, match="symbolic link"):
+        project.fit(EXAMPLE)
+    assert list(elsewhere.iterdir()) == []

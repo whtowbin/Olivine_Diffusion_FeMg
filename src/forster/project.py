@@ -72,11 +72,25 @@ def profile_table(profiles: Mapping[str, Profile]) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
-def _write_csv(df: pd.DataFrame, path: Path) -> None:
-    """Write through a temporary file, so an interrupted save leaves the old file whole."""
+def _no_links(*paths: Path) -> None:
+    """Refuse to write through a symbolic link: a project folder someone sent could
+    hold a link that redirects a write (or, on export, a read) outside the folder."""
+    for path in paths:
+        if path.is_symlink():
+            raise ValueError(f"{path} is a symbolic link; FORSTER does not write through links")
+
+
+def _write_text(text: str, path: Path) -> None:
+    """Write through a temporary file in the same folder and rename it over ``path``, so
+    an interrupted save leaves the old file whole (and a link at ``path`` is refused)."""
+    _no_links(path.parent, path)
     with tempfile.NamedTemporaryFile("w", dir=path.parent, suffix=".tmp", delete=False) as tmp:
-        df.to_csv(tmp.name, index=False)
+        tmp.write(text)
     Path(tmp.name).replace(path)
+
+
+def _write_csv(df: pd.DataFrame, path: Path) -> None:
+    _write_text(df.to_csv(index=False), path)
 
 
 @dataclass
@@ -134,13 +148,14 @@ class Project:
         return project
 
     def _write(self, folder: Path) -> None:
+        _no_links(folder)
         folder.mkdir(parents=True, exist_ok=True)
         _write_csv(profile_table(self.profiles), folder / PROFILES)
         _write_csv(pd.DataFrame([run_row(r) for r in self.runs]), folder / PARAMETERS)
         if self.diffusivities:
             _write_csv(diffusivity_table(self.diffusivities.values()), folder / DIFFUSIVITIES)
         state = {**self.state, "format": FORMAT_VERSION, "forster_version": version("forster")}
-        (folder / STATE).write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
+        _write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", folder / STATE)
 
     def save(self, folder: str | Path | None = None) -> None:
         """Write the tables and project.json (to ``folder``: save as), and clear the
@@ -171,12 +186,12 @@ class Project:
         return restored
 
     def export_zip(self, path: str | Path) -> Path:
-        """The saved project (without the cache) as one zip file, for sharing."""
-        self.save()
+        """The project's tables and project.json as one zip file, for sharing. They are
+        written afresh from memory, not copied from the folder, so nothing else in it
+        (the cache, other files, or a link pointing elsewhere) ends up in the zip."""
         path = Path(path)
         with tempfile.TemporaryDirectory() as tmp:
-            staging = Path(tmp) / self.folder.name
-            shutil.copytree(self.folder, staging, ignore=shutil.ignore_patterns(WORK))
+            self._write(Path(tmp) / self.folder.name)
             archive = shutil.make_archive(str(path.with_suffix("")), "zip", tmp)
         return Path(archive)
 
@@ -404,6 +419,7 @@ _INPUT_FIELDS = ("inputs",)
 
 
 def _store_fit(result: FitResult, folder: Path) -> None:
+    _no_links(folder.parents[1], folder.parent, folder)  # .forster, cache, the entry
     folder.mkdir(parents=True, exist_ok=True)
     arrays, scalars = {}, {}
     for f in fields(result):
@@ -421,9 +437,12 @@ def _store_fit(result: FitResult, folder: Path) -> None:
     grid: Grid = result.inputs["grid"]
     scalars["grid"] = [grid.dx_um, grid.dt_s, grid.max_time_days]
     scalars["stop_early"] = result.inputs["stop_early"]
-    np.savez_compressed(folder / "fit.npz", **arrays)
-    (folder / "fit.json").write_text(json.dumps(scalars, default=float))
-    (folder / "summary.json").write_text(json.dumps(summary_row(result), default=float))
+    _no_links(folder / "fit.npz")
+    with tempfile.NamedTemporaryFile(dir=folder, suffix=".npz", delete=False) as tmp:
+        np.savez_compressed(tmp, **arrays)
+    Path(tmp.name).replace(folder / "fit.npz")
+    _write_text(json.dumps(summary_row(result), default=float), folder / "summary.json")
+    _write_text(json.dumps(scalars, default=float), folder / "fit.json")  # last: marks complete
 
 
 def _load_fit(folder: Path, run: Run) -> FitResult:
