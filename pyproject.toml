@@ -33,7 +33,7 @@ dev = [
     "ruff>=0.14",
     "ty>=0.0.1a20",
 ]
-# Used by the research scripts at the repo root (round robin analysis), not by the package.
+# Used by the research scripts in analyses/ (round robin analysis), not by the package.
 analysis = [
     "cycler>=0.12.1",
     "great-tables>=0.21.0",

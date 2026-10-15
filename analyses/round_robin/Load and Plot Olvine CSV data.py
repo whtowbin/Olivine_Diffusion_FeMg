@@ -3,7 +3,8 @@ import pandas as pd
 from pathlib import Path
 
 # Define the directory to search (current directory or specify a path)
-data_dir = Path(".")  # Change to your specific directory if needed
+# The fit CSVs are written next to this file by Round_Robin_Diffusion_Modeling Part 2.py.
+data_dir = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
 
 # Initialize dictionaries
 data_interp_dfs = {}

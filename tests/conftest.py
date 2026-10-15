@@ -11,7 +11,6 @@ ROUND_ROBIN_PARAMS = (
 ROUND_ROBIN_DATA = REPO_ROOT / "Diffusion Round Robin" / "Diffusion Round Robin Data Reorg.xlsx"
 
 # Tables from Towbin and Plank (2026), in the paper-era layout.
-PAPER_PARAMS = (
-    REPO_ROOT / "old Xenolith Code" / "Olivine_Profile_Diffusion_Modeling_Parameters_DB.xlsx"
-)
-PAPER_DATA = REPO_ROOT / "old Xenolith Code" / "Xenolith_MeltVein_EMPA_Master.xlsx"
+PAPER_ARCHIVE = REPO_ROOT / "analyses" / "xenolith_archive"
+PAPER_PARAMS = PAPER_ARCHIVE / "Olivine_Profile_Diffusion_Modeling_Parameters_DB.xlsx"
+PAPER_DATA = PAPER_ARCHIVE / "Xenolith_MeltVein_EMPA_Master.xlsx"

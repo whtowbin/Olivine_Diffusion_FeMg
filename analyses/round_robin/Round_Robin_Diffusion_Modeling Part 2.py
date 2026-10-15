@@ -47,7 +47,13 @@ formatter.set_scientific(False)
 
 # %%
 
-excel_db_path = "Diffusion Round Robin/Round_Robin_Olivine_Profile_Diffusion_Modeling_Parameters_DB.xlsx"
+# Inputs come from "Diffusion Round Robin/" at the repo root; outputs are written next to
+# this script (analyses/round_robin/). Falls back to the working directory in an
+# interactive session where __file__ is not set.
+HERE = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+RR_DATA = HERE.parents[1] / "Diffusion Round Robin"
+
+excel_db_path = RR_DATA / "Round_Robin_Olivine_Profile_Diffusion_Modeling_Parameters_DB.xlsx"
 
 ol_param_db = pd.read_excel(
     excel_db_path,
@@ -57,7 +63,7 @@ ol_param_db = pd.read_excel(
 )
 
 # %%
-excel_path = "Diffusion Round Robin/Diffusion Round Robin Data Reorg.xlsx"
+excel_path = RR_DATA / "Diffusion Round Robin Data Reorg.xlsx"
 
 Ol_Data = pd.read_excel(
     excel_path,
@@ -434,11 +440,11 @@ def save_model_results(Model_dict, save_name_override = None):
         df_interp_data = pd.DataFrame(interpolated_data)
 
         if save_name_override is None:
-            df_results.to_csv(f'{Model_dict["model_run_name"]}_model_bestfits.csv')
-            df_interp_data.to_csv(f'{Model_dict["model_run_name"]}_data_interp.csv')
+            df_results.to_csv(HERE / f'{Model_dict["model_run_name"]}_model_bestfits.csv')
+            df_interp_data.to_csv(HERE / f'{Model_dict["model_run_name"]}_data_interp.csv')
         else:
-            df_results.to_csv(f'{save_name_override}_model_bestfits.csv')
-            df_interp_data.to_csv(f'{save_name_override}_data_interp.csv')
+            df_results.to_csv(HERE / f'{save_name_override}_model_bestfits.csv')
+            df_interp_data.to_csv(HERE / f'{save_name_override}_data_interp.csv')
     except Exception as e:
         print(e)
 
@@ -677,7 +683,7 @@ plt.legend()
 
 
 # ax.xaxis.set_major_locator(MultipleLocator(20))
-plt.savefig(f"{sample_name}_diffusion_plus_{element_2}.svg")
+plt.savefig(HERE / f"{sample_name}_diffusion_plus_{element_2}.svg")
 # %%
 
 # %%
@@ -720,8 +726,8 @@ for idx, sample in enumerate(files_to_model):
             Model_dict, tick_mark_major_multiple=20, tick_mark_minor_multiple=10, ax=ax
         )
         # Calculate_Gradient(sample, ax = ax)
-        plt.savefig(f"Xenolith_Ol_Diffusion_Models/{sample}_model.svg")
-        plt.savefig(f"{sample}_model.png")
+        plt.savefig(HERE / f"Xenolith_Ol_Diffusion_Models/{sample}_model.svg")
+        plt.savefig(HERE / f"{sample}_model.png")
         save_model_results(Model_dict)
         print(f"{idx + 1} of {len(files_to_model)} completed")
     except:
@@ -1029,7 +1035,7 @@ spanner_combined_uncert = [
     )
     # .show("browser")
     # .save("Round Robin_Sample Times version 2.png", scale=2)
-    .save("Round Robin_Sample Times version 2.pdf", scale=2)
+    .save(str(HERE / "Round Robin_Sample Times version 2.pdf"), scale=2)
     # .write_raw_html("Round Robin_Sample Times version 2")
 )
 
@@ -1109,7 +1115,7 @@ spanner_fit_times = [
         locations=loc.body(columns=[9]),
     )
     # .show("browser")
-    .save("Round Robin_Sample Times.png", scale=2)
+    .save(str(HERE / "Round Robin_Sample Times.png"), scale=2)
 )
 # %%
 from matplotlib.ticker import ScalarFormatter
