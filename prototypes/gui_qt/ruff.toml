@@ -1,0 +1,7 @@
+# The repository's ruff settings, applied to this prototype too (the root config only
+# includes src/ and tests/).
+extend = "../../pyproject.toml"
+include = ["**/*.py"]
+
+[lint.isort]
+known-first-party = ["forster", "gui_qt"]
