@@ -1,0 +1,126 @@
+name: gui-web prototype
+
+# Builds the NiceGUI desktop prototype (prototypes/gui_web) on macOS, Windows and Linux
+# with PyInstaller, runs the bundle's headless self-test, records the bundle size, the
+# self-test's wall time and (best effort) the cold start to the first window and a
+# screenshot, and keeps the bundle as an artifact. See docs/plans/2026-10-15-gui.md.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "prototypes/gui_web/**"
+      - ".github/workflows/gui-web.yml"
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      REQS: prototypes/gui_web/requirements.txt
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4 # the private round robin submodule is not needed
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+
+      - name: Linux packages (virtual display, GTK and WebKit for the native window)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb imagemagick pkg-config libcairo2-dev libgirepository1.0-dev \
+            gir1.2-gtk-3.0 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0
+
+      - name: Install
+        run: uv sync --locked
+
+      # The window backend on Linux; the bundle and its self-test work without it (the
+      # self-test opens no window), so a failed build of PyGObject does not stop the job.
+      - name: Linux window backend (PyGObject)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: uv pip install -r prototypes/gui_web/requirements-linux.txt
+
+      - name: Self-test from source
+        run: uv run --with-requirements "$REQS" python prototypes/gui_web/main.py --self-test "$RUNNER_TEMP/src-selftest"
+
+      - name: Build the bundle (PyInstaller)
+        run: uv run --with-requirements "$REQS" python prototypes/gui_web/build.py
+
+      - name: Bundle self-test (headless), size and wall time
+        run: uv run python prototypes/gui_web/ci_check.py selftest ci-out
+
+      - name: Cold start to the first window
+        continue-on-error: true
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a -s "-screen 0 1600x1000x24" uv run python prototypes/gui_web/ci_check.py coldstart ci-out
+          else
+            uv run python prototypes/gui_web/ci_check.py coldstart ci-out
+          fi
+
+      - name: Screenshot of the native window (macOS, Linux)
+        if: runner.os != 'Windows'
+        continue-on-error: true
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            exe=prototypes/gui_web/dist/FORSTER-web.app/Contents/MacOS/FORSTER-web
+            "$exe" --new "$RUNNER_TEMP/demo" --quit-after 40 &
+            sleep 25
+            screencapture -x ci-out/screenshot-macos.png
+            wait
+          else
+            exe=prototypes/gui_web/dist/FORSTER-web/FORSTER-web
+            xvfb-run -a -s "-screen 0 1600x1000x24" bash -c \
+              "'$exe' --new '$RUNNER_TEMP/demo' --quit-after 40 & sleep 25; import -window root ci-out/screenshot-linux.png; wait"
+          fi
+
+      - name: Screenshot of the native window (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = "prototypes/gui_web/dist/FORSTER-web/FORSTER-web.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList "--new", "$env:RUNNER_TEMP\demo", "--quit-after", "40" -PassThru
+          Start-Sleep -Seconds 25
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("ci-out/screenshot-windows.png")
+          $p.WaitForExit(60000)
+
+      - name: Archive the bundle
+        if: always()
+        run: |
+          mkdir -p ci-out
+          case "$RUNNER_OS" in
+            macOS) ditto -c -k --keepParent prototypes/gui_web/dist/FORSTER-web.app ci-out/FORSTER-web-macos.zip ;;
+            Linux) tar -C prototypes/gui_web/dist -czf ci-out/FORSTER-web-linux.tar.gz FORSTER-web ;;
+            Windows) 7z a -bd ci-out/FORSTER-web-windows.zip ./prototypes/gui_web/dist/FORSTER-web > /dev/null ;;
+          esac
+          ls -l ci-out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gui-web-${{ matrix.os }}
+          path: |
+            ci-out/*.zip
+            ci-out/*.tar.gz
+            ci-out/*.json
+            ci-out/*.png
+            ci-out/selftest/selftest.log
+          if-no-files-found: warn

@@ -1,0 +1,5 @@
+# Linux only: pywebview's GTK backend (pywebview[gtk] pins PyGObject 3.50.0). Built from
+# source: needs libgirepository1.0-dev, libcairo2-dev, pkg-config and python3-dev, and at
+# run time gir1.2-gtk-3.0 and gir1.2-webkit2-4.1 (see .github/workflows/gui-web.yml).
+PyGObject==3.50.0
+pycairo

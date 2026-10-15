@@ -1,0 +1,10 @@
+# The NiceGUI prototype's dependencies on top of the forster project environment:
+#   uv run --with-requirements prototypes/gui_web/requirements.txt python prototypes/gui_web/main.py
+# Pinned to the versions measured on 2026-10-15. NiceGUI brings FastAPI, Starlette,
+# uvicorn, python-socketio and its own Vue 3, Quasar and Plotly.js files.
+nicegui==3.18.0
+# The native window: Cocoa WKWebView on macOS, Edge WebView2 (via pythonnet) on Windows,
+# GTK WebKit2 on Linux (that backend also needs PyGObject: see requirements-linux.txt).
+pywebview==6.2.1
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8

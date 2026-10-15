@@ -1,0 +1,8 @@
+# The prototype is outside the package's `include`; lint it with the package's rules.
+extend = "../../pyproject.toml"
+include = ["**/*.py"]
+extend-exclude = ["build", "dist"]
+
+[lint]
+# User-facing text: sigma for 1-sigma ranges, en dash for number ranges.
+allowed-confusables = ["σ", "–"]
