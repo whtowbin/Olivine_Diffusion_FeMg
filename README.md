@@ -47,6 +47,14 @@ too (`--profiles-sheet` and `--parameters-sheet` pick the sheet). To use your ow
 diffusivity equation, add a row to `diffusivities.csv`, name it in the `diffusivity`
 column of `parameters.csv`, and add `--diffusivities my_fits/diffusivities.csv`.
 
+**Choosing the diffusivity law.** The `diffusivity` column takes one of four Fe-Mg
+choices: `dipra` (Classic DIPRA: Dohmen and Chakraborty 2007, the default), `refit`
+(this project's refit of the experiments, `femg_refit2026`), `dfens_tamed` or
+`dfens_global` (the Mutch et al. 2019 regressions used by DFENS). `--diffusivity NAME`
+fits every run with one of them, whatever the column says, and `--compare-laws` fits
+every run once with each of the four (rows named `<run>_dipra`, `<run>_refit`, ...), so
+the effect of the law on the time sits next to the fit's own range.
+
 For each run, `forster fit` writes into the output folder:
 
 - `<run>_fit.png`: the measured points, the initial profile, the best fit and the 1σ range;
@@ -115,6 +123,7 @@ result = fit_profile(profile, conditions, orientation, initial, grid)
 
 `Conditions(T_C, P_Pa, fO2_Pa)` and `Orientation(alpha_deg, beta_deg, gamma_deg)`
 take the conditions and angles directly. `fit_profile(..., diffusivity=...)` takes
+a choice (`dipra`, `refit`, `dfens_tamed`, `dfens_global`; `forster.diffusivity.FE_MG_CHOICES`),
 a preset name (`forster.DIFFUSIVITY_PRESETS`), a row of a table read with
 `forster.read_diffusivities`, or an `ArrheniusDiffusivity` built in Python. `forster.summary_row(result)` and
 `forster.fit_tables(result)` give the tables that `forster fit` writes.
@@ -208,8 +217,8 @@ One row per model run. Fo is a fraction throughout.
 | `dx_um` | µm | optional | Grid spacing of the final fit. Leave empty to have it chosen for about 1% accuracy in the fitted time; a value you give is kept, with a warning if it is coarse, wastefully fine, or too coarse for the initial steps. |
 | `dt_s` | s | optional | Time step of the final fit. Leave empty to have it chosen: 1/400 of the fitted time (implicit), or the stable step D dt / dx² = 0.4 (central, dipra; above 0.5 is unstable and refused). |
 | `max_time_days` | days | optional | Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate of the time). |
-| `scheme` |  | optional | implicit (default since 2026-10-13: rim on the end node, steps not snapped to nodes, any time step), central (the engine's explicit scheme, used before) or dipra (Girona and Costa 2013). With uncertainty = legacy the default is central. |
-| `diffusivity` |  | optional | Fe-Mg diffusivity equation: a preset (dohmen_chakraborty2007, the default and DIPRA's, or femg_refit2026, mutch2019_tamed, mutch2019_global: these three carry a covariance, which adds the law_ range to summary.csv, and femg_refit2026 also the spread between laboratories, the all_ range) or a name from diffusivities.csv (then run forster fit with --diffusivities). |
+| `scheme` |  | optional | implicit (default since 2026-10-13: rim on the end node, steps not snapped to nodes, any time step), central (the engine's explicit scheme, used before) or dipra (DIPRA's forward-difference scheme, Girona and Costa 2013; a numerical scheme, not the diffusivity law). With uncertainty = legacy the default is central. |
+| `diffusivity` |  | optional | Fe-Mg diffusivity equation. One of dipra: Classic DIPRA (Dohmen & Chakraborty 2007), preset dohmen_chakraborty2007; refit: FORSTER refit (2026), preset femg_refit2026; dfens_tamed: DFENS TaMED (Mutch et al. 2019), preset mutch2019_tamed; dfens_global: DFENS Global (Mutch et al. 2019), preset mutch2019_global. dipra is the default. Every choice but dipra carries a covariance, which adds the law_ range to summary.csv; refit also carries the spread between laboratories (the all_ range). Any other preset name, or a name from diffusivities.csv (then run forster fit with --diffusivities), also works. |
 | `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule; reproduces old results). |
 | `steps_sd_um` | µm | optional | Uncertainty (1 sigma, Gaussian) on the step position(s): one value, or one per step ("2, 5"); 0 keeps a step fixed. Or give steps_range_um. |
 | `steps_range_um` | µm | optional | Uncertainty (± half-width, uniform) on the step position(s), as steps_sd_um. |
@@ -262,6 +271,7 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 
 | Column | Unit | Meaning |
 |---|---|---|
+| `diffusivity_label` |  | Display name of the diffusivity equation (the diffusivity column holds its preset name). |
 | `time_days` | days | Best-fit time. |
 | `low_days` | days | Low end of the 1-sigma range. |
 | `high_days` | days | High end of the 1-sigma range. |

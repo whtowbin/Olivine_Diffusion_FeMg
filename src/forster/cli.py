@@ -7,14 +7,21 @@ import re
 import sys
 import time
 import warnings
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from importlib.metadata import version
 from pathlib import Path
 
 import pandas as pd
 from matplotlib.figure import Figure
 
-from forster.diffusivity import ArrheniusDiffusivity, diffusivity_table
+from forster.diffusivity import (
+    FE_MG_CHOICES,
+    ArrheniusDiffusivity,
+    Diffusivity,
+    diffusivity_table,
+    resolve,
+)
 from forster.io import (
     Run,
     fit_run,
@@ -54,6 +61,28 @@ def _select(runs: list[Run], names: Sequence[str] | None) -> list[Run]:
     if unknown:
         raise ValueError(f"--run {unknown} not in the parameter table")
     return [r for r in runs if r.name in names]
+
+
+def _with_laws(
+    runs: list[Run],
+    diffusivity: str | None,
+    compare: bool,
+    custom: Mapping[str, Diffusivity] | None,
+) -> list[Run]:
+    """``--diffusivity`` sets every run's equation; ``--compare-laws`` repeats each run
+    once per offered Fe-Mg choice, named ``<run>_<alias>``."""
+    if diffusivity is not None and compare:
+        raise ValueError("give --diffusivity or --compare-laws, not both")
+    if diffusivity is not None:
+        equation = resolve(diffusivity, custom)
+        return [replace(run, diffusivity=equation) for run in runs]
+    if compare:
+        return [
+            replace(run, name=f"{run.name}_{alias}", diffusivity=resolve(alias))
+            for run in runs
+            for alias in FE_MG_CHOICES
+        ]
+    return runs
 
 
 def _check_stems(runs: list[Run]) -> None:
@@ -135,6 +164,7 @@ def fit_command(args: argparse.Namespace) -> int:
     for note in _user_warnings(caught):
         print(f"warning: {note}", file=sys.stderr)
     runs = _select(runs, args.run)
+    runs = _with_laws(runs, args.diffusivity, args.compare_laws, custom)
     _check_stems(runs)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -209,6 +239,21 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument(
         "--diffusivities",
         help="table of diffusivity equations named in the parameter table's diffusivity column",
+    )
+    laws = fit.add_mutually_exclusive_group()
+    laws.add_argument(
+        "--diffusivity",
+        metavar="NAME",
+        help="fit every run with this Fe-Mg equation, overriding the diffusivity column: "
+        + ", ".join(FE_MG_CHOICES)
+        + ", a preset name, or a name from --diffusivities",
+    )
+    laws.add_argument(
+        "--compare-laws",
+        action="store_true",
+        help="fit every run once with each of "
+        + ", ".join(FE_MG_CHOICES)
+        + " (runs named <run>_<choice>)",
     )
     fit.set_defaults(handler=fit_command)
     return parser

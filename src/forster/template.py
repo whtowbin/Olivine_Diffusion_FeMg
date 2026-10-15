@@ -14,7 +14,11 @@ from importlib import resources
 from pathlib import Path
 from typing import NamedTuple
 
-from forster.diffusivity import DEFAULT_DIFFUSIVITY, DIFFUSIVITY_PRESETS, diffusivity_table
+from forster.diffusivity import (
+    DIFFUSIVITY_PRESETS,
+    FE_MG_CHOICES,
+    diffusivity_table,
+)
 
 
 class Column(NamedTuple):
@@ -102,18 +106,21 @@ PARAMETER_COLUMNS = (
         "optional",
         "implicit (default since 2026-10-13: rim on the end node, steps not snapped to "
         "nodes, any time step), central (the engine's explicit scheme, used before) or "
-        "dipra (Girona and Costa 2013). With uncertainty = legacy the default is central.",
+        "dipra (DIPRA's forward-difference scheme, Girona and Costa 2013; a numerical "
+        "scheme, not the diffusivity law). With uncertainty = legacy the default is central.",
     ),
     Column(
         "diffusivity",
         "",
         "optional",
-        f"Fe-Mg diffusivity equation: a preset ({DEFAULT_DIFFUSIVITY}, the default and "
-        "DIPRA's, or femg_refit2026, mutch2019_tamed, mutch2019_global: these three carry a "
-        "covariance, which adds the law_ range to summary.csv, and femg_refit2026 also the "
-        "spread between laboratories, the all_ range) or a name from "
-        "diffusivities.csv "
-        "(then run forster fit with --diffusivities).",
+        "Fe-Mg diffusivity equation. One of "
+        + "; ".join(
+            f"{alias}: {label}, preset {name}" for alias, (name, label) in FE_MG_CHOICES.items()
+        )
+        + ". dipra is the default. Every choice but dipra carries a covariance, which adds "
+        "the law_ range to summary.csv; refit also carries the spread between laboratories "
+        "(the all_ range). Any other preset name, or a name from diffusivities.csv (then run "
+        "forster fit with --diffusivities), also works.",
     ),
     Column(
         "uncertainty",
@@ -172,6 +179,12 @@ PARAMETER_COLUMNS = (
 # Columns of summary.csv besides the parameter columns above (which it repeats, with
 # fO2 in Pa and the orientation as angles, so it reads back as a parameter table).
 SUMMARY_COLUMNS = (
+    Column(
+        "diffusivity_label",
+        "",
+        "",
+        "Display name of the diffusivity equation (the diffusivity column holds its preset name).",
+    ),
     Column("time_days", "days", "", "Best-fit time."),
     Column("low_days", "days", "", "Low end of the 1-sigma range."),
     Column("high_days", "days", "", "High end of the 1-sigma range."),

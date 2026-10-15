@@ -31,7 +31,15 @@ from forster import (
     summary_row,
     write_template,
 )
-from forster.diffusivity import DOHMEN_CHAKRABORTY_2007, diffusivity_table, from_table
+from forster.diffusivity import (
+    ALIASES,
+    DOHMEN_CHAKRABORTY_2007,
+    FE_MG_CHOICES,
+    diffusivity_table,
+    from_table,
+    label,
+    resolve,
+)
 
 R = 8.3145
 CONDITIONS = [
@@ -241,8 +249,8 @@ def test_fit_rejects_a_diffusivity_for_another_element_or_an_unknown_name(exampl
     args = (profile, run.conditions, run.orientation, run.initial, Grid(1.0, 600.0, 40))
     with pytest.raises(ValueError, match="is for Ni"):
         fit_profile(*args, diffusivity="girona_costa2013_ni")
-    with pytest.raises(ValueError, match="unknown diffusivity 'dipra'"):
-        fit_profile(*args, diffusivity="dipra")
+    with pytest.raises(ValueError, match="unknown diffusivity 'dc07'"):
+        fit_profile(*args, diffusivity="dc07")
 
 
 def test_time_scales_inversely_with_the_diffusivity(example):
@@ -274,3 +282,41 @@ def test_diffusivity_column_names_presets_and_table_rows(tmp_path, example):
     assert runs["c"].diffusivity is DIFFUSIVITY_PRESETS["mutch2019_tamed"]
     with pytest.raises(ValueError, match="unknown diffusivity 'mine'"):
         read_runs(path)
+
+
+def test_the_four_fe_mg_choices_resolve_to_their_presets():
+    assert list(FE_MG_CHOICES) == ["dipra", "refit", "dfens_tamed", "dfens_global"]
+    assert ALIASES == {
+        "dipra": "dohmen_chakraborty2007",
+        "refit": "femg_refit2026",
+        "dfens_tamed": "mutch2019_tamed",
+        "dfens_global": "mutch2019_global",
+    }
+    for alias, name in ALIASES.items():
+        assert resolve(alias) is DIFFUSIVITY_PRESETS[name]
+        assert resolve(name) is DIFFUSIVITY_PRESETS[name]  # preset names keep working
+        assert DIFFUSIVITY_PRESETS[name].element == "Fe-Mg"
+    assert label(resolve("dipra")) == "Classic DIPRA (Dohmen & Chakraborty 2007)"
+    assert label(resolve("dfens_global")) == "DFENS Global (Mutch et al. 2019)"
+    assert label(DIFFUSIVITY_PRESETS["petry2004_ni"]) == "petry2004_ni"  # not offered: its name
+    with pytest.raises(ValueError, match="choices are dipra, refit, dfens_tamed, dfens_global"):
+        resolve("dfens")
+
+
+def test_a_table_row_may_not_take_a_choice_s_name():
+    table = diffusivity_table([DOHMEN_CHAKRABORTY_2007]).assign(name="refit", log10_D0_001=-9.0)
+    with pytest.raises(ValueError, match="names the preset femg_refit2026"):
+        from_table(table)
+
+
+def test_choices_in_the_diffusivity_column_and_the_summary_label(tmp_path, example):
+    params = pd.read_csv(example / "parameters.csv")
+    params = pd.concat([params.assign(run=alias, diffusivity=alias) for alias in FE_MG_CHOICES])
+    path = tmp_path / "parameters.csv"
+    params.to_csv(path, index=False)
+    runs = {r.name: r for r in read_runs(path)}
+    profiles = read_profiles(example / "profiles.csv")
+    for alias, (name, _) in FE_MG_CHOICES.items():
+        assert runs[alias].diffusivity is DIFFUSIVITY_PRESETS[name]
+    row = summary_row(fit_run(runs["dfens_tamed"], profiles))
+    assert (row["diffusivity"], row["diffusivity_label"]) == FE_MG_CHOICES["dfens_tamed"]

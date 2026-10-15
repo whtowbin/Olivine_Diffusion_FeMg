@@ -728,21 +728,40 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
 }
 DEFAULT_DIFFUSIVITY = DOHMEN_CHAKRABORTY_2007.name
 
+# The Fe-Mg equations offered by name in tables, the CLI and the GUI: a short alias and a
+# display label for each preset. The preset names keep working everywhere.
+FE_MG_CHOICES: dict[str, tuple[str, str]] = {
+    "dipra": (DEFAULT_DIFFUSIVITY, "Classic DIPRA (Dohmen & Chakraborty 2007)"),
+    "refit": ("femg_refit2026", "FORSTER refit (2026)"),
+    "dfens_tamed": ("mutch2019_tamed", "DFENS TaMED (Mutch et al. 2019)"),
+    "dfens_global": ("mutch2019_global", "DFENS Global (Mutch et al. 2019)"),
+}
+ALIASES = {alias: name for alias, (name, _) in FE_MG_CHOICES.items()}
+LABELS = {name: label for name, label in FE_MG_CHOICES.values()}
+
+
+def label(diffusivity: Diffusivity) -> str:
+    """The display label of an offered preset, otherwise the equation's name."""
+    return LABELS.get(diffusivity.name, diffusivity.name)
+
 
 def resolve(
     diffusivity: Diffusivity | str,
     custom: Mapping[str, Diffusivity] | None = None,
 ) -> Diffusivity:
-    """A diffusivity object, looking up a name among the presets and ``custom``."""
+    """A diffusivity object, looking up a name (or an alias in `ALIASES`) among the presets
+    and ``custom``."""
     if not isinstance(diffusivity, str):
         return diffusivity
+    name = ALIASES.get(diffusivity, diffusivity)
     available = {**DIFFUSIVITY_PRESETS, **(custom or {})}
-    if diffusivity not in available:
+    if name not in available:
         raise ValueError(
-            f"unknown diffusivity {diffusivity!r}; presets are {', '.join(DIFFUSIVITY_PRESETS)}"
+            f"unknown diffusivity {diffusivity!r}; choices are {', '.join(ALIASES)}, presets "
+            f"are {', '.join(DIFFUSIVITY_PRESETS)}"
             + (f"; from the table: {', '.join(custom)}" if custom else "")
         )
-    return available[diffusivity]
+    return available[name]
 
 
 # Columns of a diffusivities table (``forster template`` writes one with the presets).
@@ -824,6 +843,11 @@ def from_table(
         equation = from_row(row)
         if equation.name in out:
             raise ValueError(f"{origin}: diffusivity {equation.name!r} is defined twice")
+        if equation.name in ALIASES:
+            raise ValueError(
+                f"{origin}: {equation.name!r} names the preset {ALIASES[equation.name]}; give "
+                "your equation another name"
+            )
         preset = DIFFUSIVITY_PRESETS.get(equation.name)
         if preset is not None:
             if {**to_row(equation), "source": ""} != {**to_row(preset), "source": ""}:

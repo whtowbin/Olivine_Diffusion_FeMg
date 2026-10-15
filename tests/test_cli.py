@@ -231,3 +231,61 @@ def test_blank_dx_and_dt_are_chosen_and_recorded(tmp_path, template):
     )
     assert again.returncode == 0, again.stderr
     assert read_csv(tmp_path / "again" / "summary.csv").time_days[0] == row.time_days
+
+
+def test_compare_laws_fits_each_run_with_the_four_choices(tmp_path, template):
+    from forster.diffusivity import FE_MG_CHOICES
+
+    done = forster(
+        "fit",
+        template / "profiles.csv",
+        template / "parameters.csv",
+        "--compare-laws",
+        cwd=tmp_path,
+    )
+    assert done.returncode == 0, done.stderr
+    summary = read_csv(tmp_path / "results" / "summary.csv")
+    assert summary.run.tolist() == [f"{EXAMPLE}_{alias}" for alias in FE_MG_CHOICES]
+    assert summary.diffusivity.tolist() == [name for name, _ in FE_MG_CHOICES.values()]
+    assert summary.diffusivity_label.tolist() == [lab for _, lab in FE_MG_CHOICES.values()]
+    assert summary.time_days.nunique() == 4  # the laws differ, so do the times
+    for alias in FE_MG_CHOICES:
+        assert (tmp_path / "results" / f"{STEM}_{alias}_fit.png").stat().st_size > 0
+    # Every law but Classic DIPRA carries a covariance, so it has a law_ range.
+    has_law_range = summary.law_low_days.notna().tolist()
+    assert has_law_range == [False, True, True, True]
+
+
+def test_diffusivity_option_overrides_the_column(tmp_path, template):
+    done = forster(
+        "fit",
+        template / "profiles.csv",
+        template / "parameters.csv",
+        "--diffusivity",
+        "refit",
+        cwd=tmp_path,
+    )
+    assert done.returncode == 0, done.stderr
+    summary = read_csv(tmp_path / "results" / "summary.csv")
+    assert summary.diffusivity.tolist() == ["femg_refit2026"]
+    both = forster(
+        "fit",
+        template / "profiles.csv",
+        template / "parameters.csv",
+        "--diffusivity",
+        "refit",
+        "--compare-laws",
+        cwd=tmp_path,
+    )
+    assert both.returncode == 2
+    assert "not allowed with" in " ".join(both.stderr.split())
+    unknown = forster(
+        "fit",
+        template / "profiles.csv",
+        template / "parameters.csv",
+        "--diffusivity",
+        "dc07",
+        cwd=tmp_path,
+    )
+    assert unknown.returncode == 2
+    assert "unknown diffusivity 'dc07'" in unknown.stderr

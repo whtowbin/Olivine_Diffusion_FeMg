@@ -48,6 +48,7 @@ from forster.diffusivity import (
     ArrheniusDiffusivity,
     Diffusivity,
     from_table,
+    label,
     resolve,
 )
 from forster.grid import (
@@ -636,6 +637,7 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "dt_s": grid.dt_s,
         "max_time_days": grid.max_time_days,
         "diffusivity": inputs["diffusivity"].name,
+        "diffusivity_label": label(inputs["diffusivity"]),
         **grid_diagnostics(result),
         "white_sigma_fo": noise.white_sigma if noise else math.nan,
         "correlated_sigma_fo": noise.correlated_sigma if noise else math.nan,

@@ -1,0 +1,100 @@
+
+== KS20-527_2-transect-1 [gauss, 3 params]  grid 480 steps, dt 43552s
+  REF grid 31^3            p16/50/84 =   20.57   23.99   28.41 d  runs   29791    17.2s  tail 1.8e-19 
+  grid 5^3                 p16/50/84 =   23.02   26.51   31.05 d  runs     125     0.1s  tail 4.5e-19 
+  grid 9^3                 p16/50/84 =   20.02   23.50   28.24 d  runs     729     0.4s  tail 2.5e-19 
+  grid 13^3                p16/50/84 =   20.54   23.89   28.24 d  runs    2197     1.2s  tail 1.8e-19 
+  grid 17^3                p16/50/84 =   20.57   24.00   28.41 d  runs    4913     2.7s  tail 1.8e-19 
+    [laplace] nfev 61 z0 [ 1.35 -0.21 -0.39] sd [0.475 0.437 0.182]
+  laplace+IS N=256         p16/50/84 =   20.57   24.01   28.45 d  runs     310     0.2s  tail 1.9e-20 ESS 155
+    [laplace] nfev 61 z0 [ 1.35 -0.21 -0.39] sd [0.475 0.437 0.182]
+  laplace+IS N=1024        p16/50/84 =   20.57   23.99   28.41 d  runs    1011     0.6s  tail 4.9e-20 ESS 631
+    [laplace] nfev 61 z0 [ 1.35 -0.21 -0.39] sd [0.475 0.437 0.182]
+  laplace+IS N=4096        p16/50/84 =   20.58   24.00   28.41 d  runs    3791     2.1s  tail 6.5e-20 ESS 2516
+  emcee 32x250             p16/50/84 =   20.47   23.80   28.19 d  runs    8800     5.0s  tail 4.5e-21 
+  emcee 32x1000            p16/50/84 =   20.55   23.90   28.22 d  runs   31954    18.3s  tail 2.2e-21 
+  dynesty nlive=100        p16/50/84 =   20.30   23.54   27.83 d  runs    5057     3.8s  tail 3.9e-21 logZ -49.67
+  dynesty nlive=400        p16/50/84 =   20.44   23.88   28.26 d  runs   18504    14.6s  tail 4.1e-21 logZ -49.94
+
+== KS20-527_2-transect-1 [wide, 3 params]  grid 480 steps, dt 43552s
+  REF grid 31^3            p16/50/84 =   19.06   22.35   26.53 d  runs   29791    17.3s  tail 3.4e-17 
+  grid 5^3                 p16/50/84 =   20.97   23.75   27.05 d  runs     125     0.1s  tail 4.5e-17 
+  grid 9^3                 p16/50/84 =   18.98   22.49   26.97 d  runs     729     0.4s  tail 5.9e-17 
+  grid 13^3                p16/50/84 =   19.00   22.28   26.47 d  runs    2197     1.2s  tail 4.0e-17 
+  grid 17^3                p16/50/84 =   19.06   22.35   26.52 d  runs    4913     2.8s  tail 3.7e-17 
+    [laplace] nfev 51 z0 [ 0.5   0.01 -0.13] sd [0.148 0.156 0.08 ]
+  laplace+IS N=256         p16/50/84 =   19.03   22.35   26.58 d  runs     315     0.2s  tail 1.9e-18 ESS 163
+    [laplace] nfev 51 z0 [ 0.5   0.01 -0.13] sd [0.148 0.156 0.08 ]
+  laplace+IS N=1024        p16/50/84 =   19.05   22.35   26.51 d  runs    1049     0.6s  tail 1.9e-17 ESS 656
+    [laplace] nfev 51 z0 [ 0.5   0.01 -0.13] sd [0.148 0.156 0.08 ]
+  laplace+IS N=4096        p16/50/84 =   19.06   22.36   26.53 d  runs    3986     2.3s  tail 2.9e-17 ESS 2622
+  emcee 32x250             p16/50/84 =   19.10   22.41   26.57 d  runs    8857     5.0s  tail 3.0e-19 
+  emcee 32x1000            p16/50/84 =   18.84   22.12   26.17 d  runs   32411    18.5s  tail 4.3e-19 
+  dynesty nlive=100        p16/50/84 =   19.05   22.34   26.55 d  runs    5161     3.4s  tail 6.2e-19 logZ -49.93
+  dynesty nlive=400        p16/50/84 =   19.16   22.41   26.51 d  runs   18836    12.6s  tail 6.4e-19 logZ -50.12
+
+== KS20-527_5-transect-2 [gauss, 3 params]  grid 480 steps, dt 208140s
+  REF grid 31^3            p16/50/84 =  189.12  219.57  256.90 d  runs   29791    11.9s  tail 4.7e-15 
+  grid 5^3                 p16/50/84 =  176.01  194.27  220.90 d  runs     125     0.0s  tail 2.3e-14 
+  grid 9^3                 p16/50/84 =  183.32  204.13  235.77 d  runs     729     0.3s  tail 5.3e-15 
+  grid 13^3                p16/50/84 =  185.28  215.16  260.06 d  runs    2197     0.8s  tail 5.6e-15 
+  grid 17^3                p16/50/84 =  188.24  219.65  257.44 d  runs    4913     1.9s  tail 5.1e-15 
+    [laplace] nfev 57 z0 [ 0.62 -0.58  0.14] sd [0.641 0.225 0.173]
+  laplace+IS N=256         p16/50/84 =  189.27  219.75  258.19 d  runs     312     0.1s  tail 5.9e-18 ESS 158
+    [laplace] nfev 57 z0 [ 0.62 -0.58  0.14] sd [0.641 0.225 0.173]
+  laplace+IS N=1024        p16/50/84 =  189.00  219.68  256.83 d  runs    1033     0.4s  tail 2.9e-16 ESS 638
+    [laplace] nfev 57 z0 [ 0.62 -0.58  0.14] sd [0.641 0.225 0.173]
+  laplace+IS N=4096        p16/50/84 =  189.12  219.56  256.88 d  runs    3905     1.5s  tail 1.2e-15 ESS 2545
+  emcee 32x250             p16/50/84 =  186.26  213.77  248.15 d  runs    8851     3.4s  tail 3.2e-18 
+  emcee 32x1000            p16/50/84 =  191.23  222.24  260.88 d  runs   32204    12.4s  tail 5.6e-18 
+  dynesty nlive=100        p16/50/84 =  189.05  218.02  253.71 d  runs    5548     3.4s  tail 7.0e-18 logZ -31.34
+  dynesty nlive=400        p16/50/84 =  189.37  219.61  257.67 d  runs   18582    11.7s  tail 7.5e-18 logZ -31.23
+
+== KS20-527_5-transect-2 [wide, 3 params]  grid 480 steps, dt 208140s
+  REF grid 31^3            p16/50/84 =  183.08  217.98  271.95 d  runs   29791    11.6s  tail 1.6e-12 
+  grid 5^3                 p16/50/84 =  162.94  176.24  190.80 d  runs     125     0.0s  tail 2.8e-12 
+  grid 9^3                 p16/50/84 =  175.61  203.99  238.00 d  runs     729     0.3s  tail 2.2e-12 
+  grid 13^3                p16/50/84 =  176.71  203.68  268.45 d  runs    2197     0.8s  tail 1.9e-12 
+  grid 17^3                p16/50/84 =  179.72  214.94  276.42 d  runs    4913     1.9s  tail 1.8e-12 
+    [laplace] nfev 51 z0 [ 0.27 -0.16  0.04] sd [0.175 0.068 0.055]
+  laplace+IS N=256         p16/50/84 =  181.71  215.19  260.99 d  runs     317     0.1s  tail 1.9e-17 ESS 137
+    [laplace] nfev 51 z0 [ 0.27 -0.16  0.04] sd [0.175 0.068 0.055]
+  laplace+IS N=1024        p16/50/84 =  182.60  216.79  267.50 d  runs    1070     0.4s  tail 8.1e-15 ESS 416
+    [laplace] nfev 51 z0 [ 0.27 -0.16  0.04] sd [0.175 0.068 0.055]
+  laplace+IS N=4096        p16/50/84 =  183.36  218.65  275.21 d  runs    4073     1.5s  tail 1.1e-14 ESS 919
+  emcee 32x250             p16/50/84 =  182.49  217.10  265.49 d  runs    8641     3.3s  tail 1.1e-17 
+  emcee 32x1000            p16/50/84 =  186.10  219.87  273.71 d  runs   31612    12.4s  tail 6.0e-18 
+  dynesty nlive=100        p16/50/84 =  185.37  218.51  269.31 d  runs    5972     3.1s  tail 1.8e-17 logZ -32.48
+  dynesty nlive=400        p16/50/84 =  183.98  216.43  268.69 d  runs   20174    10.5s  tail 1.2e-17 logZ -32.51
+
+== KS20-527-8_transect-2 [gauss, 5 params]  grid 480 steps, dt 74872s
+  REF grid 11^5            p16/50/84 =   56.14   62.15   68.33 d  runs  161051   162.4s  tail 2.5e-25 
+  grid 3^5                 p16/50/84 =   65.08   68.66   71.76 d  runs     243     0.2s  tail 3.5e-26 
+  grid 5^5                 p16/50/84 =   57.37   63.84   69.90 d  runs    3125     2.5s  tail 1.2e-25 
+  grid 7^5                 p16/50/84 =   56.62   62.80   68.98 d  runs   16807    11.4s  tail 1.8e-25 
+    [laplace] nfev 119 z0 [ 0.01 -0.35 -0.26 -0.   -0.58] sd [0.985 0.908 0.304 0.139 0.679]
+  laplace+IS N=256         p16/50/84 =   56.31   62.24   68.94 d  runs     352     0.2s  tail 3.1e-26 ESS 112
+    [laplace] nfev 119 z0 [ 0.01 -0.35 -0.26 -0.   -0.58] sd [0.985 0.908 0.304 0.139 0.679]
+  laplace+IS N=1024        p16/50/84 =   55.88   62.19   68.90 d  runs     906     0.5s  tail 8.3e-26 ESS 465
+    [laplace] nfev 119 z0 [ 0.01 -0.35 -0.26 -0.   -0.58] sd [0.985 0.908 0.304 0.139 0.679]
+  laplace+IS N=4096        p16/50/84 =   55.94   62.25   68.86 d  runs    3113     1.6s  tail 8.7e-26 ESS 1865
+  emcee 32x250             p16/50/84 =   57.16   63.52   70.17 d  runs    8260     4.0s  tail 1.2e-26 
+  emcee 32x1000            p16/50/84 =   56.55   62.98   69.14 d  runs   29509    14.3s  tail 7.6e-27 
+  dynesty nlive=100        p16/50/84 =   56.02   62.68   69.25 d  runs    6861     5.2s  tail 2.8e-27 logZ -50.87
+  dynesty nlive=400        p16/50/84 =   55.97   62.11   68.75 d  runs   21273    16.4s  tail 2.6e-27 logZ -50.50
+
+== KS20-527-8_transect-2 [wide, 5 params]  grid 480 steps, dt 74872s
+  REF grid 11^5            p16/50/84 =   50.68   60.70   70.31 d  runs  161051   139.1s  tail 1.7e-22 
+  grid 3^5                 p16/50/84 =   47.34   64.05   73.34 d  runs     243     0.1s  tail 1.4e-22 
+  grid 5^5                 p16/50/84 =   52.30   62.98   73.13 d  runs    3125     2.1s  tail 1.4e-22 
+  grid 7^5                 p16/50/84 =   51.23   61.84   71.94 d  runs   16807    10.8s  tail 1.7e-22 
+    [laplace] nfev 149 z0 [-0.3  -0.17 -0.1   0.01 -0.23] sd [2.112 1.24  0.107 0.046 0.702]
+  laplace+IS N=256         p16/50/84 =   48.68   57.16   66.48 d  runs     224     0.1s  tail 1.0e-26 ESS 19
+    [laplace] nfev 149 z0 [-0.3  -0.17 -0.1   0.01 -0.23] sd [2.112 1.24  0.107 0.046 0.702]
+  laplace+IS N=1024        p16/50/84 =   50.66   59.44   69.68 d  runs     291     0.2s  tail 1.4e-25 ESS 66
+    [laplace] nfev 149 z0 [-0.3  -0.17 -0.1   0.01 -0.23] sd [2.112 1.24  0.107 0.046 0.702]
+  laplace+IS N=4096        p16/50/84 =   49.52   59.54   69.91 d  runs     579     0.3s  tail 3.8e-26 ESS 269
+  emcee 32x250             p16/50/84 =   49.71   60.26   70.40 d  runs    7156     3.7s  tail 2.7e-27 
+  emcee 32x1000            p16/50/84 =   50.45   59.88   70.85 d  runs   24331    12.0s  tail 1.3e-26 
+  dynesty nlive=100        p16/50/84 =   49.51   59.47   69.91 d  runs    7437     4.2s  tail 2.0e-26 logZ -53.06
+  dynesty nlive=400        p16/50/84 =   49.52   59.32   69.27 d  runs   22885    13.2s  tail 7.8e-26 logZ -52.99
