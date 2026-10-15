@@ -190,6 +190,12 @@ class Run:
     mc: ConditionUncertainty | None = None
     mc_samples: int | None = None
     mc_seed: int = 0
+    # How fO2 and the orientation were given, kept so `run_row` (and a GUI) writes them
+    # back the same way: (buffer, log10 offset), and (phi1, Phi, phi2, profile angle) in
+    # degrees. Display only: ``conditions`` and ``orientation`` hold the values used, so
+    # these are left out of equality.
+    fO2_form: tuple[str, float] | None = field(default=None, compare=False)
+    euler_form: tuple[float, float, float, float] | None = field(default=None, compare=False)
 
 
 def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
@@ -661,7 +667,23 @@ def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Di
         mc=_template_mc(row),
         mc_samples=int(row["mc_samples"]) if _given(row, "mc_samples") else None,
         mc_seed=int(row["mc_seed"]) if _given(row, "mc_seed") else 0,
+        fO2_form=_fo2_form(row),
+        euler_form=_euler_form(row),
     )
+
+
+def _fo2_form(row: pd.Series) -> tuple[str, float] | None:
+    if _pick_form(row, FO2_FORMS, "fO2") == 0:
+        return None
+    return str(row["fO2_buffer"]).strip().upper(), float(row["fO2_delta_log"])
+
+
+def _euler_form(row: pd.Series) -> tuple[float, float, float, float] | None:
+    if _pick_form(row, ORIENTATION_FORMS, "the orientation") == 0:
+        return None
+    columns = ORIENTATION_FORMS[1]
+    phi1, big_phi, phi2, angle = (float(row[c]) for c in columns)
+    return phi1, big_phi, phi2, angle
 
 
 def _optional_float(row: pd.Series, column: str) -> float | None:
@@ -967,6 +989,50 @@ def uncertainty_columns(run: Run) -> dict[str, Any]:
         if run.mc_samples is not None:
             out["mc_samples"] = run.mc_samples
     return out
+
+
+def run_row(run: Run) -> dict[str, Any]:
+    """A run as one row of a template parameter table, without fitting it: `read_runs`
+    reads the row back as the same run (fO2 and the orientation in the form they were
+    given, `Run.fO2_form` and `Run.euler_form`; blank grid parts left blank)."""
+    c, o, initial = run.conditions, run.orientation, run.initial
+    fo2: dict[str, Any] = {"fO2_Pa": c.fO2_Pa}
+    if run.fO2_form is not None:
+        fo2 = {"fO2_buffer": run.fO2_form[0], "fO2_delta_log": run.fO2_form[1]}
+    angles: dict[str, Any] = {
+        "alpha_deg": o.alpha_deg,
+        "beta_deg": o.beta_deg,
+        "gamma_deg": o.gamma_deg,
+    }
+    if run.euler_form is not None:
+        angles = dict(zip(ORIENTATION_FORMS[1], run.euler_form, strict=True))
+    grid = run.grid
+    return {
+        "run": run.name,
+        "profile": run.profile_name,
+        "T_C": c.T_C,
+        "P_Pa": c.P_Pa,
+        **fo2,
+        **angles,
+        "domain_start_um": initial.domain_um[0],
+        "domain_end_um": initial.domain_um[1],
+        "steps_um": _steps_text(initial.steps_um),
+        "edge_fo": initial.edge_fo,
+        "core_fo": initial.core_fo,
+        "step_fo": initial.step_fo,
+        **_boundary_columns({"stages": run.stages, "rim_fo": run.rim_fo}),
+        "dx_um": grid.dx_um,
+        "dt_s": grid.dt_s,
+        "max_time_days": grid.max_time_days,
+        "scheme": run.scheme,
+        "diffusivity": run.diffusivity.name,
+        "uncertainty": run.uncertainty,
+        **uncertainty_columns(run),
+        "scan_dx_um": run.scan_grid.dx_um,
+        "scan_dt_s": run.scan_grid.dt_s,
+        "scan_max_time_days": run.scan_grid.max_time_days,
+        **dict(run.metadata),
+    }
 
 
 def mc_run(
