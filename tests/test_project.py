@@ -230,3 +230,44 @@ def test_opening_refuses_project_files_that_are_links(project, tmp_path):
     (project.folder / "profiles.csv").symlink_to(elsewhere)
     with pytest.raises(ValueError, match="symbolic link"):
         Project.open(project.folder)
+
+
+def test_a_fit_in_a_worker_is_filed_under_the_settings_it_used(project):
+    """Edit the run while its fit runs: the result is stored for the old settings, the
+    run shows none, and going back to the old settings finds it."""
+    task = project.fit_task(EXAMPLE)
+    original = project.run(EXAMPLE).conditions
+    project.update_run(EXAMPLE, conditions=replace(original, T_C=1260.0))
+    assert project.store(task, task()) is False
+    assert project.result(EXAMPLE) is None
+    project.update_run(EXAMPLE, conditions=original)
+    assert project.result(EXAMPLE) is not None
+
+
+def test_cache_keeps_one_entry_per_run_and_ignores_scan_settings(project):
+    project.fit(EXAMPLE)
+    cache = project.folder / WORK / "cache"
+    assert len(list(cache.iterdir())) == 1
+    project.update_run(EXAMPLE, uncertainties={"step1_um": Uncertainty(2.0)}, scan_seed=4)
+    assert project.result(EXAMPLE) is not None and not project.is_stale(EXAMPLE)
+    project.update_run(EXAMPLE, conditions=replace(project.run(EXAMPLE).conditions, T_C=1255.0))
+    project.fit(EXAMPLE)
+    assert len(list(cache.iterdir())) == 1  # the old entry went
+
+
+def test_steps_outside_the_domain_are_refused(project):
+    run = project.run(EXAMPLE)
+    for steps in ((100.0,), (-5.0,)):
+        with pytest.raises(ValueError, match="inside the model domain"):
+            project.update_run(EXAMPLE, initial=replace(run.initial, steps_um=steps))
+    assert project.run(EXAMPLE) == run
+
+
+def test_selected_run_and_views_are_saved(project):
+    project.selected_run = EXAMPLE
+    project.view(EXAMPLE)["xlim"] = [0, 50]
+    with pytest.raises(KeyError):
+        project.selected_run = "nope"
+    project.save()
+    again = Project.open(project.folder)
+    assert again.selected_run == EXAMPLE and again.view(EXAMPLE) == {"xlim": [0, 50]}

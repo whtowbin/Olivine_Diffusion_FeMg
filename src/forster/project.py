@@ -38,6 +38,8 @@ import pandas as pd
 
 from forster.diffusivity import ArrheniusDiffusivity, diffusivity_table
 from forster.io import (
+    METADATA_COLUMNS,
+    UNCERTAINTY_COLUMNS,
     Run,
     fit_run,
     read_diffusivities,
@@ -48,6 +50,7 @@ from forster.io import (
     summary_row,
 )
 from forster.model import Conditions, FitResult, Grid, Orientation, Profile
+from forster.scan import is_valid
 from forster.template import write_template
 from forster.uncertainty import NoiseModel
 
@@ -59,6 +62,37 @@ PROFILES, PARAMETERS, DIFFUSIVITIES, STATE = (
     "project.json",
 )
 WORK = ".forster"  # cache and autosave, inside the project folder
+# Table columns that do not change the nominal fit (the run's name, notes, and the
+# initial-condition scan and Monte Carlo settings), left out of the cache key.
+_NOT_IN_FIT = {"run", *METADATA_COLUMNS} | {
+    c for _, sd, half in UNCERTAINTY_COLUMNS for c in (sd, half)
+}
+
+
+def _fit_row(run: Run) -> dict[str, Any]:
+    """The table row of what determines the fit, with fO2 in Pa and the orientation as
+    angles whatever form they were entered in (the same physics, the same key)."""
+    plain = replace(run, fO2_form=None, euler_form=None)
+    return {
+        k: v
+        for k, v in run_row(plain).items()
+        if k not in _NOT_IN_FIT and not k.startswith(("scan_", "mc_"))
+    }
+
+
+@dataclass(frozen=True)
+class FitTask:
+    """One run's fit, captured with its settings so it can run in a worker thread while
+    the project is edited: call it, then hand the result to `Project.store`, which files
+    it under the settings it was made with (``key``)."""
+
+    name: str
+    key: str
+    run: Run
+    profiles: Mapping[str, Profile]
+
+    def __call__(self) -> FitResult:
+        return fit_run(self.run, self.profiles)
 
 
 def profile_table(profiles: Mapping[str, Profile]) -> pd.DataFrame:
@@ -293,7 +327,14 @@ class Project:
         self.dirty = True
 
     def validate(self, run: Run) -> None:
-        """Raise ValueError if ``run`` would not read back from a table as itself."""
+        """Raise ValueError if ``run`` is not a valid run: steps inside the model domain
+        and in order, and the run reads back from a table as itself."""
+        if not is_valid(run.initial, run.initial.domain_um):
+            lo, hi = run.initial.domain_um
+            raise ValueError(
+                f"run {run.name!r}: steps {list(run.initial.steps_um)} must lie inside the "
+                f"model domain ({lo:g}-{hi:g} um), in order"
+            )
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / PARAMETERS
             pd.DataFrame([run_row(run)]).to_csv(path, index=False)
@@ -352,11 +393,12 @@ class Project:
     # -- results --------------------------------------------------------------------
 
     def result_key(self, name: str) -> str:
-        """Hash of everything that determines the run's fit."""
+        """Hash of everything that determines the run's nominal fit (not its name, notes,
+        scan or Monte Carlo settings)."""
         run = self.run(name)
         profile = self.profiles[run.profile_name]
         h = hashlib.sha256()
-        h.update(json.dumps(run_row(run), sort_keys=True, default=str).encode())
+        h.update(json.dumps(_fit_row(run), sort_keys=True, default=str).encode())
         h.update(np.asarray(profile.distance_um, dtype=float).tobytes())
         h.update(np.asarray(profile.fo, dtype=float).tobytes())
         if isinstance(run.diffusivity, ArrheniusDiffusivity):
@@ -367,17 +409,52 @@ class Project:
     def _cache(self, key: str) -> Path:
         return self.folder / WORK / "cache" / key
 
+    def fit_task(self, name: str) -> FitTask:
+        """The run's fit as a task for a worker thread (`FitTask`)."""
+        return FitTask(name, self.result_key(name), self.run(name), dict(self.profiles))
+
+    def store(self, task: FitTask, result: FitResult) -> bool:
+        """Cache a task's result under the settings it was made with. Returns whether
+        they are still the run's settings (if not, the result is kept for them but the
+        run shows no result). The run's previous cache entry is removed unless another
+        run uses it, so the cache holds one entry per run."""
+        _store_fit(result, self._cache(task.key))
+        current = task.name in self.run_names and self.result_key(task.name) == task.key
+        if current:
+            results = self.state.setdefault("results", {})
+            old = results.get(task.name)
+            results[task.name] = task.key
+            if old and old != task.key and old not in results.values():
+                shutil.rmtree(self._cache(old), ignore_errors=True)
+        return current
+
     def fit(self, name: str) -> FitResult:
         """Fit the run (`forster.io.fit_run`), or return the cached fit of the same
         settings."""
         cached = self.result(name)
         if cached is not None:
             return cached
-        result = fit_run(self.run(name), self.profiles)
-        key = self.result_key(name)
-        _store_fit(result, self._cache(key))
-        self.state.setdefault("results", {})[name] = key
+        task = self.fit_task(name)
+        result = task()
+        self.store(task, result)
         return result
+
+    @property
+    def selected_run(self) -> str | None:
+        name = self.state.get("selected_run")
+        return name if name in self.run_names else None
+
+    @selected_run.setter
+    def selected_run(self, name: str | None) -> None:
+        if name is not None:
+            self.run(name)  # raises for an unknown run
+        self.state["selected_run"] = name
+
+    def view(self, name: str) -> dict[str, Any]:
+        """The run's view settings in project.json (plot limits, open tabs, ...), to read
+        and update in place."""
+        self.run(name)
+        return self.state.setdefault("views", {}).setdefault(name, {})
 
     def result(self, name: str) -> FitResult | None:
         """The cached fit for the run's current settings, or None (never fitted, or its
@@ -451,7 +528,7 @@ def _store_fit(result: FitResult, folder: Path) -> None:
     scalars["stop_early"] = result.inputs["stop_early"]
     _no_links(folder / "fit.npz")
     with tempfile.NamedTemporaryFile(dir=folder, suffix=".npz", delete=False) as tmp:
-        np.savez_compressed(tmp, **arrays)
+        np.savez(tmp, **arrays)  # uncompressed: compressing took most of a drag's refit
     Path(tmp.name).replace(folder / "fit.npz")
     _write_text(json.dumps(summary_row(result), default=float), folder / "summary.json")
     _write_text(json.dumps(scalars, default=float), folder / "fit.json")  # last: marks complete
