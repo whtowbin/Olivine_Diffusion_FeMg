@@ -14,9 +14,9 @@ errors), as the femg_refit2026 preset:
   nearly collinear, as the high-pressure runs span one pair of temperatures at 12 GPa)
 - mutch_aniso: both anisotropy factors fitted;
 - mutch_fT: mutch_aniso plus an fO2 x 1/T term (the fO2 exponent varying with T);
-- dc07_x6, the preset's form (V fixed at 7 cm3/mol), for reference, and the same with V
-  fitted (which shows what fixing V does); and the DFENS presets mutch2019_tamed
-  and mutch2019_global (Mutch et al. 2021, Data Set S6).
+- dc07_x6_V, the preset's form (V fitted since 2026-10-15), and dc07_x6 with V fixed at
+  7 cm3/mol (the preset's form before), for reference; and the DFENS presets
+  mutch2019_tamed and mutch2019_global (Mutch et al. 2021, Data Set S6).
 
 Control: the input-error slopes by central differences (used for the Mutch forms) must
 equal the closed form on the preset's form.
@@ -49,24 +49,19 @@ HERE = Path(__file__).parent
 OUT = HERE / "figures" / "presets"
 LN10, LOG6 = math.log(10), math.log10(6)
 ALONG_001 = Orientation(90, 90, 0)
-# The preset's form with V fitted (log D0, E, m, n, V): the Mutch form without j.
-DC07_V = F.Form(
-    "dc07_x6_V",
-    (*V.FORM.params, "V_m3_mol"),
-    lambda v: np.column_stack([V.FORM.design(v), -(v.P - 1e5) / (F.R * v.T)]),
-    lambda v: V.FORM.offset(v) + (v.P - 1e5) * F.V_DC07 / (F.R * v.T),
-)
+# The preset's form fits V (log D0, E, m, n, V): the Mutch form without j. Its previous
+# form, V fixed at 7 cm3/mol, is kept for comparison.
 FORMS = {
-    "dc07_x6 (the preset)": V.FORM,
-    "dc07_x6, V fitted": DC07_V,
+    "dc07_x6_V (the preset)": V.FORM,
+    "dc07_x6, V fixed at 7": V.FORM_V7,
     "mutch_x6": F.FORMS["mutch_x6"],
     "mutch_aniso": F.FORMS["mutch_aniso"],
     "mutch_fT": F.FORMS["mutch_fT"],
 }
 DFENS = ("mutch2019_tamed", "mutch2019_global")
 STYLE = {  # colour, line style
-    "dc07_x6 (the preset)": ("#0072B2", "-"),
-    "dc07_x6, V fitted": ("#000000", (0, (3, 1, 1, 1))),
+    "dc07_x6_V (the preset)": ("#0072B2", "-"),
+    "dc07_x6, V fixed at 7": ("#000000", (0, (3, 1, 1, 1))),
     "mutch_x6": ("#009E73", "--"),
     "mutch_aniso": ("#E69F00", "-."),
     "mutch_fT": ("#56B4E9", ":"),
@@ -81,7 +76,7 @@ plt.rcParams.update({"pdf.fonttype": 42, "font.size": 9, "axes.titlesize": 9.5})
 def check_slopes(df: pd.DataFrame, beta: np.ndarray) -> None:
     """Central differences through a copy of the preset's form (renamed, so the closed
     form is not used) must give the closed-form slopes."""
-    copy = F.Form("dc07_x6 copy", tuple(f"p{i}" for i in range(4)), V.FORM.design, V.FORM.offset)
+    copy = F.Form("dc07_x6_V copy", tuple(f"p{i}" for i in range(5)), V.FORM.design, V.FORM.offset)
     exact, numeric = V.input_slopes(df, beta), V.input_slopes(df, beta, copy)
     worst = max(
         float(np.max(np.abs(n - e) / np.maximum(np.abs(e), 1e-30)))
@@ -131,7 +126,7 @@ def table(fits: dict[str, dict], n: int) -> pd.DataFrame:
             b, se = fit["beta"], np.sqrt(np.diag(fit["cov"]))
             row |= {"fO2_exponent": b[2], "fO2_exponent_se": se[2]}
             row |= {"E_kJ_mol": b[1] / 1e3, "E_se_kJ_mol": se[1] / 1e3, "V_cm3_mol": 7.0}
-            if form is DC07_V:
+            if "V_m3_mol" in form.params:
                 row |= {"V_cm3_mol": b[4] * 1e6, "V_se_cm3_mol": se[4] * 1e6}
         for label, c in V.CONDITIONS.items():
             mu, s = F.predict(form, fit["beta"], fit["cov"], c)
@@ -225,7 +220,7 @@ def panel_b(ax, fits: dict, df: pd.DataFrame) -> None:
         ax.plot(p / 1e9, _law_curve(name, np.array(t_c), nno, x_fo, p), color=colour, ls=ls, lw=1.3)
     h = df[df["source"] == "holzapfel2007"]
     au = V._is_au(h)
-    moved = F.moved(h, V.FORM, fits["dc07_x6 (the preset)"]["beta"], T_K=t_c + 273.15, X_Fo=x_fo)
+    moved = F.moved(h, V.FORM, fits["dc07_x6_V (the preset)"]["beta"], T_K=t_c + 273.15, X_Fo=x_fo)
     for mask, filled, label in ((~au, False, "Ni-NiO capsules"), (au, True, "Au capsules")):
         off = (h["T_K"] - 273.15 - t_c).abs().to_numpy() > 1
         for m, marker, extra in ((mask & ~off, "D", ""), (mask & off, "s", ", other T, moved")):
@@ -281,11 +276,11 @@ def figure(fits: dict, tab: pd.DataFrame, df: pd.DataFrame) -> None:
     t = tab.set_index("form")
     k = t["KS20_vs_dc07"]
     mx6 = t.loc["mutch_x6"]
-    dv = t.loc["dc07_x6, V fitted"]
+    dv = t.loc["dc07_x6_V (the preset)"]
     fig.suptitle(
-        f"Fitting V ({dv['V_cm3_mol']:.1f} ± {dv['V_se_cm3_mol']:.1f} cm³/mol) instead of fixing "
-        f"it at 7 moves KS20 from {k['dc07_x6 (the preset)']:+.2f} to {k['dc07_x6, V fitted']:+.2f}"
-        f"; the Mutch forms add nothing to that ({k['mutch_x6']:+.2f} at 6x, "
+        f"The preset fits V ({dv['V_cm3_mol']:.1f} ± {dv['V_se_cm3_mol']:.1f} cm³/mol): KS20 "
+        f"{k['dc07_x6_V (the preset)']:+.2f}, against {k['dc07_x6, V fixed at 7']:+.2f} with V "
+        f"fixed at 7; the Mutch forms add nothing to that ({k['mutch_x6']:+.2f} at 6x, "
         f"{k['mutch_aniso']:+.2f} with fitted anisotropy).\nThe 6x Mutch refit: fO2 exponent "
         f"{mx6['fO2_exponent']:.3f} ± {mx6['fO2_exponent_se']:.3f}, E {mx6['E_kJ_mol']:.0f} ± "
         f"{mx6['E_se_kJ_mol']:.0f} kJ/mol, V at 1400 °C {mx6['V_cm3_mol']:.1f} ± "
@@ -307,7 +302,7 @@ def main() -> None:
         F._identifiable(F.FORMS["mutch_x6"], df),
     )
     fits = fit_all(df)
-    check_slopes(df, fits["dc07_x6 (the preset)"]["beta"])
+    check_slopes(df, fits["dc07_x6_V (the preset)"]["beta"])
     tab = table(fits, len(df))
     tab.to_csv(HERE / "results" / "verified" / "mutch_forms.csv", index=False)
     figure(fits, tab, df)

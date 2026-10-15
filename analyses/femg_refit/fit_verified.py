@@ -22,8 +22,11 @@ Au-capsule runs, taken at Ni-NiO with a sd of 2 log units (`preset_data`, `fit_p
   - Shea et al. (2023), Jurewicz and Watson (1988) and Meissner (2000): they lack values
     or details only their sources can supply.
 
-The form is the Dohmen and Chakraborty (2007) form: log D0, E, the fO2 exponent and the
-composition coefficient fitted; D[100] = D[010] = D[001]/6 and V = 7 cm3/mol fixed.
+The form is the Dohmen and Chakraborty (2007) form: log D0, E, the fO2 exponent, the
+composition coefficient and the activation volume V fitted; D[100] = D[010] = D[001]/6
+fixed. V was fixed at DC07's 7 cm3/mol until 2026-10-15 (`FORM_V7`): the data give
+7.7 +- 0.8, and fixing it let Holzapfel's high-pressure runs pin the fO2 exponent
+harder than they can (fit_mutch.py).
 
 The method (`fit_preset`): least squares with a random offset per study (REML), plus
 each row's errors in T, fO2, X_Fo and P carried as extra variance on ln D (the
@@ -58,8 +61,15 @@ LN10 = math.log(10)
 LN6 = math.log(6)
 _FREE = F.FORMS["dc07_free"]
 # The preset's form: dc07_free with both anisotropy factors fixed at 6 (DC07, as DIPRA and
-# DFENS). Not added to fit_models.FORMS, whose every form fit_models.main fits.
+# DFENS) and V fitted. Not added to fit_models.FORMS, whose every form fit_models.main fits.
 FORM = F.Form(
+    "dc07_x6_V",
+    (*_FREE.params[:4], "V_m3_mol"),
+    lambda v: np.column_stack([_FREE.design(v)[:, :4], -(v.P - 1e5) / (F.R * v.T)]),
+    lambda v: -LN6 * (v.i100 + v.i010),
+)
+# The same with V fixed at DC07's 7 cm3/mol: the preset's form until 2026-10-15.
+FORM_V7 = F.Form(
     "dc07_x6",
     _FREE.params[:4],
     lambda v: _FREE.design(v)[:, :4],
@@ -182,13 +192,14 @@ _STEPS = {"T": 0.01, "log_fo2_pa": 1e-4, "x_fo": 1e-5, "P": 1e3}  # central diff
 
 def input_slopes(df: pd.DataFrame, beta: np.ndarray, form: F.Form = FORM) -> list[np.ndarray]:
     """d ln D / d x per row for x = T (K), log10 fO2, X_Fo and P (Pa), at ``beta``. In
-    closed form for the DC07 forms (those whose first four parameters are DC07's,
-    with V fixed), by central differences through ``form`` otherwise."""
+    closed form for the DC07 forms (those whose first four parameters are DC07's; V
+    fitted or fixed at 7 cm3/mol), by central differences through ``form`` otherwise."""
     t, p = df["T_K"].to_numpy(float), df["P_Pa"].to_numpy(float)
     if form.params[:4] == _DC07_HEAD:
         _, e, m, n = beta[:4]
-        d_t = (e + (p - 1e5) * F.V_DC07) / (F.R * t**2)
-        return [d_t, np.full_like(t, m * LN10), np.full_like(t, -n * LN10), -F.V_DC07 / (F.R * t)]
+        vol = beta[form.params.index("V_m3_mol")] if "V_m3_mol" in form.params else F.V_DC07
+        d_t = (e + (p - 1e5) * vol) / (F.R * t**2)
+        return [d_t, np.full_like(t, m * LN10), np.full_like(t, -n * LN10), -vol / (F.R * t)]
     v = F.Vars.of(df)
 
     def ln_d(vv: F.Vars) -> np.ndarray:
@@ -226,7 +237,10 @@ def input_error_variance(
 
 
 def fit_with_input_errors(
-    df: pd.DataFrame, fo2_sd: np.ndarray | None = None, form: F.Form = FORM
+    df: pd.DataFrame,
+    fo2_sd: np.ndarray | None = None,
+    form: F.Form = FORM,
+    tau_range: bool = True,
 ) -> dict:
     """`fit_extra` with `input_error_variance`, iterated until the coefficients settle
     (the variance depends on them): a relative change under 1e-8, or, after 50
@@ -244,13 +258,20 @@ def fit_with_input_errors(
     settled = float(np.max(step / np.sqrt(np.diag(fit["cov"]))))
     if settled >= 1e-4:
         raise RuntimeError(f"fit_with_input_errors did not settle ({settled:.1e} se)")
-    return fit_extra(form, df, extra, tau_range=True) | {"settled_se": settled}
+    return fit_extra(form, df, extra, tau_range=tau_range) | {"settled_se": settled}
 
 
-def fit_preset(df: pd.DataFrame, form: F.Form = FORM, au_fo2_sd: float = PRESET_AU_FO2_SD) -> dict:
+def fit_preset(
+    df: pd.DataFrame,
+    form: F.Form = FORM,
+    au_fo2_sd: float = PRESET_AU_FO2_SD,
+    tau_range: bool = True,
+) -> dict:
     """The preset's method on any data built on `preset_data`: input errors, and the
-    Au-capsule runs' fO2 at Ni-NiO with sd ``au_fo2_sd`` log units."""
-    return fit_with_input_errors(df, np.where(_is_au(df), au_fo2_sd, np.nan), form)
+    Au-capsule runs' fO2 at Ni-NiO with sd ``au_fo2_sd`` log units. ``tau_range=False``
+    skips tau's profile-likelihood range (for resampling)."""
+    fo2_sd = np.where(_is_au(df), au_fo2_sd, np.nan)
+    return fit_with_input_errors(df, fo2_sd, form, tau_range)
 
 
 def check_extra() -> None:
@@ -282,6 +303,12 @@ def row(name: str, fit: dict, n: int, studies: int, form: F.Form = FORM) -> dict
     out = {"variant": name, "n_points": n, "n_studies": studies}
     out |= {"tau_log10": fit["tau"] / LN10, "sd_within_log10": fit["sd"] / LN10}
     out |= {"log10_D0": b[0], "E_kJ_mol": b[1] / 1e3, "m_fO2": b[2], "n_X": b[3]}
+    fitted_v = "V_m3_mol" in form.params
+    k = form.params.index("V_m3_mol") if fitted_v else None
+    out |= {
+        "V_cm3_mol": b[k] * 1e6 if fitted_v else F.V_DC07 * 1e6,
+        "V_se_cm3_mol": se[k] * 1e6 if fitted_v else np.nan,
+    }
     out |= {"m_fO2_se": se[2], "E_se_kJ_mol": se[1] / 1e3}
     for label, c in CONDITIONS.items():
         mu, s = F.predict(form, b, fit["cov"], c)
@@ -339,12 +366,23 @@ def main() -> None:
     ver = verified()
     rows.append(
         row(
-            "verified, REML (the previous preset)",
-            F.fit_random(FORM, ver),
+            "V 7, verified, REML (preset until 2026-10-14)",
+            F.fit_random(FORM_V7, ver),
             len(ver),
             studies,
+            FORM_V7,
         )
     )
+    rows.append(
+        row(
+            "V 7, preset data, input errors (preset until 2026-10-15)",
+            fit_preset(df, FORM_V7),
+            len(df),
+            studies,
+            FORM_V7,
+        )
+    )
+    rows.append(row("verified, REML", F.fit_random(FORM, ver), len(ver), studies))
     rows.append(row("verified, REML + input errors", fit_with_input_errors(ver), len(ver), studies))
     for sd in FO2_PRIOR_SD:
         fit, n = with_au(sd)

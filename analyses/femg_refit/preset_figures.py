@@ -10,11 +10,12 @@ figures/presets/
 - p2_residuals.png: the preset's residuals (log10 D minus the preset at each point's
   own conditions and axis) against T, fO2, X_Fo and P, by study.
 - p3_candidates.png: D[001] at KS20, SH63 and the paper conditions, relative to DC07,
-  for the candidate methods: REML on the verified data (A, the previous
-  preset), with each study's errors in T (at least 10 C), fO2, X_Fo and P (B), plus
-  Holzapfel's Au-capsule runs at Ni-NiO with an fO2 sd of 1 or 2 log (C; sd 2 is the
-  preset); ODR on the preset's data with the stated T errors and with a 20 C floor
-  (odr_check.py); and the Mutch presets.
+  for the candidate methods, A-C with V fixed at 7 cm3/mol: REML on the verified data
+  (A), with each study's errors in T (at least 10 C), fO2, X_Fo and P (B), plus
+  Holzapfel's Au-capsule runs at Ni-NiO with an fO2 sd of 1 or 2 log (C); D, the preset:
+  C at sd 2 with V fitted. ODR on the preset's data, V 7, with the stated T errors and
+  with a 20 C floor (odr_check.py); the bootstrap of runs (bootstrap_preset.py), by the
+  preset's method and by OLS; and the Mutch presets.
 
 Bands are the laws' own linear propagation (ArrheniusDiffusivity.log10_sigma), exact
 for these laws (docs/references/law-uncertainty-limits.md).
@@ -249,37 +250,67 @@ def p2(data: pd.DataFrame) -> None:
     plt.close(fig)
 
 
-PRESET_ROW = f"C  B + Holzapfel Au at NNO, fO2 sd {AU_SD:g} (the preset)"
+PRESET_ROW = f"D  C (sd {AU_SD:g}) with V fitted (the preset)"
+
+
+def bootstrap_rows(n_points: int, conds: list[str]) -> list[dict]:
+    """The bootstrap of runs (bootstrap_preset.py): mean and half the 16-84% width."""
+    path = HERE / "results" / "verified" / "bootstrap.csv"
+    if not path.exists():
+        print("no results/verified/bootstrap.csv: run bootstrap_preset.py for its rows")
+        return []
+    boot = pd.read_csv(path)
+    rows = []
+    for method, label in (
+        ("preset method", "D, bootstrap of runs"),
+        ("OLS", "OLS, bootstrap of runs"),
+    ):
+        q = boot[boot["method"] == method].set_index("quantity")
+        row = {"candidate": f"{label} ({int(q['n_draws'].iloc[0])} draws)"}
+        row |= {"n_points": n_points, "tau": np.nan, "m": q.loc["m_fO2", "boot_mean"]}
+        for c in conds:
+            r = q.loc[f"{c}_vs_dc07"]
+            row |= {c: r["boot_mean"], f"{c}_se": (r["boot_p84"] - r["boot_p16"]) / 2}
+        rows.append(row)
+    return rows
 
 
 def candidates() -> pd.DataFrame:
     ver, both = V.verified(), V.preset_data()
+    v7 = V.FORM_V7
     fits = {
-        "A  verified data, REML (the previous preset)": (F.fit_random(V.FORM, ver), len(ver)),
+        "A  verified data, REML, V 7": (v7, F.fit_random(v7, ver), len(ver)),
         "B  A + errors in T (at least 10 °C), fO2, X_Fo, P": (
-            V.fit_with_input_errors(ver),
+            v7,
+            V.fit_with_input_errors(ver, form=v7),
             len(ver),
         ),
-        "C  B + Holzapfel Au at NNO, fO2 sd 1": (V.fit_preset(both, au_fo2_sd=1.0), len(both)),
-        PRESET_ROW: (V.fit_preset(both), len(both)),
+        "C  B + Holzapfel Au at NNO, fO2 sd 1": (
+            v7,
+            V.fit_preset(both, v7, au_fo2_sd=1.0),
+            len(both),
+        ),
+        "C  B + Holzapfel Au at NNO, fO2 sd 2": (v7, V.fit_preset(both, v7), len(both)),
+        PRESET_ROW: (V.FORM, V.fit_preset(both), len(both)),
     }
     conds = {k.split(",")[0]: c for k, c in F._conditions().items()}
     rows = []
-    for name, (fit, n) in fits.items():
+    for name, (form, fit, n) in fits.items():
         row = {"candidate": name, "n_points": n, "tau": fit["tau"] / LN10, "m": fit["beta"][2]}
         for label, c in conds.items():
-            mu, se = F.predict(V.FORM, fit["beta"], fit["cov"], c)
+            mu, se = F.predict(form, fit["beta"], fit["cov"], c)
             row |= {f"{label}": mu - F._dc07_preset(c), f"{label}_se": se}
         rows.append(row)
     for floor in (0.0, 20.0):
         beta = O.odr(both, floor, offsets=False)
         tag = "stated T errors" if floor == 0 else f"T errors at least {floor:.0f} °C"
-        row = {"candidate": f"ODR, no study terms, {tag}", "n_points": len(both)}
+        row = {"candidate": f"ODR, V 7, no study terms, {tag}", "n_points": len(both)}
         row |= {"tau": np.nan, "m": beta[2]}
         for label, c in conds.items():
-            mu, _ = F.predict(V.FORM, beta, np.eye(4), c)
+            mu, _ = F.predict(O.FORM, beta, np.eye(4), c)
             row |= {f"{label}": mu - F._dc07_preset(c), f"{label}_se": np.nan}
         rows.append(row)
+    rows += bootstrap_rows(len(both), list(conds))
     for name in ("mutch2019_tamed", "mutch2019_global"):
         law = DIFFUSIVITY_PRESETS[name]
         row = {"candidate": name, "n_points": np.nan, "tau": np.nan, "m": law.fO2_exponent}
@@ -309,7 +340,9 @@ def p3(tab: pd.DataFrame) -> None:
                 getattr(r, cond),
                 yi,
                 xerr=None if math.isnan(se) else se,
-                fmt="D" if r.candidate.startswith("ODR") else "o",
+                fmt="D"
+                if r.candidate.startswith("ODR")
+                else ("s" if "bootstrap" in r.candidate else "o"),
                 mfc="none" if r.candidate.startswith("ODR") else colour,
                 color=colour,
                 ms=5,
@@ -324,10 +357,11 @@ def p3(tab: pd.DataFrame) -> None:
     ks = tab.set_index("candidate")["KS20"]
     odr = ks[ks.index.str.startswith("ODR")]
     fig.suptitle(
-        f"At KS20 the preset is {ks[PRESET_ROW]:+.2f} (A {ks.iloc[0]:+.2f}, B {ks.iloc[1]:+.2f}); "
-        f"ODR without study terms gives {odr.iloc[0]:+.2f} or {odr.iloc[1]:+.2f}, "
-        "set by the assumed T error.\nBars: the law's 1 sigma; open diamonds: ODR (no "
-        "sigma shown); blue: the preset",
+        f"At KS20 the preset (V fitted) is {ks[PRESET_ROW]:+.2f}; with V fixed at 7, "
+        f"{ks.iloc[3]:+.2f} (C), {ks.iloc[1]:+.2f} (B), {ks.iloc[0]:+.2f} (A). ODR without "
+        f"study terms: {odr.iloc[0]:+.2f} or {odr.iloc[1]:+.2f}, set by the assumed T error."
+        "\nBars: the law's 1 sigma; squares: bootstrap mean and half its 16-84% range; open "
+        "diamonds: ODR (no sigma shown); blue: the preset",
         fontsize=10,
     )
     fig.savefig(OUT / "p3_candidates.png", dpi=200)

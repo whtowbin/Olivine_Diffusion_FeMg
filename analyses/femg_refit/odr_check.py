@@ -36,6 +36,9 @@ HERE = Path(__file__).parent
 LN10 = math.log(10)
 FLOORS = (0.0, 10.0, 20.0)  # C (= K), on each run's T error
 KS20 = V.CONDITIONS["KS20"]
+# V fixed at 7 cm3/mol: the preset's form when this comparison was made (2026-10-14).
+# The comparison is of methods; the form with V fitted is now the preset (fit_verified).
+FORM = V.FORM_V7
 
 
 def _fo2_sd(df: pd.DataFrame) -> np.ndarray:
@@ -59,15 +62,15 @@ def odr(df: pd.DataFrame, floor: float, offsets: bool) -> np.ndarray:
     dummies = pd.get_dummies(src).to_numpy(float)[:, 1:] if offsets else np.empty((len(df), 0))
 
     def design(vv: F.Vars, d: np.ndarray) -> np.ndarray:
-        return np.column_stack([V.FORM.design(vv), d])
+        return np.column_stack([FORM.design(vv), d])
 
     y = df["ln_D"].to_numpy()
-    start = np.linalg.lstsq(design(v, dummies), y - V.FORM.offset(v), rcond=None)[0]
+    start = np.linalg.lstsq(design(v, dummies), y - FORM.offset(v), rcond=None)[0]
     scale = np.abs(start) + 1e-300
 
     def f(x: np.ndarray, b: np.ndarray) -> np.ndarray:
         vv = F.Vars.from_matrix(x[:6])
-        return V.FORM.offset(vv) + design(vv, x[6:].T) @ (b * scale)
+        return FORM.offset(vv) + design(vv, x[6:].T) @ (b * scale)
 
     fo2 = np.where(V._is_au(df), V.PRESET_AU_FO2_SD, src.map(F.ERRORS["log10_fO2"]))
     exact = np.full(len(df), 1e-9)  # axis indicators and study dummies
@@ -97,13 +100,13 @@ def odr(df: pd.DataFrame, floor: float, offsets: bool) -> np.ndarray:
 def min_s(df: pd.DataFrame) -> np.ndarray:
     """Minimise S(b) directly, at fit_verified's current T error floor."""
     v = F.Vars.of(df)
-    A, y = V.FORM.design(v), df["ln_D"].to_numpy() - V.FORM.offset(v)
+    A, y = FORM.design(v), df["ln_D"].to_numpy() - FORM.offset(v)
     sy2, fo2 = F._y_sigma_ln(df) ** 2, _fo2_sd(df)
     sc = np.abs(np.linalg.lstsq(A, y, rcond=None)[0])
 
     def s(q: np.ndarray) -> float:
         b = q * sc
-        return float(np.sum((y - A @ b) ** 2 / (sy2 + V.input_error_variance(df, b, fo2))))
+        return float(np.sum((y - A @ b) ** 2 / (sy2 + V.input_error_variance(df, b, fo2, FORM))))
 
     opts = {"xatol": 1e-10, "fatol": 1e-12, "maxiter": 20000}
     return optimize.minimize(s, np.ones(4), method="Nelder-Mead", options=opts).x * sc
@@ -112,16 +115,16 @@ def min_s(df: pd.DataFrame) -> np.ndarray:
 def full_ml(df: pd.DataFrame) -> tuple[np.ndarray, float]:
     """ML over (b, s^2, tau^2) with V(b) = s^2 I + tau^2 ZZ' + diag(input variance(b))."""
     v = F.Vars.of(df)
-    A, y = V.FORM.design(v), df["ln_D"].to_numpy() - V.FORM.offset(v)
+    A, y = FORM.design(v), df["ln_D"].to_numpy() - FORM.offset(v)
     Z = pd.get_dummies(df["source"]).to_numpy(float)
     fo2 = _fo2_sd(df)
-    start = V.fit_preset(df)["beta"]
+    start = V.fit_preset(df, FORM)["beta"]
     sc = np.abs(start)
 
     def nll(q: np.ndarray) -> float:
         b = q[:4] * sc
         var = math.exp(q[4]) * np.eye(len(y)) + math.exp(q[5]) * Z @ Z.T
-        L = np.linalg.cholesky(var + np.diag(V.input_error_variance(df, b, fo2)))
+        L = np.linalg.cholesky(var + np.diag(V.input_error_variance(df, b, fo2, FORM)))
         r = np.linalg.solve(L, y - A @ b)
         return float(np.log(np.diag(L)).sum() + 0.5 * r @ r)
 
@@ -133,7 +136,7 @@ def full_ml(df: pd.DataFrame) -> tuple[np.ndarray, float]:
 
 
 def _row(method: str, floor: float, beta: np.ndarray, tau: float = math.nan) -> dict:
-    mu, _ = F.predict(V.FORM, beta[:4], np.eye(4), KS20)
+    mu, _ = F.predict(FORM, beta[:4], np.eye(4), KS20)
     return {
         "method": method,
         "T_error_floor_C": floor,
@@ -149,7 +152,7 @@ def main() -> pd.DataFrame:
     df = V.preset_data()
     rows = []
     for floor in FLOORS:
-        fit = _at_floor(floor, V.fit_preset, df)
+        fit = _at_floor(floor, V.fit_preset, df, FORM)
         rows.append(_row("REML + effective variance", floor, fit["beta"], fit["tau"] / LN10))
         b, tau = _at_floor(floor, full_ml, df)
         rows.append(_row("full ML, input variance depending on b", floor, b, tau))

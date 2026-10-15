@@ -2,9 +2,10 @@
 
 Fitted to the verified compilation plus Holzapfel's Au-capsule runs at Ni-NiO with an
 fO2 sd of 2 log units (`fit_verified.preset_data()`; docs/references/data-to-source.md).
-The DC07 form with log D0, E, the fO2 exponent and the composition coefficient fitted,
-D[100] = D[010] = D[001]/6 and V = 7 cm3/mol fixed (`fit_verified.FORM`), with a random
-offset per study and each row's errors in T, fO2, X_Fo and P (`fit_verified.fit_preset`).
+The DC07 form with log D0, E, the fO2 exponent, the composition coefficient and the
+activation volume fitted, D[100] = D[010] = D[001]/6 fixed (`fit_verified.FORM`), with a
+random offset per study and each row's errors in T, fO2, X_Fo and P
+(`fit_verified.fit_preset`).
 Checks that the law reproduces the refit's log10 D
 and its 1-sigma (`fit_models.predict`) on every axis at the round robin and paper
 conditions and over a spread of others, and that it equals the preset shipped in
@@ -30,6 +31,7 @@ PARAMETERS = (
     "activation_energy_J_mol",
     "fO2_exponent",
     "fo_coefficient",
+    "activation_volume_m3_mol",
 )  # the anisotropy is fixed at 6x, so it carries no covariance
 AXES = {
     "[100]": Orientation(0, 90, 90),
@@ -39,7 +41,7 @@ AXES = {
 
 
 def preset(fit: dict, n_studies: int) -> ArrheniusDiffusivity:
-    log_d0, e, m, n = fit["beta"]
+    log_d0, e, m, n, vol = fit["beta"]
     cov = (fit["cov"] + fit["cov"].T) / 2  # exactly symmetric
     off_axis = log_d0 - math.log10(6)
     lo, hi = (t / LN10 for t in fit["tau_range"])
@@ -52,7 +54,7 @@ def preset(fit: dict, n_studies: int) -> ArrheniusDiffusivity:
         fO2_ref_Pa=1e-7,
         fo_coefficient=float(n),
         fo_ref=0.9,
-        activation_volume_m3_mol=F.V_DC07,
+        activation_volume_m3_mol=float(vol),
         P_ref_Pa=1e5,
         source=_REFIT_2026,
         uncertainty=LawUncertainty(
@@ -120,6 +122,7 @@ def main() -> None:
     print(f"activation_energy_J_mol={law.activation_energy_J_mol!r},")
     print(f"fO2_exponent={law.fO2_exponent!r},")
     print(f"fo_coefficient={law.fo_coefficient!r},")
+    print(f"activation_volume_m3_mol={law.activation_volume_m3_mol!r},")
     print(f"parameters={u.parameters!r},")
     print("covariance=(")
     for row in u.covariance:

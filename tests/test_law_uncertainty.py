@@ -91,10 +91,10 @@ def test_a_law_without_covariance_has_no_sigma():
 
 @pytest.mark.skipif(not PREDICTIONS.exists(), reason="the refit's results are not here")
 def test_the_preset_reproduces_the_refit_at_the_round_robin_conditions():
-    """`analyses/femg_refit/fit_verified.py` (dc07_x6, random study) at KS20, Fo85, [001]."""
+    """`analyses/femg_refit/fit_verified.py` (dc07_x6_V, the preset) at KS20, Fo85, [001]."""
     pred = pd.read_csv(PREDICTIONS)
     row = pred[
-        (pred.form == "dc07_x6")
+        (pred.form == "dc07_x6_V")
         & (pred.method == "random study")
         & (pred.condition == "KS20, 1200 C")
     ].iloc[0]

@@ -315,9 +315,9 @@ _REFIT_2026 = (
     "(docs/references/data-to-source.md): Chakraborty 1997; Dohmen et al. 2007, fO2 > "
     "1e-10 Pa; Petry et al. 2004; Holzapfel et al. 2007, Ni-NiO capsules, and Au capsules "
     "with their unbuffered fO2 taken at Ni-NiO +- 2 log units (132 points, 4 studies). "
-    "Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent and the "
-    "composition coefficient fitted; [100] and [010] 6x slower than [001] and V = 7 "
-    "cm3/mol fixed; least squares with a random offset per study (REML) and each run's "
+    "Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent, the "
+    "composition coefficient and the activation volume fitted; [100] and [010] 6x slower "
+    "than [001]; least squares with a random offset per study (REML) and each run's "
     "errors in T (at least 10 C), fO2, X_Fo and P carried as effective variance. Not "
     "included: melt contact (Spandler and O'Neill 2010) and Oeser et al. 2026, whose [010] "
     "is about 2x slower than [001], not 6x (both unconfirmed scenarios). analyses/femg_refit "
@@ -507,13 +507,13 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
         ArrheniusDiffusivity(
             name="femg_refit2026",
             element="Fe-Mg",
-            log10_D0_m2_s=(-9.646974534486233, -9.646974534486233, -8.86882328410259),
-            activation_energy_J_mol=(211256.92006817146, 211256.92006817146, 211256.92006817146),
-            fO2_exponent=0.20754312391534094,
+            log10_D0_m2_s=(-9.670280474321283, -9.670280474321283, -8.892129223937639),
+            activation_energy_J_mol=(210321.92759416375, 210321.92759416375, 210321.92759416375),
+            fO2_exponent=0.22237401697318931,
             fO2_ref_Pa=1e-7,
-            fo_coefficient=3.16282093738726,
+            fo_coefficient=3.14799380039531,
             fo_ref=0.9,
-            activation_volume_m3_mol=7e-6,
+            activation_volume_m3_mol=7.721452781283535e-06,
             P_ref_Pa=1e5,
             source=_REFIT_2026,
             uncertainty=LawUncertainty(
@@ -522,37 +522,49 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
                     "activation_energy_J_mol",
                     "fO2_exponent",
                     "fo_coefficient",
+                    "activation_volume_m3_mol",
                 ),
                 covariance=(
                     (
-                        0.0721474075255834,
-                        1727.9408078733795,
-                        -0.0022955311787679032,
-                        0.007035854001120223,
+                        0.07202461679450274,
+                        1764.4108132600745,
+                        -0.0029272092549996118,
+                        0.007520116296860018,
+                        -3.287098984684858e-08,
                     ),
                     (
-                        1727.9408078733795,
-                        44379548.797255434,
-                        -49.576982192864584,
-                        199.34916717874046,
+                        1764.4108132600745,
+                        45789365.47996112,
+                        -72.15482579425372,
+                        217.73494838654577,
+                        -0.001058609728573739,
                     ),
                     (
-                        -0.0022955311787679032,
-                        -49.576982192864584,
-                        0.0002576018620512191,
-                        -0.00011689453932131425,
+                        -0.0029272092549996118,
+                        -72.15482579425372,
+                        0.0005393066153166875,
+                        -0.0003711179747509314,
+                        1.3210979281555924e-08,
                     ),
                     (
-                        0.007035854001120223,
-                        199.34916717874046,
-                        -0.00011689453932131425,
-                        0.01893332058630904,
+                        0.007520116296860018,
+                        217.73494838654577,
+                        -0.0003711179747509314,
+                        0.01909336292531011,
+                        -1.209803270743005e-08,
+                    ),
+                    (
+                        -3.287098984684858e-08,
+                        -0.001058609728573739,
+                        1.3210979281555924e-08,
+                        -1.209803270743005e-08,
+                        5.872547528599421e-13,
                     ),
                 ),
-                between_study_log10=0.11824888990356036,
+                between_study_log10=0.10406679072272666,
                 source=(
                     "Covariance of the law averaged over laboratories; between-study sd "
-                    "0.118 log10 (95% 0.03-0.46, 4 studies)."
+                    "0.104 log10 (95% 0.02-0.46, 4 studies)."
                 ),
             ),
         ),

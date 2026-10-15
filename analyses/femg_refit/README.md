@@ -10,9 +10,10 @@ diffusivity law with a full parameter covariance. Plan and results:
 sources' tables or text; `docs/references/data-to-source.md`) plus Holzapfel et al.'s
 Au-capsule runs, whose unbuffered fO2 is taken at Ni-NiO with a sd of 2 log units.
 
-- **Form:** the Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent and
-  the composition coefficient fitted; [100] and [010] six times slower than [001] and
-  V = 7 cm3/mol fixed (`fit_verified.FORM`).
+- **Form:** the Dohmen and Chakraborty (2007) form with log D0, E, the fO2 exponent, the
+  composition coefficient and the activation volume fitted (V 7.7 ± 0.8 cm3/mol; fixed
+  at 7 until 2026-10-15, `FORM_V7`); [100] and [010] six times slower than [001]
+  (`fit_verified.FORM`).
 - **Method** (`fit_verified.fit_preset`): random offsets per study (REML), with each
   run's errors in T (at least 10 C), fO2, X_Fo and P carried as extra variance on ln D
   (effective variance: ODR to first order, inside the REML likelihood).
@@ -27,6 +28,8 @@ Au-capsule runs, whose unbuffered fO2 is taken at Ni-NiO with a sd of 2 log unit
   - `fit_mutch.py`: the Mutch forms (6x, fitted anisotropy, fO2 x 1/T) and the preset's
     form with V fitted, on the preset's data by its method (`results/verified/
     mutch_forms.csv`, `figures/presets/p4_mutch_forms.png`).
+  - `bootstrap_preset.py`: runs resampled within each study and refitted by the
+    preset's method, against the law's covariance (`results/verified/bootstrap.csv`).
   - `odr_check.py`: ODR against the preset's method, for T-error floors of 0, 10 and
     20 C (`results/verified/odr_check.csv`).
   - `export_preset.py`: builds the preset and checks the shipped one.
