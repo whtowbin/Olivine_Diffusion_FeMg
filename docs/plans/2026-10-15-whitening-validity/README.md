@@ -626,3 +626,22 @@ WHT01_Ol_63, _181 or _192. The near-step **term** is not part of the fit. Still 
 7. **Round robin note** (private submodule, `outputs/refit_2026/NOTE.md`): the
    SH63olv066 ranges are probably too narrow; add the caveat or the 2-sigma ranges
    before it goes to the organisers.
+8. **Done 2026-10-16 (item 4):** fitting the starting profile cleared the warning on
+   SH63olv066-1 (ΔAIC −30.6 → −4.3), WHT06_ol43 (−7.7 → +1.2) and Xenocryst_ol6 (−10.4 →
+   +2.0), and only just on WHT06_ol48 (−6.6 → −5.4, its near-step bump remains). Times
+   moved by −4%, −40%, −52% and +6%; Xenocryst_ol6's first step ended at the edge of its
+   prior, so its −52% is not reliable. The warning now says to fit the starting profile first, and the
+   starting-profile fit reports `scan_near_step_daic`
+   ([noise-model-findings.md](../../references/noise-model-findings.md)).
+9. **Plateau length strengthens item 2:** with near-step misfit, a longer plateau makes
+   the default 1σ range too narrow (73% → 46% coverage from 3 to 20 diffusion lengths),
+   and only the near-step model holds (71-80%).
+10. **Third noise refit** in `fit_initial_condition` (refit at the second optimum): the
+    second refit moved optima by up to 0.5 µm; whether a third changes anything is
+    untested. Also check that the grid method (`scan.fit_candidates`, one noise fit at the
+    white best candidate, no second pass) behaves like the sampler.
+11. **The model's core end:** FORSTER ends the model at the last measured point and holds
+    the core Fo there; a profile ending about 2 diffusion lengths past the step moved by
+    −37% to +49%. A warning covers it now (`core_end_diffusion_lengths` < 3); consider
+    extending the model to the domain's end instead (a behaviour change, needs a
+    differential replay).

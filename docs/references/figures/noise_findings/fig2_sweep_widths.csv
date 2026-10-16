@@ -1,0 +1,6 @@
+param,nominal,white_best,white_half_width,white_open,fixedC_best,fixedC_half_width,fixedC_open,refitC_best,refitC_half_width,refitC_open,profiled_best,profiled_half_width,profiled_open
+step1_um,2,4.89812,1.2751,False,6.09609,1.44001,False,6.64096,0.990899,False,6.9816,1.13754,False
+step2_um,35,35.8971,0.249308,False,35.8823,0.532948,False,35.8948,0.363736,False,35.8924,0.413755,False
+edge_fo,0.827,0.815212,0.00619127,False,0.815827,0.00791643,False,0.814138,0.00695618,False,0.814211,0.0100285,False
+core_fo,0.894881,0.894414,0.000486498,False,0.894515,0.000944286,False,0.894515,0.000944321,False,0.894503,0.000869513,False
+step_fo,0.85,0.849375,0.000592401,False,0.849216,0.00120842,False,0.849216,0.00120839,False,0.849226,0.00110956,False

@@ -1,0 +1,4 @@
+profile,method,best_days,median_days,low_days,high_days,ic_share,runs,warnings
+AZ18 WHT06_ol43_prof 1,nested,1.15374,1.20883,1.07704,1.39322,0.500662,24991,
+Xenocryst_ol6_prof_1,nested,0.070262,0.0848634,0.0699262,0.112417,0.539556,26453,"the best step1_um is at the edge of its prior; the data favour values beyond it, so the range may be cut short"
+AZ18 WHT06_ol48_prof 1,laplace,3.22883,3.25146,2.88255,3.71266,0.435905,1163,

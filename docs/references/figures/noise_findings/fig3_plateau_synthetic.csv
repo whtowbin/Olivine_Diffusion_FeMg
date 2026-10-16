@@ -1,0 +1,257 @@
+case,plateau_l,n,domain,model,trials,bias_pct,cov1,cov2,width1_pct
+core +0.1,3,22,fixed,default,500,-9.5,43.4,82.6,15.3563
+core +0.1,3,22,fixed,default free core,500,0,65.4,95,17.6889
+core +0.1,3,22,fixed,near-step,500,-9.75,39.8,81.2,15.0199
+core +0.1,3,22,fixed,white,500,-11.25,22.2,65.8,12.5968
+core +0.1,3,22,fixed,white free core,500,0,63.2,94.2,16.587
+core +0.1,3,22,to last point,default,500,-8.5,46.8,84.4,15.0335
+core +0.1,3,22,to last point,near-step,500,-9,43.6,82.6,14.8422
+core +0.1,3,22,to last point,white,500,-10.25,30,73.6,12.9745
+core +0.1,5,30,fixed,default,500,-6.75,59.8,91.2,16.7816
+core +0.1,5,30,fixed,default free core,500,0.25,66.4,94.8,14.6989
+core +0.1,5,30,fixed,near-step,500,-6.75,59.4,90.8,16.8783
+core +0.1,5,30,fixed,white,500,-11.75,19.2,66,13.0815
+core +0.1,5,30,fixed,white free core,500,0.25,64.8,92.8,13.9916
+core +0.1,5,30,to last point,default,500,-6.75,59.4,91.2,16.7861
+core +0.1,5,30,to last point,near-step,500,-6.75,59,90.8,16.8839
+core +0.1,5,30,to last point,white,500,-11.75,19.2,66,13.0853
+core +0.1,10,50,fixed,default,500,-5.375,55.2,89.6,14.0188
+core +0.1,10,50,fixed,default free core,500,0.625,65.2,95.4,13.8472
+core +0.1,10,50,fixed,near-step,500,-5.25,55.2,89.8,14.0156
+core +0.1,10,50,fixed,white,500,-11.75,21.4,72.6,14.0898
+core +0.1,10,50,fixed,white free core,500,0.5,62.2,94.4,13.0518
+core +0.1,10,50,to last point,default,500,-5.375,55.2,89.6,14.0188
+core +0.1,10,50,to last point,near-step,500,-5.25,55.2,89.8,14.0156
+core +0.1,10,50,to last point,white,500,-11.75,21.4,72.6,14.0898
+core +0.1,20,90,fixed,default,500,-5.875,53.2,85.6,12.8116
+core +0.1,20,90,fixed,default free core,500,0.75,68.4,96,13.5468
+core +0.1,20,90,fixed,near-step,500,-5.75,53.6,86,12.8116
+core +0.1,20,90,fixed,white,500,-11.75,23.8,74,14.8034
+core +0.1,20,90,fixed,white free core,500,0.75,66.2,96,12.8825
+core +0.1,20,90,to last point,default,500,-5.875,53.2,85.6,12.8116
+core +0.1,20,90,to last point,near-step,500,-5.75,53.6,86,12.8116
+core +0.1,20,90,to last point,white,500,-11.75,23.8,74,14.8034
+core +0.2,3,22,fixed,default,500,-13.625,40.2,85,20.9509
+core +0.2,3,22,fixed,default free core,500,0,65.6,95,17.0992
+core +0.2,3,22,fixed,near-step,500,-14,38.2,83.4,20.8476
+core +0.2,3,22,fixed,white,500,-20.5,0.6,23.8,14.159
+core +0.2,3,22,fixed,white free core,500,0,63.4,94.2,16.0581
+core +0.2,3,22,to last point,default,500,-12.75,41.2,84.6,19.4957
+core +0.2,3,22,to last point,near-step,500,-13.25,38.8,83,19.2583
+core +0.2,3,22,to last point,white,500,-19.25,2.6,34.8,14.6232
+core +0.2,5,30,fixed,default,500,-9.25,63.2,94,23.3208
+core +0.2,5,30,fixed,default free core,500,0.25,66.4,94.8,14.3254
+core +0.2,5,30,fixed,near-step,500,-9.25,63.6,94,23.399
+core +0.2,5,30,fixed,white,500,-21.25,0.4,26.8,16.0673
+core +0.2,5,30,fixed,white free core,500,0.25,64.8,93,13.6362
+core +0.2,5,30,to last point,default,500,-9.25,63.4,94.2,23.3462
+core +0.2,5,30,to last point,near-step,500,-9.25,63.6,94.2,23.4196
+core +0.2,5,30,to last point,white,500,-21.25,0.4,26.8,16.0735
+core +0.2,10,50,fixed,default,500,-8.625,45.4,83.4,14.7814
+core +0.2,10,50,fixed,default free core,500,0.5,65.2,95.6,13.5163
+core +0.2,10,50,fixed,near-step,500,-8.5,46,83.6,14.8523
+core +0.2,10,50,fixed,white,500,-21.25,0.8,45.8,18.2889
+core +0.2,10,50,fixed,white free core,500,0.5,62.2,94.6,12.7433
+core +0.2,10,50,to last point,default,500,-8.625,45.4,83.4,14.7814
+core +0.2,10,50,to last point,near-step,500,-8.5,46,83.6,14.8523
+core +0.2,10,50,to last point,white,500,-21.25,0.8,45.8,18.2889
+core +0.2,20,90,fixed,default,500,-10.75,27.6,64.8,12.5826
+core +0.2,20,90,fixed,default free core,500,0.75,68.4,96,13.2198
+core +0.2,20,90,fixed,near-step,500,-10.75,28,65.4,12.5904
+core +0.2,20,90,fixed,white,500,-21.25,1.8,57,19.7122
+core +0.2,20,90,fixed,white free core,500,0.75,66.2,96,12.5654
+core +0.2,20,90,to last point,default,500,-10.75,27.6,64.8,12.5826
+core +0.2,20,90,to last point,near-step,500,-10.75,28,65.4,12.5904
+core +0.2,20,90,to last point,white,500,-21.25,1.8,57,19.7122
+near-step 0.4,3,22,fixed,default,500,2.5,73,96.6,50.0861
+near-step 0.4,3,22,fixed,default free core,500,5.25,63,94,67.8943
+near-step 0.4,3,22,fixed,near-step,500,1.5,79,98.2,36.3218
+near-step 0.4,3,22,fixed,white,500,3,54.4,86.8,31.1133
+near-step 0.4,3,22,fixed,white free core,500,5.375,43,77.8,42.3594
+near-step 0.4,3,22,to last point,default,500,2.75,71.8,95.6,53.9212
+near-step 0.4,3,22,to last point,near-step,500,3,77.4,97,43.0929
+near-step 0.4,3,22,to last point,white,500,3.875,53.2,83.6,33.4086
+near-step 0.4,5,30,fixed,default,500,2.75,67.2,93.6,42.5579
+near-step 0.4,5,30,fixed,default free core,500,3.5,65,92.4,49.1479
+near-step 0.4,5,30,fixed,near-step,500,1.75,79.8,97.6,34.122
+near-step 0.4,5,30,fixed,white,500,2.75,48.4,80,26.8296
+near-step 0.4,5,30,fixed,white free core,500,4.125,44.8,78,32.5719
+near-step 0.4,5,30,to last point,default,500,2.75,67,93.6,42.4407
+near-step 0.4,5,30,to last point,near-step,500,1.75,79.8,97.8,34.1262
+near-step 0.4,5,30,to last point,white,500,2.75,48.2,80,26.837
+near-step 0.4,10,50,fixed,default,500,2.75,55.8,87.6,33.1225
+near-step 0.4,10,50,fixed,default free core,500,3,54.2,86.6,35.5836
+near-step 0.4,10,50,fixed,near-step,500,1.75,78.4,97.8,33.326
+near-step 0.4,10,50,fixed,white,500,2.75,41.8,71.8,22.2345
+near-step 0.4,10,50,fixed,white free core,500,2.5,40.2,71.6,24.2402
+near-step 0.4,10,50,to last point,default,500,2.75,55.8,87.6,33.1225
+near-step 0.4,10,50,to last point,near-step,500,1.75,78.4,97.8,33.326
+near-step 0.4,10,50,to last point,white,500,2.75,41.8,71.8,22.2345
+near-step 0.4,20,90,fixed,default,500,2.75,46.4,76,25.6326
+near-step 0.4,20,90,fixed,default free core,500,2.625,47,76,26.0907
+near-step 0.4,20,90,fixed,near-step,500,1.75,77,97.4,32.3692
+near-step 0.4,20,90,fixed,white,500,2.75,36.4,63.4,18.7399
+near-step 0.4,20,90,fixed,white free core,500,2.5,36.2,63.6,19.0966
+near-step 0.4,20,90,to last point,default,500,2.75,46.4,76,25.6326
+near-step 0.4,20,90,to last point,near-step,500,1.75,77,97.4,32.3692
+near-step 0.4,20,90,to last point,white,500,2.75,36.4,63.4,18.7399
+near-step 1.2,3,22,fixed,default,500,8.625,71.4,93.6,144.668
+near-step 1.2,3,22,fixed,default free core,500,15.375,68.2,92,181.04
+near-step 1.2,3,22,fixed,near-step,500,5,77.2,91.6,82.2493
+near-step 1.2,3,22,fixed,white,500,8.25,50.2,82.4,83.1254
+near-step 1.2,3,22,fixed,white free core,500,17.125,44.4,80.8,106.044
+near-step 1.2,3,22,to last point,default,500,9.5,67.4,93.2,169.141
+near-step 1.2,3,22,to last point,near-step,500,7.625,71.6,91.4,109.81
+near-step 1.2,3,22,to last point,white,500,11.125,47,77.6,90.9144
+near-step 1.2,5,30,fixed,default,500,7.375,65.8,91.2,118.593
+near-step 1.2,5,30,fixed,default free core,500,11.5,63.2,89.6,161.566
+near-step 1.2,5,30,fixed,near-step,500,5.25,78.2,92.2,71.2785
+near-step 1.2,5,30,fixed,white,500,8.125,42.2,74.6,69.264
+near-step 1.2,5,30,fixed,white free core,500,11.375,40.8,74.2,95.5431
+near-step 1.2,5,30,to last point,default,500,7.375,65.8,91.2,118.418
+near-step 1.2,5,30,to last point,near-step,500,5.125,77.4,92.2,71.6913
+near-step 1.2,5,30,to last point,white,500,8.125,42.2,74.4,69.1878
+near-step 1.2,10,50,fixed,default,500,8,53.6,84.4,87.6644
+near-step 1.2,10,50,fixed,default free core,500,6.875,53.6,83.6,96.5994
+near-step 1.2,10,50,fixed,near-step,500,5.375,75,90.6,64.3703
+near-step 1.2,10,50,fixed,white,500,8.125,35,63.4,52.5373
+near-step 1.2,10,50,fixed,white free core,500,8.125,32.2,63.8,57.3072
+near-step 1.2,10,50,to last point,default,500,8,53.6,84.4,87.6644
+near-step 1.2,10,50,to last point,near-step,500,5.375,75,90.6,64.3703
+near-step 1.2,10,50,to last point,white,500,8.125,35,63.4,52.5373
+near-step 1.2,20,90,fixed,default,500,8.375,39.6,70.8,65.1529
+near-step 1.2,20,90,fixed,default free core,500,7.25,41.6,71.8,68.254
+near-step 1.2,20,90,fixed,near-step,500,5.5,71.2,90.4,58.9362
+near-step 1.2,20,90,fixed,white,500,8.125,25.4,50.6,39.5644
+near-step 1.2,20,90,fixed,white free core,500,8.75,25.2,51,41.6762
+near-step 1.2,20,90,to last point,default,500,8.375,39.6,70.8,65.1529
+near-step 1.2,20,90,to last point,near-step,500,5.5,71.2,90.4,58.9362
+near-step 1.2,20,90,to last point,white,500,8.125,25.4,50.6,39.5644
+plateau slope,3,22,fixed,default,500,-2,68.6,95,13.8769
+plateau slope,3,22,fixed,default free core,500,-0.25,66.6,95.6,18.6136
+plateau slope,3,22,fixed,near-step,500,-2,66.2,94.8,13.9509
+plateau slope,3,22,fixed,white,500,-2.25,63.6,93.6,12.8394
+plateau slope,3,22,fixed,white free core,500,-0.25,62.6,94.6,17.5982
+plateau slope,3,22,to last point,default,500,-1.25,68.2,95.4,14.373
+plateau slope,3,22,to last point,near-step,500,-1.25,67.6,95.8,14.4962
+plateau slope,3,22,to last point,white,500,-1.25,65.6,95,13.5815
+plateau slope,5,30,fixed,default,500,-1.875,70,94.6,14.5493
+plateau slope,5,30,fixed,default free core,500,2,63.8,94.4,15.2521
+plateau slope,5,30,fixed,near-step,500,-1.75,70.6,95,14.6548
+plateau slope,5,30,fixed,white,500,-2.5,62.8,93.6,12.7742
+plateau slope,5,30,fixed,white free core,500,2,59.2,93.6,14.2412
+plateau slope,5,30,to last point,default,500,-1.875,70,94.4,14.5521
+plateau slope,5,30,to last point,near-step,500,-1.75,70.6,94.8,14.6536
+plateau slope,5,30,to last point,white,500,-2.5,62.8,93.6,12.7771
+plateau slope,10,50,fixed,default,500,0.25,69.8,95.2,15.0017
+plateau slope,10,50,fixed,default free core,500,5.5,57.6,90,15.5341
+plateau slope,10,50,fixed,near-step,500,0.25,70.2,95.6,15.0897
+plateau slope,10,50,fixed,white,500,-2.5,69.6,96.8,14.1875
+plateau slope,10,50,fixed,white free core,500,6,50.8,86.6,14.5105
+plateau slope,10,50,to last point,default,500,0.25,69.8,95.2,15.0017
+plateau slope,10,50,to last point,near-step,500,0.25,70.2,95.6,15.0897
+plateau slope,10,50,to last point,white,500,-2.5,69.6,96.8,14.1875
+plateau slope,20,90,fixed,default,500,0.625,67.2,95.2,13.9676
+plateau slope,20,90,fixed,default free core,500,8.75,45,84.6,16.8155
+plateau slope,20,90,fixed,near-step,500,0.75,67.2,95.2,14.0152
+plateau slope,20,90,fixed,white,500,-2.5,82.4,99.6,18.6714
+plateau slope,20,90,fixed,white free core,500,14.5,23.6,59.4,17.2684
+plateau slope,20,90,to last point,default,500,0.625,67.2,95.2,13.9676
+plateau slope,20,90,to last point,near-step,500,0.75,67.2,95.2,14.0152
+plateau slope,20,90,to last point,white,500,-2.5,82.4,99.6,18.6714
+smooth L=10,3,22,fixed,default,500,-6.5,51.6,80.2,86.2374
+smooth L=10,3,22,fixed,default free core,500,-4.875,50.6,81,92.0453
+smooth L=10,3,22,fixed,near-step,500,-4.625,49.2,78.4,80.1523
+smooth L=10,3,22,fixed,white,500,-2.125,26.4,46.6,36.4282
+smooth L=10,3,22,fixed,white free core,500,1.25,24.6,48.6,39.9213
+smooth L=10,3,22,to last point,default,500,-8.625,52.2,81.6,85.9617
+smooth L=10,3,22,to last point,near-step,500,-8.625,49.4,79.8,83.8261
+smooth L=10,3,22,to last point,white,500,-3.875,28.2,49,40.0415
+smooth L=10,5,30,fixed,default,500,-6.5,55.8,84.8,90.3377
+smooth L=10,5,30,fixed,default free core,500,-6.125,49.8,82.6,92.2336
+smooth L=10,5,30,fixed,near-step,500,-5.875,53.2,84.6,90.4167
+smooth L=10,5,30,fixed,white,500,-1.375,27.2,49.8,37.644
+smooth L=10,5,30,fixed,white free core,500,1.75,23.2,48,38.3994
+smooth L=10,5,30,to last point,default,500,-6.375,56,84.8,90.427
+smooth L=10,5,30,to last point,near-step,500,-5.875,53.8,84,90.889
+smooth L=10,5,30,to last point,white,500,-1.875,27.6,49.6,37.18
+smooth L=10,10,50,fixed,default,500,-6.625,58,87.4,98.8626
+smooth L=10,10,50,fixed,default free core,500,-4.375,54.8,85.2,97.3696
+smooth L=10,10,50,fixed,near-step,500,-7,59.8,87.2,101.891
+smooth L=10,10,50,fixed,white,500,-1.375,26.2,52.4,40.736
+smooth L=10,10,50,fixed,white free core,500,-0.375,24.6,46.2,36.8112
+smooth L=10,10,50,to last point,default,500,-6.625,58,87.4,98.8625
+smooth L=10,10,50,to last point,near-step,500,-7,59.8,87.2,101.894
+smooth L=10,10,50,to last point,white,500,-1.375,26.2,52.4,40.736
+smooth L=10,20,90,fixed,default,500,-5.875,61.4,90.8,110.169
+smooth L=10,20,90,fixed,default free core,500,-2.875,58.4,89,108.032
+smooth L=10,20,90,fixed,near-step,500,-6.625,63,90.8,113.647
+smooth L=10,20,90,fixed,white,500,-1.375,28.4,53.4,42.643
+smooth L=10,20,90,fixed,white free core,500,-0.375,26.2,50.4,39.7299
+smooth L=10,20,90,to last point,default,500,-5.875,61.4,90.8,110.169
+smooth L=10,20,90,to last point,near-step,500,-6.625,63,90.8,113.647
+smooth L=10,20,90,to last point,white,500,-1.375,28.4,53.4,42.643
+smooth L=3,3,22,fixed,default,500,4.75,70.2,94.4,91.1933
+smooth L=3,3,22,fixed,default free core,500,7.5,67.4,95.6,123.121
+smooth L=3,3,22,fixed,near-step,500,5,67.2,92.4,86.6855
+smooth L=3,3,22,fixed,white,500,3.375,45.6,77.6,51.482
+smooth L=3,3,22,fixed,white free core,500,7.5,48,77.2,67.3986
+smooth L=3,3,22,to last point,default,500,6,69.4,93.6,104.336
+smooth L=3,3,22,to last point,near-step,500,6.5,67.6,93,103.898
+smooth L=3,3,22,to last point,white,500,5.75,46.2,78.2,56.5936
+smooth L=3,5,30,fixed,default,500,3.125,71.6,94.6,89.9736
+smooth L=3,5,30,fixed,default free core,500,7.375,66.4,95,110.456
+smooth L=3,5,30,fixed,near-step,500,3.125,70.8,94.4,90.1348
+smooth L=3,5,30,fixed,white,500,3.375,47.4,78.2,51.6315
+smooth L=3,5,30,fixed,white free core,500,9.5,45.2,76.8,61.7746
+smooth L=3,5,30,to last point,default,500,3.25,71,94.2,89.6045
+smooth L=3,5,30,to last point,near-step,500,3,70,94.4,90.6242
+smooth L=3,5,30,to last point,white,500,3.375,47,78.6,52.301
+smooth L=3,10,50,fixed,default,500,3.25,70.4,93.6,90.8521
+smooth L=3,10,50,fixed,default free core,500,6.5,67.8,93.8,92.4197
+smooth L=3,10,50,fixed,near-step,500,3.25,71,94,91.7743
+smooth L=3,10,50,fixed,white,500,3.375,46,79,52.1707
+smooth L=3,10,50,fixed,white free core,500,6.5,43.4,75.8,54.2251
+smooth L=3,10,50,to last point,default,500,3.25,70.4,93.6,90.8521
+smooth L=3,10,50,to last point,near-step,500,3.25,71,94,91.7743
+smooth L=3,10,50,to last point,white,500,3.375,46,79,52.1707
+smooth L=3,20,90,fixed,default,500,3,69.6,94.2,90.7041
+smooth L=3,20,90,fixed,default free core,500,5.125,68,95,91.6294
+smooth L=3,20,90,fixed,near-step,500,2.625,71,94.6,92.727
+smooth L=3,20,90,fixed,white,500,3.375,47.6,80.2,52.3322
+smooth L=3,20,90,fixed,white free core,500,4.625,43.8,78,54.0428
+smooth L=3,20,90,to last point,default,500,3,69.6,94.2,90.7041
+smooth L=3,20,90,to last point,near-step,500,2.625,71,94.6,92.727
+smooth L=3,20,90,to last point,white,500,3.375,47.6,80.2,52.3322
+white,3,22,fixed,default,500,0.5,69.6,96.8,14.1847
+white,3,22,fixed,default free core,500,0,65.2,95,18.1221
+white,3,22,fixed,near-step,500,0.5,68.6,96.8,14.325
+white,3,22,fixed,white,500,0.5,65.8,96.2,13.2676
+white,3,22,fixed,white free core,500,0,62.8,94,17.0102
+white,3,22,to last point,default,500,1,68.4,96.4,15.0392
+white,3,22,to last point,near-step,500,1.125,68,96.8,15.1485
+white,3,22,to last point,white,500,1.25,65,95.2,14.0668
+white,5,30,fixed,default,500,0.5,69,95.8,13.8597
+white,5,30,fixed,default free core,500,0.25,66.4,94.8,15.0869
+white,5,30,fixed,near-step,500,0.5,68.8,96,14.064
+white,5,30,fixed,white,500,0.5,65.4,95.2,13.0414
+white,5,30,fixed,white free core,500,0.25,64.6,92.8,14.3417
+white,5,30,to last point,default,500,0.5,69.2,95.6,13.8622
+white,5,30,to last point,near-step,500,0.5,69,96,14.0674
+white,5,30,to last point,white,500,0.5,65.4,95.2,13.0389
+white,10,50,fixed,default,500,0.5,68.4,96,13.8214
+white,10,50,fixed,default free core,500,0.625,65.2,95.4,14.1877
+white,10,50,fixed,near-step,500,0.5,68.8,96.2,14.2311
+white,10,50,fixed,white,500,0.5,65.6,95.6,13.069
+white,10,50,fixed,white free core,500,0.5,62.2,94.4,13.3756
+white,10,50,to last point,default,500,0.5,68.4,96,13.8214
+white,10,50,to last point,near-step,500,0.5,68.8,96.2,14.2311
+white,10,50,to last point,white,500,0.5,65.6,95.6,13.069
+white,20,90,fixed,default,500,0.5,68.2,95.2,13.7379
+white,20,90,fixed,default free core,500,0.75,68.4,95.8,13.8963
+white,20,90,fixed,near-step,500,0.375,69.8,95.4,13.9875
+white,20,90,fixed,white,500,0.5,66.2,95.8,13.0797
+white,20,90,fixed,white free core,500,0.75,66.2,96,13.2042
+white,20,90,to last point,default,500,0.5,68.2,95.2,13.7379
+white,20,90,to last point,near-step,500,0.375,69.8,95.4,13.9875
+white,20,90,to last point,white,500,0.5,66.2,95.8,13.0797

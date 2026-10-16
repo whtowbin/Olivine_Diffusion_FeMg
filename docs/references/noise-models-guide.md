@@ -5,7 +5,10 @@ FORSTER reports, what different kinds of misfit look like, and what to do about 
 The method itself is in [likelihood-method.md](likelihood-method.md). The tests behind
 the numbers here are in
 [the whitening-validity study](../plans/2026-10-15-whitening-validity/README.md).
-The figures are made by `figures/noise_models/make_figures.py`.
+The figures are made by `figures/noise_models/make_figures.py`. What was tested and
+found, including fitting the starting profile and plateau length, is summarised in
+[noise-model-findings.md](noise-model-findings.md); advice for collecting and fitting
+profiles is collected in [practical-advice.md](../guide/practical-advice.md).
 
 ## 1. Terms
 
@@ -43,8 +46,10 @@ The figures are made by `figures/noise_models/make_figures.py`.
 | `near_step_daic` | AIC change when the misfit is allowed to be larger near the steps | Below −6: FORSTER warns that the misfit is concentrated near the step (section 3.5). Around +2: no sign of it (+2 is the cost of the unused parameter). |
 | `time_days`, `low_days`, `high_days` | best fit and 1σ range | |
 | `low2_days`, `high2_days` | 2σ range | Quote this when a warning fires. |
+| `core_end_diffusion_lengths` | distance from the last step to the model's core end (the last measured point), in diffusion lengths | Below 3: FORSTER warns that the core boundary, where the core Fo is held, is close enough to move the fit. Measure further into the core. |
+| `scan_near_step_daic` | `near_step_daic` at the best-fit starting profile (when the starting profile is fitted) | Fitting the starting profile usually clears a near-step warning. Still below −6: quote the 2σ range. |
 
-FORSTER issues two warnings about the noise:
+FORSTER issues these warnings about the noise and the profile:
 - **"the misfit is concentrated near the step"** when `near_step_daic` < −6. In the
   study it fired in at most 0.2% of synthetic fits whose noise model was right, and in
   76–94% of fits with strong misfit near the step on 29- and 298-point profiles. On a
@@ -52,6 +57,13 @@ FORSTER issues two warnings about the noise:
   evidence. It fires on 7 of the 36 real profiles tested.
 - **"the misfit spans the profile"** when L reaches half the profile and a is at least
   half of s. Check the initial and boundary conditions.
+- **"even at the best-fit initial condition the misfit is concentrated near the step"**
+  after a starting-profile fit, when `scan_near_step_daic` < −6. On the three paper
+  profiles and the round robin profile tested, fitting the starting profile cleared the
+  near-step warning; if it does not, the starting-profile model may be missing something
+  (a step that is not sharp, growth while diffusing). Quote the 2σ range.
+- **"the profile ends ... diffusion lengths past the last step"** when
+  `core_end_diffusion_lengths` < 3.
 
 ## 3. What each kind of misfit looks like
 
@@ -197,7 +209,8 @@ range is the honest quote.**
 | a > 0, L well below l, white z | smooth misfit the model handles | Nothing. Quote the 1σ range. |
 | L about l | misfit the size of the diffusion front, which trades off with time | Quote the 2σ range. Check the initial condition near the step. |
 | L several times l, or the "misfit spans the profile" warning | wrong initial or boundary condition | Check core, edge and plateau Fo and the step position against the data. Give them uncertainties (`core_fo_sd`, `steps_sd_um`, …) so FORSTER fits them (`scan_method`, default auto), then quote `scan_low_days`–`scan_high_days`. |
-| `near_step_daic` < −6 (warning) | misfit concentrated near the step | Look at the residuals in the near-step zone. Check whether the step is sharp, flat-topped and in the right place; fit its position with `steps_sd_um`. Quote the 2σ range (`low2_days`–`high2_days`). |
+| `near_step_daic` < −6 (warning) | misfit concentrated near the step: usually a starting profile not quite right | Fit the starting profile first: give the step positions and the edge, plateau and core Fo uncertainties (`steps_sd_um`, `edge_fo_sd`, …) and use `scan_method` (default auto). That cleared the warning on the four profiles tested and moved WHT06_ol43 by −40%. Check the fitted values: one at the edge of its prior means the starting-profile shape itself is wrong (Xenocryst_ol6). If `scan_near_step_daic` is still below −6, quote the 2σ range (`low2_days`–`high2_days`). |
+| `core_end_diffusion_lengths` < 3 (warning) | the profile stops too close to the step | Measure further into the core. Do not trim plateau points. |
 | One or two isolated large residuals, s above your analytical precision | outliers | Check those analyses. Remove only those with a known fault, and refit. |
 | Scatter visibly larger near the rim | noise growing toward the rim | Quote the 2σ range. |
 

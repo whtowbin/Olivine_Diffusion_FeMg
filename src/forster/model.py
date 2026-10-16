@@ -1199,8 +1199,9 @@ def _near_step(stream, fit, initial, conditions, orientation, diffusivity, grid)
             f"AIC by {-check.delta_aic:.1f}): the 1-sigma range is probably too narrow. "
             "The initial condition near the step is probably not quite right: fit it first "
             "(give the step positions and the edge, plateau and core Fo uncertainties; "
-            "scan_method), which removed this misfit on the profiles tested. If the warning "
-            "remains, quote the 2-sigma range (docs/references/noise-models-guide.md)",
+            "scan_method), which cleared the warning on the profiles tested, and check that "
+            "the fitted values are plausible. If it remains, quote the 2-sigma range "
+            "(docs/references/noise-models-guide.md)",
             stacklevel=3,
         )
     return check

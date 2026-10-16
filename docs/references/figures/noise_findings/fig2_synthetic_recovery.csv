@@ -1,0 +1,37 @@
+scenario,noise,scoring,trials,coverage_1s,coverage_2s,bias,rmse,median_half_width
+step off by l/2,white,white,200,0.59,0.915,0.0176084,0.330949,0.271561
+step off by l/2,white,fixedC,200,0.995,1,0.150299,0.684,2.01807
+step off by l/2,white,refitC,200,0.66,0.95,0.0603794,0.427086,0.353982
+step off by l/2,white,profiled,200,0.65,0.97,0.0178475,0.363077,0.308755
+step off by l/2,white + sqexp L=3,white,200,0.4,0.675,-0.139359,2.49914,1.09921
+step off by l/2,white + sqexp L=3,fixedC,200,0.74,0.945,-0.0722172,2.53482,2.64614
+step off by l/2,white + sqexp L=3,refitC,200,0.59,0.895,-0.102259,2.52214,1.8457
+step off by l/2,white + sqexp L=3,profiled,200,0.58,0.9,-0.01007,2.72206,1.89331
+step off by l/2,white + sqexp L=10,white,200,0.18,0.365,-0.0701956,3.71675,0.837966
+step off by l/2,white + sqexp L=10,fixedC,200,0.635,0.86,0.218907,4.0122,3.34361
+step off by l/2,white + sqexp L=10,refitC,200,0.48,0.775,0.18476,3.90109,2.22013
+step off by l/2,white + sqexp L=10,profiled,200,0.42,0.8,0.126073,4.59375,1.99233
+edge Fo off 0.5 mol%,white,white,200,0.635,0.925,-2.09562e-05,0.000432869,0.000356118
+edge Fo off 0.5 mol%,white,fixedC,200,0.965,1,0.000183811,0.00100799,0.00216804
+edge Fo off 0.5 mol%,white,refitC,200,0.755,0.96,4.57484e-05,0.000571078,0.000508062
+edge Fo off 0.5 mol%,white,profiled,200,0.69,0.99,-2.6188e-05,0.000462019,0.000429617
+edge Fo off 0.5 mol%,white + sqexp L=3,white,200,0.385,0.7,1.70632e-05,0.00274602,0.00145195
+edge Fo off 0.5 mol%,white + sqexp L=3,fixedC,200,0.735,0.965,0.000124802,0.00267811,0.00281478
+edge Fo off 0.5 mol%,white + sqexp L=3,refitC,200,0.62,0.91,8.17888e-05,0.0026722,0.00228436
+edge Fo off 0.5 mol%,white + sqexp L=3,profiled,200,0.63,0.93,0.000117201,0.00276403,0.0024233
+edge Fo off 0.5 mol%,white + sqexp L=10,white,200,0.19,0.405,3.81816e-05,0.00435019,0.00110131
+edge Fo off 0.5 mol%,white + sqexp L=10,fixedC,200,0.71,0.925,0.000277922,0.00343871,0.00372287
+edge Fo off 0.5 mol%,white + sqexp L=10,refitC,200,0.59,0.815,7.94639e-05,0.00361015,0.00285166
+edge Fo off 0.5 mol%,white + sqexp L=10,profiled,200,0.635,0.89,8.05894e-05,0.0037396,0.00317374
+control: nominal correct (step),white,white,200,0.59,0.915,0.0176084,0.330949,0.271561
+control: nominal correct (step),white,fixedC,200,0.725,1,0.0242819,0.300952,0.308142
+control: nominal correct (step),white,refitC,200,0.635,0.94,0.0204313,0.326289,0.288776
+control: nominal correct (step),white,profiled,200,0.65,0.97,0.0178475,0.363077,0.308755
+control: nominal correct (step),white + sqexp L=3,white,200,0.4,0.675,-0.139359,2.49914,1.09921
+control: nominal correct (step),white + sqexp L=3,fixedC,200,0.605,0.94,-0.126989,2.50732,1.98597
+control: nominal correct (step),white + sqexp L=3,refitC,200,0.595,0.9,-0.129828,2.50648,1.8457
+control: nominal correct (step),white + sqexp L=3,profiled,200,0.58,0.9,-0.01007,2.72206,1.89331
+control: nominal correct (step),white + sqexp L=10,white,200,0.18,0.365,-0.0701956,3.71675,0.837966
+control: nominal correct (step),white + sqexp L=10,fixedC,200,0.57,0.955,0.00121907,3.72292,2.62858
+control: nominal correct (step),white + sqexp L=10,refitC,200,0.485,0.795,0.0616357,3.86572,2.20726
+control: nominal correct (step),white + sqexp L=10,profiled,200,0.42,0.8,0.126073,4.59375,1.99233
