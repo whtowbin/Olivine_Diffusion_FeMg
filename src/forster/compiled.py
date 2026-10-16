@@ -61,11 +61,12 @@ def explicit_stepper(
 
 
 def implicit_stepper(
-    D: object, rim: Rim, core: float, dt_s: float, x_um: np.ndarray, t0_s: float = 0.0
+    D: object, rim: Rim, core: float | None, dt_s: float, x_um: np.ndarray, t0_s: float = 0.0
 ) -> Advance | None:
-    """The compiled `forster.implicit.stepper`, or None if it cannot be compiled."""
+    """The compiled `forster.implicit.stepper`, or None if it cannot be compiled (or the
+    far end is free, ``core=None``, which only the NumPy stepper has)."""
     params = _parameters(D)
-    if params is None or _kernels is None:
+    if params is None or _kernels is None or core is None:
         return None
     kernels = _kernels
     h, w = grid_geometry(np.asarray(x_um, dtype=float))

@@ -5,13 +5,15 @@ Three parameter-table layouts are recognised from their columns:
 
 - template (written by ``forster template``; the column guide is
   `forster.template.PARAMETER_COLUMNS`): the Python API's names with units, Fo as
-  a fraction, ``steps_um`` and ``step_fo`` for the initial condition. Orientation
+  a fraction, ``steps_um`` and ``segment_fo`` for the initial condition (the old
+  ``edge_fo``, ``core_fo``, ``step_fo`` and ``rim_fo`` are read until the release, with
+  a `RenamedColumnWarning`), optional ``segment_names`` and ``centre_um``. Orientation
   is ``alpha_deg``, ``beta_deg``, ``gamma_deg`` or EBSD Euler angles ``phi1_deg``,
   ``Phi_deg``, ``phi2_deg`` with ``profile_angle_deg``; fO2 is ``fO2_Pa`` or
-  ``fO2_buffer`` with ``fO2_delta_log``. Optional ``rim_fo`` (a fixed rim value other
-  than ``edge_fo``) and growth stages (`STAGE_COLUMNS`, list-valued like ``steps_um``,
-  one entry per `forster.boundary.Stage`) give `fit_profile`'s ``rim_fo`` and
-  ``stages``;
+  ``fO2_buffer`` with ``fO2_delta_log``. Optional ``edge1_fo`` (a fixed edge value other
+  than the first segment's Fo) and growth stages (`STAGE_COLUMNS`, list-valued like
+  ``steps_um``, one entry per `forster.boundary.Stage`) give `fit_profile`'s ``rim_fo``
+  and ``stages``;
 - round robin: ``Sample`` (run name), ``File_Name`` (profile), ``alpha``,
   ``beta``, ``gamma`` (degrees to [100], [010], [001]), ``T_C``, ``P_Pa``,
   ``fO2_Pa``, ``dx_um``, ``dt_s``, optional ``max_model_time_days``;
@@ -74,6 +76,7 @@ from forster.model import (
     Orientation,
     Profile,
     default_scheme,
+    default_segment_names,
     fit_profile,
 )
 from forster.rescale import ConditionUncertainty, TimeDistribution, monte_carlo
@@ -84,6 +87,7 @@ from forster.scan import (
     ScanResult,
     Uncertainty,
     candidate_grid,
+    resolve_names,
     scan_initial_conditions,
 )
 from forster.template import PARAMETER_COLUMNS, SUMMARY_COLUMNS
@@ -110,8 +114,6 @@ TEMPLATE_COLUMNS = {
     "domain_start_um",
     "domain_end_um",
     "steps_um",
-    "edge_fo",
-    "core_fo",
 }
 # Template rows give each of these in one of two forms (see _pick_form).
 ORIENTATION_FORMS = (
@@ -124,10 +126,30 @@ FO2_FORMS = (("fO2_Pa",), ("fO2_buffer", "fO2_delta_log"))
 # steps or a list, one per step ("2, 5"); 0 or empty leaves a parameter fixed.
 UNCERTAINTY_COLUMNS = (
     ("steps", "steps_sd_um", "steps_range_um"),
+    ("segments", "segment_fo_sd", "segment_fo_range"),
+)
+# Old half-profile names, read until the release (with a RenamedColumnWarning): the Fo
+# of the first, last and middle segment and their uncertainties, and the held edge value.
+OLD_FO_COLUMNS = ("edge_fo", "core_fo", "step_fo")
+OLD_UNCERTAINTY_COLUMNS = (
     ("edge_fo", "edge_fo_sd", "edge_fo_range"),
     ("core_fo", "core_fo_sd", "core_fo_range"),
     ("step_fo", "step_fo_sd", "step_fo_range"),
 )
+RENAMED_COLUMNS = {
+    "edge_fo": "segment_fo (first value)",
+    "core_fo": "segment_fo (last value)",
+    "step_fo": "segment_fo (middle value)",
+    "rim_fo": "edge1_fo",
+    **{c: "segment_fo_sd" for _, c, _ in OLD_UNCERTAINTY_COLUMNS},
+    **{c: "segment_fo_range" for _, _, c in OLD_UNCERTAINTY_COLUMNS},
+}
+
+
+class RenamedColumnWarning(UserWarning):
+    """A parameter table uses an old column name; it is read, until the release."""
+
+
 # Growth stages (template layout): list-valued like steps_um, one entry per stage, as
 # `forster.boundary.Stage` (start in days, new rim position, new zone's Fo, rim Fo).
 # The first two are needed for every stage; an empty entry in the others is None.
@@ -172,8 +194,8 @@ class Run:
     diffusivity: Diffusivity
     scheme: str = DEFAULT_SCHEME
     uncertainty: str = "correlated"
-    # Growth stages after ``initial`` and the fixed Fo held at the rim (None: edge_fo);
-    # `fit_profile`'s ``stages`` and ``rim_fo``.
+    # Growth stages after ``initial`` and the fixed Fo held at edge 1 (None: the first
+    # segment's Fo; the table's edge1_fo); `fit_profile`'s ``stages`` and ``rim_fo``.
     stages: tuple[Stage, ...] = ()
     rim_fo: float | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
@@ -196,6 +218,14 @@ class Run:
     # these are left out of equality.
     fO2_form: tuple[str, float] | None = field(default=None, compare=False)
     euler_form: tuple[float, float, float, float] | None = field(default=None, compare=False)
+
+    def __post_init__(self) -> None:
+        # Uncertainties by `forster.scan.parameter_names` (a_fo, ...), the old edge_fo,
+        # core_fo and step_fo read as their segments, so equal runs compare equal.
+        if self.uncertainties:
+            object.__setattr__(
+                self, "uncertainties", resolve_names(self.initial, self.uncertainties)
+            )
 
 
 def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
@@ -528,28 +558,64 @@ def _step_uncertainties(
     return {f"step{i + 1}_um": Uncertainty(s, kind) for i, s in enumerate(spreads) if s}
 
 
-def _value_uncertainty(
+def _old_value_uncertainty(
     row: pd.Series, what: str, column: str, kind: str, initial: InitialCondition
 ) -> dict[str, Uncertainty]:
-    """A concentration's uncertainty (edge, core or plateau Fo); 0 leaves it fixed."""
+    """An old-named concentration uncertainty (edge, core or plateau Fo) as its segment's
+    parameter; 0 leaves it fixed."""
     if what == "step_fo" and initial.step_fo is None:
         raise ValueError(f"run {row['run']!r}: {column} needs a plateau (step_fo)")
+    names = initial.segment_names
+    segment = {"edge_fo": names[0], "core_fo": names[-1], "step_fo": names[1 % len(names)]}
     spread = float(row[column])
-    return {what: Uncertainty(spread, kind)} if spread else {}
+    return {f"{segment[what]}_fo": Uncertainty(spread, kind)} if spread else {}
+
+
+def _segment_uncertainties(row: pd.Series, initial: InitialCondition) -> dict[str, Uncertainty]:
+    """``segment_fo_sd`` / ``segment_fo_range``: one value for every segment, or one per
+    segment; an empty entry or 0 leaves a segment fixed, and a segment takes one column."""
+    names = initial.segment_names
+    out: dict[str, Uncertainty] = {}
+    for column, kind in (("segment_fo_sd", "normal"), ("segment_fo_range", "uniform")):
+        values = _number_list(row, column)
+        if values is None:
+            continue
+        if len(values) == 1:
+            values = values * len(names)
+        if len(values) != len(names):
+            raise ValueError(
+                f"run {row['run']!r}: {column} has {len(values)} values for {len(names)} segments"
+            )
+        for name, spread in zip(names, values, strict=True):
+            if not spread:
+                continue
+            if f"{name}_fo" in out:
+                raise ValueError(
+                    f"run {row['run']!r}: segment {name} has both segment_fo_sd and "
+                    "segment_fo_range"
+                )
+            out[f"{name}_fo"] = Uncertainty(spread, kind)
+    return out
 
 
 def _template_uncertainties(row: pd.Series, initial: InitialCondition) -> dict[str, Uncertainty]:
     """The ``_sd`` / ``_range`` columns of a template row, by `forster.scan` parameter name."""
     out: dict[str, Uncertainty] = {}
-    for what, sd_col, range_col in UNCERTAINTY_COLUMNS:
+    source = _uncertainty_source(row, "steps_sd_um", "steps_range_um")
+    if source is not None:
+        out.update(_step_uncertainties(row, *source, initial))
+    out.update(_segment_uncertainties(row, initial))
+    for what, sd_col, range_col in OLD_UNCERTAINTY_COLUMNS:
         source = _uncertainty_source(row, sd_col, range_col)
         if source is None:
             continue
-        column, kind = source
-        if what == "steps":
-            out.update(_step_uncertainties(row, column, kind, initial))
-        else:
-            out.update(_value_uncertainty(row, what, column, kind, initial))
+        for name, u in _old_value_uncertainty(row, what, *source, initial).items():
+            if name in out:
+                raise ValueError(
+                    f"run {row['run']!r}: {source[0]} repeats the uncertainty of {name} "
+                    "(give segment_fo_sd or segment_fo_range only)"
+                )
+            out[name] = u
     return out
 
 
@@ -613,10 +679,55 @@ def _template_stages(row: pd.Series) -> tuple[Stage, ...]:
 
 
 def _template_rim_fo(row: pd.Series) -> float | None:
-    rim_fo = _optional_float(row, "rim_fo")
-    if rim_fo is not None and not (math.isfinite(rim_fo) and 0.0 < rim_fo <= 1.0):
-        raise ValueError(f"run {row['run']!r}: rim_fo {rim_fo} must be a fraction (0-1)")
-    return rim_fo
+    """The Fo held at edge 1: ``edge1_fo`` (or the old ``rim_fo``); None when not given."""
+    given = [c for c in ("edge1_fo", "rim_fo") if _given(row, c)]
+    if len(given) == 2:
+        raise ValueError(f"run {row['run']!r}: give edge1_fo or the old rim_fo, not both")
+    if not given:
+        return None
+    column = given[0]
+    value = float(row[column])
+    if not (math.isfinite(value) and 0.0 < value <= 1.0):
+        raise ValueError(f"run {row['run']!r}: {column} {value} must be a fraction (0-1)")
+    return value
+
+
+def _text_list(row: pd.Series, column: str) -> tuple[str, ...] | None:
+    """A list of labels separated by commas (``"rim, mantle, core"``); None when empty."""
+    if not _given(row, column):
+        return None
+    return tuple(e.strip() for e in str(row[column]).strip().strip("()[]").split(","))
+
+
+def _template_initial(row: pd.Series) -> InitialCondition:
+    """The starting profile of a template row: ``segment_fo`` (or the old ``edge_fo``,
+    ``core_fo``, ``step_fo``), ``steps_um``, ``segment_names`` and ``centre_um``."""
+    name = row["run"]
+    old = [c for c in OLD_FO_COLUMNS if _given(row, c)]
+    segments = _number_list(row, "segment_fo")
+    if segments is not None and old:
+        raise ValueError(f"run {name!r}: give segment_fo or the old {', '.join(old)}, not both")
+    kwargs: dict[str, Any] = {}
+    if segments is not None:
+        if any(v is None for v in segments):
+            raise ValueError(f"run {name!r}: segment_fo needs a value for every segment")
+        kwargs["segment_fo"] = segments
+    elif {"edge_fo", "core_fo"} <= set(old):
+        kwargs |= {"edge_fo": row["edge_fo"], "core_fo": row["core_fo"]}
+        if _given(row, "step_fo"):
+            kwargs["step_fo"] = float(row["step_fo"])
+    else:
+        raise ValueError(f"run {name!r}: give segment_fo (one Fo per segment, from edge 1)")
+    try:
+        return InitialCondition(
+            domain_um=(row["domain_start_um"], row["domain_end_um"]),
+            steps_um=_steps(row["steps_um"]),
+            segment_names=_text_list(row, "segment_names"),
+            centre_um=_optional_float(row, "centre_um"),
+            **kwargs,
+        )
+    except ValueError as error:
+        raise ValueError(f"run {name!r}: {error}") from None
 
 
 def _check_history(
@@ -632,13 +743,7 @@ def _check_history(
 
 
 def _template_run(row: pd.Series, defaults: RunDefaults, custom: Mapping[str, Diffusivity]) -> Run:
-    initial = InitialCondition(
-        domain_um=(row["domain_start_um"], row["domain_end_um"]),
-        edge_fo=row["edge_fo"],
-        core_fo=row["core_fo"],
-        steps_um=_steps(row["steps_um"]),
-        step_fo=float(row["step_fo"]) if _given(row, "step_fo") else None,
-    )
+    initial = _template_initial(row)
     stages, rim_fo = _template_stages(row), _template_rim_fo(row)
     _check_history(row, initial, stages, rim_fo)
     return Run(
@@ -709,11 +814,27 @@ LAYOUTS = (
 def _warn_unknown_columns(path: str | Path, columns: set[str]) -> None:
     """Warn of columns a template (or summary) table does not use: usually a misspelt
     optional column, which would otherwise be ignored without a word."""
-    known = {c.name for c in (*PARAMETER_COLUMNS, *SUMMARY_COLUMNS)} | set(METADATA_COLUMNS)
+    known = (
+        {c.name for c in (*PARAMETER_COLUMNS, *SUMMARY_COLUMNS)}
+        | set(METADATA_COLUMNS)
+        | set(RENAMED_COLUMNS)
+    )
     unknown = sorted(str(c) for c in columns - known if not str(c).startswith("Unnamed:"))
     if unknown:
         warnings.warn(
             f"{path}: column(s) not used by FORSTER (check the spelling): {unknown}",
+            stacklevel=3,
+        )
+
+
+def _warn_renamed_columns(path: str | Path, columns: set[str]) -> None:
+    """One `RenamedColumnWarning` naming every old column a table uses."""
+    old = [c for c in RENAMED_COLUMNS if c in columns]
+    if old:
+        renames = "; ".join(f"{c} -> {RENAMED_COLUMNS[c]}" for c in old)
+        warnings.warn(
+            f"{path}: old column names, read until the release: {renames}",
+            RenamedColumnWarning,
             stacklevel=3,
         )
 
@@ -744,6 +865,7 @@ def read_runs(
     label, _, name_column, make_run = layout
     if label == "Template layout":
         _warn_unknown_columns(path, columns)
+        _warn_renamed_columns(path, columns)
     named = df[df[name_column].notna()]
     duplicates = named[name_column][named[name_column].duplicated()].unique()
     if len(duplicates):
@@ -774,11 +896,25 @@ def _fixed(value: Rim | None) -> float | None:
     )
 
 
+def _initial_columns(initial: InitialCondition) -> dict[str, Any]:
+    """``steps_um``, ``segment_fo`` and, when not the defaults, ``segment_names`` and
+    ``centre_um``, as `read_runs` reads them."""
+    out: dict[str, Any] = {
+        "steps_um": _steps_text(initial.steps_um),
+        "segment_fo": _list_text(list(initial.segment_fo)),
+    }
+    if initial.segment_names != default_segment_names(len(initial.segment_fo)):
+        out["segment_names"] = ", ".join(initial.segment_names)
+    if initial.centre_um is not None:
+        out["centre_um"] = initial.centre_um
+    return out
+
+
 def _boundary_columns(inputs: Mapping[str, Any]) -> dict[str, Any]:
-    """``rim_fo`` and the growth-stage columns (`STAGE_COLUMNS`), as `read_runs` reads them."""
+    """``edge1_fo`` and the growth-stage columns (`STAGE_COLUMNS`), as `read_runs` reads them."""
     stages: tuple[Stage, ...] = inputs.get("stages", ())
     return {
-        "rim_fo": _fixed(inputs.get("rim_fo")),
+        "edge1_fo": _fixed(inputs.get("rim_fo")),
         "stage_days": _list_text([s.start_s / SECONDS_PER_DAY for s in stages]),
         "stage_rim_um": _list_text([s.rim_um for s in stages]),
         "stage_zone_fo": _list_text([s.zone_value for s in stages]),
@@ -843,10 +979,7 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "gamma_deg": orientation.gamma_deg,
         "domain_start_um": initial.domain_um[0],
         "domain_end_um": initial.domain_um[1],
-        "steps_um": _steps_text(initial.steps_um),
-        "edge_fo": initial.edge_fo,
-        "core_fo": initial.core_fo,
-        "step_fo": initial.step_fo,
+        **_initial_columns(initial),
         **_boundary_columns(inputs),
         "dx_um": grid.dx_um,
         "dt_s": grid.dt_s,
@@ -991,13 +1124,25 @@ def _steps_column(run: Run) -> dict[str, Any]:
     return {column: _steps_text(tuple(u.spread if u else 0.0 for u in steps))}
 
 
+def _segment_columns(run: Run) -> dict[str, Any]:
+    """``segment_fo_sd`` and / or ``segment_fo_range``, one entry per segment."""
+    names = run.initial.segment_names
+    given = resolve_names(run.initial, run.uncertainties)
+    out: dict[str, Any] = {}
+    for column, kind in (("segment_fo_sd", "normal"), ("segment_fo_range", "uniform")):
+        spreads = []
+        for name in names:
+            u = given.get(f"{name}_fo")
+            spreads.append(u.spread if u is not None and u.kind == kind else None)
+        text = _list_text(spreads)
+        if text is not None:
+            out[column] = text
+    return out
+
+
 def uncertainty_columns(run: Run) -> dict[str, Any]:
     """A run's uncertainty columns, as `read_runs` reads them (for summary.csv to refit)."""
-    out = _steps_column(run)
-    for what, sd_col, range_col in UNCERTAINTY_COLUMNS[1:]:
-        u = run.uncertainties.get(what)
-        if u is not None:
-            out[sd_col if u.kind == "normal" else range_col] = u.spread
+    out = _steps_column(run) | _segment_columns(run)
     if run.scan_points is not None:
         out["scan_points"] = run.scan_points
     if run.uncertainties:
@@ -1043,10 +1188,7 @@ def run_row(run: Run) -> dict[str, Any]:
         **angles,
         "domain_start_um": initial.domain_um[0],
         "domain_end_um": initial.domain_um[1],
-        "steps_um": _steps_text(initial.steps_um),
-        "edge_fo": initial.edge_fo,
-        "core_fo": initial.core_fo,
-        "step_fo": initial.step_fo,
+        **_initial_columns(initial),
         **_boundary_columns({"stages": run.stages, "rim_fo": run.rim_fo}),
         "dx_um": grid.dx_um,
         "dt_s": grid.dt_s,
@@ -1166,7 +1308,9 @@ def scan_run(
 
 def _check_scannable(run: Run) -> None:
     """`forster.scan` runs each candidate from its initial condition alone."""
-    given = [what for what, used in (("growth stages", run.stages), ("rim_fo", run.rim_fo)) if used]
+    given = [
+        what for what, used in (("growth stages", run.stages), ("edge1_fo", run.rim_fo)) if used
+    ]
     if given:
         raise ValueError(
             f"run {run.name!r}: the initial-condition scan does not model "

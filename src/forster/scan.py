@@ -64,8 +64,9 @@ from forster.model import (
     _run_past_best_fit,
     check_curve_memory,
     fe_mg_diffusivity,
+    initial_grid,
+    measured_points,
     near_step_at_best_initial,
-    scheme_grid,
 )
 from forster.uncertainty import (
     ONE_SIGMA,
@@ -110,19 +111,53 @@ class Uncertainty:
 
 
 def parameter_names(initial: InitialCondition) -> tuple[str, ...]:
-    """Names that `candidate_grid` accepts for ``initial``: step1_um (, step2_um),
-    edge_fo, core_fo, and step_fo if there is a plateau."""
+    """Names of ``initial``'s parameters, as `candidate_grid` and the sampler take them:
+    ``step1_um``, ``step2_um``, ... and ``<segment>_fo`` for each segment (``a_fo``,
+    ``b_fo``, ... by default). The order is the steps, the first segment, the last, then
+    the middle ones (the order of the old edge, core and plateau names, so the fits of
+    earlier runs are unchanged)."""
     steps = tuple(f"step{i + 1}_um" for i in range(len(initial.steps_um)))
-    plateau = ("step_fo",) if initial.step_fo is not None else ()
-    return (*steps, "edge_fo", "core_fo", *plateau)
+    fo = [f"{n}_fo" for n in initial.segment_names]
+    return (*steps, fo[0], fo[-1], *fo[1:-1])
+
+
+def _aliases(initial: InitialCondition) -> dict[str, str]:
+    """The half-profile names: edge_fo (first segment), core_fo (last) and, with three
+    segments, step_fo (the middle one); a segment's own name wins over an alias."""
+    fo = [f"{n}_fo" for n in initial.segment_names]
+    out = {"edge_fo": fo[0], "core_fo": fo[-1]}
+    if len(fo) == 3:
+        out["step_fo"] = fo[1]
+    return {k: v for k, v in out.items() if k not in fo}
+
+
+def resolve_names(
+    initial: InitialCondition, uncertainties: Mapping[str, Uncertainty]
+) -> dict[str, Uncertainty]:
+    """``uncertainties`` keyed by `parameter_names`, the old edge_fo / core_fo / step_fo
+    names read as their segments. Raises for a name ``initial`` does not have."""
+    names, aliases = parameter_names(initial), _aliases(initial)
+    out: dict[str, Uncertainty] = {}
+    unknown = []
+    for key, u in uncertainties.items():
+        name = key if key in names else aliases.get(key)
+        if name is None:
+            unknown.append(key)
+        elif name in out:
+            raise ValueError(f"{key!r} and another name both give {name!r}")
+        else:
+            out[name] = u
+    if unknown:
+        raise ValueError(
+            f"no parameter {sorted(unknown)} in this initial condition; use {list(names)}"
+        )
+    return out
 
 
 def _nominal(initial: InitialCondition, name: str) -> float:
     if name.startswith("step") and name.endswith("_um"):
         return float(initial.steps_um[int(name[4:-3]) - 1])
-    value = getattr(initial, name)
-    assert value is not None
-    return float(value)
+    return float(initial.segment_fo[initial.segment_names.index(name[:-3])])
 
 
 def is_valid(candidate: InitialCondition, domain_um: tuple[float, float]) -> bool:
@@ -137,14 +172,13 @@ def is_valid(candidate: InitialCondition, domain_um: tuple[float, float]) -> boo
 
 
 def _with_values(initial: InitialCondition, values: Mapping[str, float]) -> InitialCondition:
-    steps = list(initial.steps_um)
-    fields = {}
+    steps, fo = list(initial.steps_um), list(initial.segment_fo)
     for name, v in values.items():
         if name.startswith("step") and name.endswith("_um"):
             steps[int(name[4:-3]) - 1] = v
         else:
-            fields[name] = v
-    return replace(initial, steps_um=tuple(steps), **fields)
+            fo[initial.segment_names.index(name[:-3])] = v
+    return replace(initial, steps_um=tuple(steps), segment_fo=tuple(fo))
 
 
 @dataclass(frozen=True)
@@ -180,12 +214,8 @@ def candidate_grid(
     Nodes that make steps leave the domain or cross, or Fo leave (0, 1], are dropped
     and counted. Raises if the grid would exceed ``max_candidates``.
     """
+    uncertainties = resolve_names(initial, uncertainties)
     names = tuple(n for n in parameter_names(initial) if n in uncertainties)
-    unknown = sorted(set(uncertainties) - set(parameter_names(initial)))
-    if unknown:
-        raise ValueError(
-            f"no parameter {unknown} in this initial condition; use {parameter_names(initial)}"
-        )
     if not names:
         raise ValueError("no uncertain parameters given")
     points = points or default_points(len(names))
@@ -361,12 +391,13 @@ def run_candidates(
     if len(domains) != 1:
         raise ValueError(f"candidates must share the model domain, got {sorted(domains)}")
     diffusivity = fe_mg_diffusivity(diffusivity)
-    step_x, dx_um, (low, high) = scheme_grid(
-        scheme, profile.distance_um, grid, candidates[0].domain_um
-    )
+    if len({c.centre_um for c in candidates}) != 1:
+        raise ValueError("candidates must share the crystal centre (centre_um)")
+    measured_x, measured_fo = measured_points(profile, candidates[0])
+    step_x, dx_um, (low, high) = initial_grid(scheme, measured_x, grid, candidates[0])
     model_x = step_x[low : high + 1]
     check_curve_memory(grid.timesteps + 1, len(model_x))
-    x, y = points_in_domain(model_x, profile.distance_um, profile.fo)
+    x, y = points_in_domain(model_x, measured_x, measured_fo)
     W = interpolation_matrix(model_x, x)
     at_points, complete, advances, lasts = [], [], [], []
     explicit = scheme != "implicit"

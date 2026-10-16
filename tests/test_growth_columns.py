@@ -1,4 +1,4 @@
-"""Growth stages and a fixed rim value from the template layout (``rim_fo`` and the
+"""Growth stages and a fixed rim value from the template layout (``edge1_fo`` and the
 ``stage_*`` columns), through `read_runs`, `fit_run`, the scan guard and `forster fit`."""
 
 import subprocess
@@ -17,7 +17,7 @@ DAY = 86400.0
 FORSTER = Path(sys.executable).parent / "forster"
 # The packaged example with a grid given in full (staged runs need one) and a short run.
 GRID = {"dx_um": 1.5, "dt_s": 2000.0, "max_time_days": 20}
-RIM = {"rim_fo": 0.912}
+RIM = {"edge1_fo": 0.912}
 # A crystal from 12 um that grows to 6 um at day 1 (zone Fo 0.913), then to 2.5 um at
 # day 2.5 (zone 0.911) with its rim held at 0.912.
 TWO_STAGES = {
@@ -70,11 +70,12 @@ def _assert_same_fit(a, b):
     np.testing.assert_array_equal(a.best_fit, b.best_fit)
 
 
-def test_rim_fo_reads_into_the_run_and_fits_like_fit_profile(tmp_path, example):
+def test_edge1_fo_reads_into_the_run_and_fits_like_fit_profile(tmp_path, example):
     row, profiles = example
     run = _read_row(tmp_path, dict(row, **RIM))
     assert run.rim_fo == 0.912 and run.stages == ()
-    assert run.initial.edge_fo == row["edge_fo"]  # the start profile keeps edge_fo
+    # the start profile keeps the first segment's Fo
+    assert run.initial.edge_fo == float(row["segment_fo"].split(",")[0])
     fitted = fit_run(run, profiles)
     _assert_same_fit(fitted, _direct_fit(run, profiles, rim_fo=0.912))
     plain = fit_run(_read_row(tmp_path, row), profiles)
@@ -107,7 +108,7 @@ def test_two_stages_read_into_the_run_and_fit_like_fit_profile(tmp_path, example
         ({"stage_rim_um": "20, 2.5"}, "the rim cannot move inward"),
         ({"stage_zone_fo": ", 0.911"}, "give zone_value"),
         ({"stage_zone_fo": "0.913, 1.2"}, "Fo values must be fractions"),
-        ({"rim_fo": 1.5}, "rim_fo 1.5 must be a fraction"),
+        ({"edge1_fo": 1.5}, "edge1_fo 1.5 must be a fraction"),
     ],
 )
 def test_bad_stage_columns_name_the_run_and_the_problem(tmp_path, example, change, message):
@@ -123,10 +124,10 @@ def test_stages_need_a_grid_given_in_full(tmp_path, example):
         fit_run(run, profiles)
 
 
-@pytest.mark.parametrize(("boundary", "what"), [(RIM, "rim_fo"), (TWO_STAGES, "growth stages")])
-def test_the_scan_refuses_stages_and_rim_fo(tmp_path, example, boundary, what):
+@pytest.mark.parametrize(("boundary", "what"), [(RIM, "edge1_fo"), (TWO_STAGES, "growth stages")])
+def test_the_scan_refuses_stages_and_edge1_fo(tmp_path, example, boundary, what):
     row, profiles = example
-    run = _read_row(tmp_path, dict(row, **boundary, edge_fo_sd=0.002))
+    run = _read_row(tmp_path, dict(row, **boundary, segment_fo_sd=0.002))
     message = f"the initial-condition scan does not model {what}"
     with pytest.raises(ValueError, match=message):
         scan_size(run)
@@ -152,7 +153,7 @@ def test_forster_fit_with_a_stage_writes_a_summary_that_refits(tmp_path, example
     row, _ = example
     staged = dict(row, **RIM, domain_start_um=8.0, stage_days=1.5, stage_rim_um=2.5)
     staged["stage_zone_fo"] = 0.911
-    scanned = dict(staged, run="scanned", edge_fo_sd=0.002)
+    scanned = dict(staged, run="scanned", segment_fo_sd=0.002)
     pd.DataFrame([staged, scanned]).to_csv(tmp_path / "parameters.csv", index=False)
     write_template(tmp_path / "in")
 
@@ -166,14 +167,14 @@ def test_forster_fit_with_a_stage_writes_a_summary_that_refits(tmp_path, example
 
     done = forster(tmp_path / "parameters.csv", tmp_path / "results")
     assert done.returncode == 1  # the scanned run fails; the staged one is kept
-    assert "the initial-condition scan does not model growth stages or rim_fo" in " ".join(
+    assert "the initial-condition scan does not model growth stages or edge1_fo" in " ".join(
         done.stderr.split()
     )
     summary = pd.read_csv(tmp_path / "results" / "summary.csv", float_precision="round_trip")  # ty: ignore[no-matching-overload]
     (fitted,) = summary.itertuples()
     assert fitted.run == row["run"]
     assert (fitted.stage_days, fitted.stage_rim_um, fitted.stage_zone_fo) == (1.5, 2.5, 0.911)
-    assert fitted.rim_fo == 0.912
+    assert fitted.edge1_fo == 0.912
     assert fitted.time_since_last_stage_days == pytest.approx(fitted.time_days - 1.5)
 
     again = forster(tmp_path / "results" / "summary.csv", tmp_path / "again")

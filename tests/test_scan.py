@@ -124,16 +124,14 @@ def test_candidate_grid_gaussian_and_uniform(setup):
         {"step1_um": Uncertainty(2.0), "edge_fo": Uncertainty(0.004, "uniform")},
         points=5,
     )
-    assert grid.names == ("step1_um", "edge_fo")
+    assert grid.names == ("step1_um", "a_fo")  # edge_fo is read as segment a
     np.testing.assert_allclose(grid.nodes["step1_um"], 41 + np.linspace(-5, 5, 5))  # +-2.5 sd
     np.testing.assert_allclose(
-        grid.nodes["edge_fo"], run.initial.edge_fo + np.linspace(-0.004, 0.004, 5)
+        grid.nodes["a_fo"], run.initial.edge_fo + np.linspace(-0.004, 0.004, 5)
     )
     assert len(grid.candidates) == 25 and grid.dropped == 0
     # Gaussian penalty ((v - v0) / sd)^2, none for the uniform parameter.
-    i = next(
-        j for j, v in enumerate(grid.values) if v[0] == 46.0 and v[1] == grid.nodes["edge_fo"][0]
-    )
+    i = next(j for j, v in enumerate(grid.values) if v[0] == 46.0 and v[1] == grid.nodes["a_fo"][0])
     assert grid.penalty[i] == pytest.approx(2.5**2)
     assert grid.penalty.min() == 0.0
 

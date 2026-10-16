@@ -58,32 +58,55 @@ PARAMETER_COLUMNS = (
         "domain_start_um",
         "µm",
         "required",
-        "Start of the model domain; Fo is held at edge_fo here.",
+        "Start of the model domain: edge 1, where Fo is held (at edge1_fo).",
     ),
     Column(
-        "domain_end_um", "µm", "required", "End of the model domain; Fo is held at core_fo here."
+        "domain_end_um",
+        "µm",
+        "required",
+        "End of the model domain: the far end, where Fo is held at the last segment's Fo "
+        "(the core), unless centre_um is given.",
     ),
     Column(
         "steps_um",
         "µm",
         "required",
-        'Step position(s) of the initial profile: one number, or two in quotes ("10, 33").',
-    ),
-    Column("edge_fo", "fraction", "required", "Initial Fo before the first step (edge side)."),
-    Column("core_fo", "fraction", "required", "Initial Fo after the last step (core side)."),
-    Column(
-        "step_fo",
-        "fraction",
-        "optional",
-        "Initial Fo of the plateau between two steps; required with two steps.",
+        "Step positions of the initial profile, in order: one number, or several in quotes "
+        '("10, 33"). They divide the profile into segments.',
     ),
     Column(
-        "rim_fo",
+        "segment_fo",
+        "fraction",
+        "required",
+        "Initial Fo of each segment, from edge 1 inward: one more value than steps_um "
+        '("0.91, 0.89" for one step; "0.91, 0.93, 0.89" for two). Replaces edge_fo, core_fo '
+        "and step_fo, which are still read until the release.",
+    ),
+    Column(
+        "segment_names",
+        "",
+        "optional",
+        'Labels of the segments, from edge 1 inward ("rim, mantle, core"). Empty: a, b, '
+        "c, ... Segments are matched by label in joint fits; uncertainty results name them "
+        "(a_fo, ...).",
+    ),
+    Column(
+        "edge1_fo",
         "fraction",
         "optional",
-        "Fo held at the rim (domain_start_um) during diffusion, when it differs from "
-        "edge_fo, which stays the start profile's edge value. Empty: edge_fo. With growth "
-        "stages it holds until the first stage. No initial-condition scan with rim_fo.",
+        "Fo held at edge 1 (domain_start_um) during diffusion, when it differs from the "
+        "first segment's Fo, which stays the start profile's value. Empty: the first "
+        "segment's Fo. With growth stages it holds until the first stage. No "
+        "initial-condition scan with edge1_fo. Replaces rim_fo.",
+    ),
+    Column(
+        "centre_um",
+        "µm",
+        "optional",
+        "Distance of the crystal's centre, to model the whole crystal: the model runs to "
+        "the centre (beyond the measured points if needed) and mirrors there, so no Fo "
+        "crosses it and the core is free to change. Empty: a half profile, its far end held "
+        "at the core's Fo. Needs the implicit scheme and no growth stages.",
     ),
     Column(
         "stage_days",
@@ -186,12 +209,21 @@ PARAMETER_COLUMNS = (
         "optional",
         "Uncertainty (± half-width, uniform) on the step position(s), as steps_sd_um.",
     ),
-    Column("edge_fo_sd", "fraction", "optional", "1-sigma uncertainty on edge_fo (Gaussian)."),
-    Column("edge_fo_range", "fraction", "optional", "± half-width on edge_fo (uniform)."),
-    Column("core_fo_sd", "fraction", "optional", "1-sigma uncertainty on core_fo (Gaussian)."),
-    Column("core_fo_range", "fraction", "optional", "± half-width on core_fo (uniform)."),
-    Column("step_fo_sd", "fraction", "optional", "1-sigma uncertainty on step_fo (Gaussian)."),
-    Column("step_fo_range", "fraction", "optional", "± half-width on step_fo (uniform)."),
+    Column(
+        "segment_fo_sd",
+        "fraction",
+        "optional",
+        "Uncertainty (1 sigma, Gaussian) on each segment's Fo, as segment_fo: one value "
+        'for every segment, or one per segment ("0.002, , 0.003"); empty or 0 keeps a '
+        "segment fixed. Replaces edge_fo_sd, core_fo_sd and step_fo_sd.",
+    ),
+    Column(
+        "segment_fo_range",
+        "fraction",
+        "optional",
+        "Uncertainty (± half-width, uniform) on each segment's Fo, as segment_fo_sd; a "
+        "segment may take one of the two, not both.",
+    ),
     Column(
         "scan_method",
         "",
@@ -438,7 +470,7 @@ SUMMARY_COLUMNS = (
         "scan_best",
         "",
         "",
-        "Best values of the scanned parameters (step1_um, edge_fo, ...); the nominal "
+        "Best values of the scanned parameters (step1_um, a_fo, ...); the nominal "
         "values stay in the parameter columns.",
     ),
     Column("scan_candidates", "", "", "Initial conditions fitted (one model run each)."),

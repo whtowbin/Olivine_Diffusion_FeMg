@@ -66,7 +66,7 @@ from forster.model import (
     Profile,
     fe_mg_diffusivity,
     fit_profile,
-    scheme_grid,
+    initial_grid,
 )
 
 STABILITY_RATIO = 0.4  # D_max dt / dx^2 used for chosen grids
@@ -162,7 +162,7 @@ def actual_dx_um(
 ) -> float:
     """The spacing `fit_profile` will really use for a requested ``dx_um`` (the largest,
     for the implicit scheme's grid)."""
-    _, dx, _ = scheme_grid(scheme, profile.distance_um, Grid(dx_um, 1.0), initial.domain_um)
+    _, dx, _ = initial_grid(scheme, profile.distance_um, Grid(dx_um, 1.0), initial)
     return dx
 
 

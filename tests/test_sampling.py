@@ -114,7 +114,7 @@ def test_best_fit_recovers_a_known_initial_condition(example):
     )
     true_days = true_row * grid.dt_s / 86400
     assert post.best_values["step1_um"] == pytest.approx(27.0, abs=1.5)
-    assert post.best_values["edge_fo"] == pytest.approx(0.912, abs=0.002)
+    assert post.best_values["a_fo"] == pytest.approx(0.912, abs=0.002)
     assert post.low_days <= true_days <= post.high_days
     assert post.best_initial.steps_um[0] == post.best_values["step1_um"]
 
@@ -176,7 +176,7 @@ def test_unknown_parameters_are_errors(example):
 def test_table_runs_default_to_auto_and_the_summary_refits(tmp_path):
     write_template(tmp_path / "t")
     params = pd.read_csv(tmp_path / "t" / "parameters.csv").assign(
-        steps_sd_um=2.0, edge_fo_sd=0.002
+        steps_sd_um=2.0, segment_fo_sd="0.002, "
     )
     path = tmp_path / "parameters.csv"
     params.to_csv(path, index=False)

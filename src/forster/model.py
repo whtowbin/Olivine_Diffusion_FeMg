@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import math
 import os
+import re
+import string
 import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -148,46 +150,155 @@ class Conditions:
         return cls(T_C, P_Pa, float(fO2))
 
 
-@dataclass(frozen=True)
-class InitialCondition:
-    """Step-function starting profile.
+SEGMENT_NAME = re.compile(r"[A-Za-z][A-Za-z0-9]*")
 
-    The model runs between ``domain_um[0]`` and ``domain_um[1]`` (the round robin
-    tables call these edge_x1 and edge_x2). Fo is held at ``edge_fo`` at the first
-    end and ``core_fo`` at the second. ``steps_um`` are the positions of the steps;
-    with one step the profile is ``edge_fo`` before it and ``core_fo`` after it.
-    ``step_fo`` adds one intermediate plateau between two steps.
+
+def default_segment_names(n: int) -> tuple[str, ...]:
+    """a, b, c, ... from the first edge inward (aa, ab, ... past z)."""
+    letters = string.ascii_lowercase
+    if n <= len(letters):
+        return tuple(letters[:n])
+    return tuple(a + b for a in letters for b in letters)[:n]
+
+
+@dataclass(frozen=True, init=False)
+class InitialCondition:
+    """Step-function starting profile: segments of constant Fo between steps.
+
+    The model runs from ``domain_um[0]`` (edge 1, where Fo is held) to ``domain_um[1]``
+    (the round robin tables call these edge_x1 and edge_x2). ``steps_um`` are the step
+    positions, in order; ``segment_fo`` has one Fo per segment, from edge 1 inward, so
+    one more value than steps; ``segment_names`` labels them (default a, b, c, ...).
+
+    The far end is held at the last segment's Fo (a half profile, the core held), unless
+    ``centre_um`` gives the crystal's centre: the model then runs to the centre and
+    mirrors there (no Fo crosses it), so the core is free to change. The centre may lie
+    beyond ``domain_um[1]`` and the measured points.
+
+    The half-profile names still work: ``InitialCondition(domain, edge_fo, core_fo,
+    steps_um, step_fo)`` gives the segments (edge_fo, [step_fo,] core_fo), and
+    ``edge_fo``, ``core_fo`` and ``step_fo`` read the first, last and (with three
+    segments) middle segment.
     """
 
     domain_um: tuple[float, float]
-    edge_fo: float
-    core_fo: float
     steps_um: tuple[float, ...]
-    step_fo: float | None = None
+    segment_fo: tuple[float, ...]
+    segment_names: tuple[str, ...]
+    centre_um: float | None = None
 
-    def __post_init__(self) -> None:
+    def __init__(
+        self,
+        domain_um: tuple[float, float],
+        edge_fo: float | None = None,
+        core_fo: float | None = None,
+        steps_um: Sequence[float] | None = None,
+        step_fo: float | None = None,
+        *,
+        segment_fo: Sequence[float] | None = None,
+        segment_names: Sequence[str] | None = None,
+        centre_um: float | None = None,
+    ) -> None:
+        if steps_um is None:
+            raise TypeError("InitialCondition needs steps_um")
+        steps = tuple(steps_um)
+        fo = _segments(steps, segment_fo, edge_fo, core_fo, step_fo)
+        names = tuple(segment_names) if segment_names is not None else None
+        if names is None or len(names) != len(fo):
+            names = default_segment_names(len(fo)) if names is None else names
+        object.__setattr__(self, "domain_um", tuple(domain_um))
+        object.__setattr__(self, "steps_um", steps)
+        object.__setattr__(self, "segment_fo", fo)
+        object.__setattr__(self, "segment_names", names)
+        object.__setattr__(self, "centre_um", centre_um)
+        self._check()
+
+    def _check(self) -> None:
         low, high = self.domain_um
         if not low < high:
             raise ValueError(f"domain_um must be increasing, got {self.domain_um}")
-        if not self.steps_um:
-            raise ValueError("steps_um needs at least one step position")
-        for fo in (self.edge_fo, self.core_fo, self.step_fo):
-            if fo is not None and not 0.0 < fo <= 1.0:
+        for fo in self.segment_fo:
+            if not 0.0 < fo <= 1.0:
                 raise ValueError(f"Fo values must be fractions (0-1); got {fo}")
-        if self.step_fo is not None and len(self.steps_um) != 2:
-            raise ValueError("step_fo needs exactly two step positions (one on each side of it)")
-        if self.step_fo is None and len(self.steps_um) != 1:
+        names = self.segment_names
+        if len(names) != len(self.segment_fo):
             raise ValueError(
-                f"{len(self.steps_um)} step positions given: use one step, or two with "
-                "step_fo for the plateau between them"
+                f"{len(names)} segment names for {len(self.segment_fo)} segments: give one "
+                "name per segment"
+            )
+        bad = [n for n in names if not SEGMENT_NAME.fullmatch(n) or n.startswith("step")]
+        if bad or len(set(names)) != len(names):
+            raise ValueError(
+                f"segment names must be distinct letters and digits starting with a letter "
+                f"(not 'step...'), got {list(names)}"
+            )
+        if self.centre_um is not None and not self.centre_um >= high:
+            raise ValueError(
+                f"centre_um ({self.centre_um}) must lie at or beyond the domain's end ({high})"
             )
 
     @property
+    def edge_fo(self) -> float:
+        """Fo of the first segment, next to edge 1."""
+        return self.segment_fo[0]
+
+    @property
+    def core_fo(self) -> float:
+        """Fo of the last segment (the core); held at the far end of a half profile."""
+        return self.segment_fo[-1]
+
+    @property
+    def step_fo(self) -> float | None:
+        """Fo of the middle segment of a three-segment profile, else None."""
+        return self.segment_fo[1] if len(self.segment_fo) == 3 else None
+
+    @property
     def fo_values(self) -> tuple[float, ...]:
-        """Fo of each part of the step function, from the edge: edge, [plateau], core."""
-        if self.step_fo is None:
-            return (self.edge_fo, self.core_fo)
-        return (self.edge_fo, self.step_fo, self.core_fo)
+        """Fo of each segment, from edge 1 inward (`segment_fo`)."""
+        return self.segment_fo
+
+    @property
+    def model_end_um(self) -> float:
+        """Where the model ends: the centre when mirrored, else the domain's end."""
+        return self.centre_um if self.centre_um is not None else self.domain_um[1]
+
+
+def _segments(
+    steps: tuple[float, ...],
+    segment_fo: Sequence[float] | None,
+    edge_fo: float | None,
+    core_fo: float | None,
+    step_fo: float | None,
+) -> tuple[float, ...]:
+    """Each segment's Fo, from ``segment_fo`` or the half-profile names (which, given
+    with ``segment_fo``, replace its first, last or middle value)."""
+    if not steps:
+        raise ValueError("steps_um needs at least one step position")
+    if segment_fo is None:
+        if edge_fo is None or core_fo is None:
+            raise TypeError("give segment_fo, or edge_fo and core_fo")
+        if step_fo is not None and len(steps) != 2:
+            raise ValueError("step_fo needs exactly two step positions (one on each side of it)")
+        if step_fo is None and len(steps) != 1:
+            raise ValueError(
+                f"{len(steps)} step positions given: use one step with edge_fo and core_fo, "
+                "two with step_fo for the plateau between them, or segment_fo for more"
+            )
+        return (edge_fo, core_fo) if step_fo is None else (edge_fo, step_fo, core_fo)
+    fo = list(segment_fo)
+    if len(fo) != len(steps) + 1:
+        raise ValueError(
+            f"{len(fo)} segment Fo values for {len(steps)} steps: give one more Fo than steps"
+        )
+    if edge_fo is not None:
+        fo[0] = edge_fo
+    if core_fo is not None:
+        fo[-1] = core_fo
+    if step_fo is not None:
+        if len(fo) != 3:
+            raise ValueError("step_fo is the middle segment of a three-segment profile")
+        fo[1] = step_fo
+    return tuple(fo)
 
 
 @dataclass(frozen=True)
@@ -433,16 +544,47 @@ def scheme_grid(
     grid: Grid,
     domain_um: tuple[float, float],
     rims_um: Sequence[float] = (),
+    to_end: bool = False,
 ) -> tuple[np.ndarray, float, tuple[int, int]]:
     """`model_grid` for the explicit schemes. For "implicit", a grid with nodes on the
-    domain's rim, on its core end (or the last measured point, if nearer) and on every
-    stage rim in ``rims_um``, even in between with spacing at most ``grid.dx_um``
-    (`forster.implicit.node_grid`); the spacing returned is the largest."""
+    domain's rim, on its core end (or the last measured point, if nearer, unless
+    ``to_end``) and on every stage rim in ``rims_um``, even in between with spacing at most
+    ``grid.dx_um`` (`forster.implicit.node_grid`); the spacing returned is the largest."""
     if scheme != "implicit":
         return model_grid(x_um, grid, domain_um)
-    end = min(domain_um[1], float(x_um.max()))
+    end = domain_um[1] if to_end else min(domain_um[1], float(x_um.max()))
     x = implicit.node_grid([domain_um[0], *rims_um, end], grid.dx_um)
     return x, float(np.diff(x).max()), (0, len(x) - 1)
+
+
+def initial_grid(
+    scheme: str,
+    x_um: np.ndarray,
+    grid: Grid,
+    initial: InitialCondition,
+    rims_um: Sequence[float] = (),
+    start_um: float | None = None,
+) -> tuple[np.ndarray, float, tuple[int, int]]:
+    """`scheme_grid` for ``initial``'s domain (from ``start_um``, default edge 1): to the
+    domain's end or the last measured point for a half profile, to ``centre_um`` when
+    the crystal is mirrored there (implicit scheme only)."""
+    lo = initial.domain_um[0] if start_um is None else start_um
+    if initial.centre_um is None:
+        return scheme_grid(scheme, x_um, grid, (lo, initial.domain_um[1]), rims_um)
+    if scheme != "implicit":
+        raise ValueError('a crystal centre (centre_um) needs scheme="implicit"')
+    return scheme_grid(scheme, x_um, grid, (lo, initial.centre_um), rims_um, to_end=True)
+
+
+def measured_points(profile: Profile, initial: InitialCondition) -> tuple[np.ndarray, np.ndarray]:
+    """The points a fit can use: every point for a half profile (the model ends at the
+    domain's end or the last point), those up to ``domain_um[1]`` when mirrored at the
+    centre (the model runs on to the centre)."""
+    x, y = profile.distance_um, profile.fo
+    if initial.centre_um is None:
+        return x, y
+    keep = x <= initial.domain_um[1]
+    return x[keep], y[keep]
 
 
 def _diffusion_model(
@@ -475,7 +617,8 @@ def _diffusion_model(
     rim = initial.edge_fo if rim is None else rim
     if scheme == "implicit":
         start = implicit.cell_average(model_x, initial.steps_um, list(initial.fo_values))
-        return start, _implicit_stepper(D, rim, initial.core_fo, grid.dt_s, model_x, fast=fast)
+        core = None if initial.centre_um is not None else initial.core_fo  # None: no flux
+        return start, _implicit_stepper(D, rim, core, grid.dt_s, model_x, fast=fast)
     if not isinstance(rim, int | float):
         raise ValueError('a rim value that changes in time needs scheme="implicit"')
     start = engine.step_condition(model_x, list(initial.steps_um), list(initial.fo_values))
@@ -486,7 +629,7 @@ def _diffusion_model(
 def _implicit_stepper(
     D: Callable[[np.ndarray], np.ndarray],
     rim: Rim,
-    core: float,
+    core: float | None,
     dt_s: float,
     model_x: np.ndarray,
     t0_s: float = 0.0,
@@ -862,7 +1005,11 @@ def _explicit_substeps(
 
 
 def _check_options(
-    scheme: str, uncertainty: str, stages: Sequence[Stage], rim_fo: Rim | None
+    scheme: str,
+    uncertainty: str,
+    stages: Sequence[Stage],
+    rim_fo: Rim | None,
+    initial: InitialCondition | None = None,
 ) -> None:
     if scheme not in SCHEMES:
         raise ValueError(f"unknown scheme {scheme!r}; use one of {', '.join(SCHEMES)}")
@@ -877,6 +1024,8 @@ def _check_options(
         raise ValueError("the implicit scheme needs the correlated uncertainty method")
     if rim_fo is not None and not is_fixed(rim_fo) and scheme != "implicit":
         raise ValueError('a rim value that changes in time needs scheme="implicit"')
+    if initial is not None and initial.centre_um is not None and stages:
+        raise ValueError("a crystal centre (centre_um) with growth stages is not supported yet")
 
 
 def fit_profile(
@@ -975,7 +1124,7 @@ def fit_profile(
     ``docs/references/fit-uncertainty.md`` the change from earlier versions.
     """
     scheme = scheme or default_scheme(uncertainty)
-    _check_options(scheme, uncertainty, stages, rim_fo)
+    _check_options(scheme, uncertainty, stages, rim_fo, initial)
     diffusivity = fe_mg_diffusivity(diffusivity)
     kriging = kriging or KrigingSettings()
     history = BoundaryHistory.from_initial(initial, stages, rim_fo) if stages else None
@@ -983,8 +1132,10 @@ def fit_profile(
     if history is not None:
         domain = (history.outer_rim_um, initial.domain_um[1])
         rims = tuple(s.rim_um for s in history.stages)
-    x, y = profile.distance_um, profile.fo
-    step_x, dx_um, (low_idx, high_idx) = scheme_grid(scheme, x, grid, domain, rims)
+    x, y = measured_points(profile, initial)
+    step_x, dx_um, (low_idx, high_idx) = initial_grid(
+        scheme, x, grid, initial, rims, start_um=domain[0]
+    )
     model_x = step_x[low_idx : high_idx + 1]
     check_curve_memory(grid.timesteps + 1, len(model_x))
     substeps = 1
@@ -1221,7 +1372,7 @@ def _core_end_lengths(
     ``days``, with a warning below `SHORT_PLATEAU_LENGTHS`; None at time zero."""
     from forster.grid import diffusion_length_um, fo_range
 
-    if not days > 0:
+    if not days > 0 or initial.centre_um is not None:  # mirrored: the core end is free
         return None
     length = diffusion_length_um(days, [(diffusivity, fo_range(initial))], conditions, orientation)
     last_step = max(initial.steps_um, default=initial.domain_um[0])

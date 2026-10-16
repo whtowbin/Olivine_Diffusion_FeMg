@@ -176,17 +176,17 @@ def test_uncertainty_columns_are_read_and_written_back(tmp_path):
 
     write_template(tmp_path / "t")
     table = pd.read_csv(tmp_path / "t" / "parameters.csv")
-    table = table.assign(steps_sd_um=2.0, edge_fo_range=0.003, scan_points=7)
+    table = table.assign(steps_sd_um=2.0, segment_fo_range="0.003, ", scan_points=7)
     path = tmp_path / "params.csv"
     table.to_csv(path, index=False)
     (run,) = read_runs(path)
     assert run.uncertainties == {
         "step1_um": Uncertainty(2.0, "normal"),
-        "edge_fo": Uncertainty(0.003, "uniform"),
+        "a_fo": Uncertainty(0.003, "uniform"),
     }
     assert run.scan_points == 7
     again = tmp_path / "again.csv"
-    table.drop(columns=["steps_sd_um", "edge_fo_range", "scan_points"]).assign(
+    table.drop(columns=["steps_sd_um", "segment_fo_range", "scan_points"]).assign(
         **uncertainty_columns(run)
     ).to_csv(again, index=False)
     assert read_runs(again)[0] == run

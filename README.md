@@ -74,8 +74,8 @@ not enough; about 1,000 model runs and under a second for most profiles, up to a
 edge Fo between 0.817 and 0.823:
 
 ```
-steps_um,edge_fo,steps_sd_um,edge_fo_range
-41,0.82,2,0.003
+steps_um,segment_fo,steps_sd_um,segment_fo_range
+41,"0.82, 0.90",2,"0.003, "
 ```
 
 The summary then has `scan_low_days` and `scan_high_days` (the range including the
@@ -129,7 +129,7 @@ from forster import (
 profile = Profile(distance_um, fo, name="my profile")  # Fo as a fraction
 conditions = Conditions.from_buffer(T_C=1250, P_Pa=5e8, delta_log=0.3, buffer="QFM")
 orientation = Orientation.from_euler(77.0, 61.2, 334.2, profile_angle_deg=-80)
-initial = InitialCondition(domain_um=(2.5, 72), edge_fo=0.9146, core_fo=0.8985, steps_um=(24,))
+initial = InitialCondition(domain_um=(2.5, 72), steps_um=(24,), segment_fo=(0.9146, 0.8985))
 grid = choose_grid(profile, conditions, orientation, initial).grid
 result = fit_profile(profile, conditions, orientation, initial, grid)
 ```
@@ -225,13 +225,13 @@ One row per model run. Fo is a fraction throughout.
 | `Phi_deg` | degrees | one form | EBSD Euler angle Phi (Bunge). |
 | `phi2_deg` | degrees | one form | EBSD Euler angle phi2 (Bunge). |
 | `profile_angle_deg` | degrees | one form | Direction of the profile on the EBSD map, from the positive x axis (east). |
-| `domain_start_um` | µm | required | Start of the model domain; Fo is held at edge_fo here. |
-| `domain_end_um` | µm | required | End of the model domain; Fo is held at core_fo here. |
-| `steps_um` | µm | required | Step position(s) of the initial profile: one number, or two in quotes ("10, 33"). |
-| `edge_fo` | fraction | required | Initial Fo before the first step (edge side). |
-| `core_fo` | fraction | required | Initial Fo after the last step (core side). |
-| `step_fo` | fraction | optional | Initial Fo of the plateau between two steps; required with two steps. |
-| `rim_fo` | fraction | optional | Fo held at the rim (domain_start_um) during diffusion, when it differs from edge_fo, which stays the start profile's edge value. Empty: edge_fo. With growth stages it holds until the first stage. No initial-condition scan with rim_fo. |
+| `domain_start_um` | µm | required | Start of the model domain: edge 1, where Fo is held (at edge1_fo). |
+| `domain_end_um` | µm | required | End of the model domain: the far end, where Fo is held at the last segment's Fo (the core), unless centre_um is given. |
+| `steps_um` | µm | required | Step positions of the initial profile, in order: one number, or several in quotes ("10, 33"). They divide the profile into segments. |
+| `segment_fo` | fraction | required | Initial Fo of each segment, from edge 1 inward: one more value than steps_um ("0.91, 0.89" for one step; "0.91, 0.93, 0.89" for two). Replaces edge_fo, core_fo and step_fo, which are still read until the release. |
+| `segment_names` |  | optional | Labels of the segments, from edge 1 inward ("rim, mantle, core"). Empty: a, b, c, ... Segments are matched by label in joint fits; uncertainty results name them (a_fo, ...). |
+| `edge1_fo` | fraction | optional | Fo held at edge 1 (domain_start_um) during diffusion, when it differs from the first segment's Fo, which stays the start profile's value. Empty: the first segment's Fo. With growth stages it holds until the first stage. No initial-condition scan with edge1_fo. Replaces rim_fo. |
+| `centre_um` | µm | optional | Distance of the crystal's centre, to model the whole crystal: the model runs to the centre (beyond the measured points if needed) and mirrors there, so no Fo crosses it and the core is free to change. Empty: a half profile, its far end held at the core's Fo. Needs the implicit scheme and no growth stages. |
 | `stage_days` | days | optional | Growth stages: when each stage starts, in days after the start of the run, one entry per stage ("2, 5" for two). At its start a stage moves the rim out to stage_rim_um, where a new zone of Fo stage_zone_fo appears and diffuses with the older crystal; the domain, step and Fo columns above describe the crystal before the first stage. Only times after the last stage are fitted; time_days counts from the start. Needs dx_um and dt_s, the correlated uncertainty method, and no initial-condition scan (no _sd or _range columns). |
 | `stage_rim_um` | µm | optional | Rim position from each stage on, one entry per stage: at or below the previous rim (domain_start_um before the first stage). The previous rim itself changes only the rim's Fo (stage_rim_fo). Required with stage_days. |
 | `stage_zone_fo` | fraction | optional | Fo of the zone each stage adds between the old and the new rim, one entry per stage; needed by every stage that moves the rim. Leave an entry empty ("0.91, ") for a stage that only changes the rim's Fo. |
@@ -244,12 +244,8 @@ One row per model run. Fo is a fraction throughout.
 | `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule; reproduces old results). |
 | `steps_sd_um` | µm | optional | Uncertainty (1 sigma, Gaussian) on the step position(s): one value, or one per step ("2, 5"); 0 keeps a step fixed. Or give steps_range_um. |
 | `steps_range_um` | µm | optional | Uncertainty (± half-width, uniform) on the step position(s), as steps_sd_um. |
-| `edge_fo_sd` | fraction | optional | 1-sigma uncertainty on edge_fo (Gaussian). |
-| `edge_fo_range` | fraction | optional | ± half-width on edge_fo (uniform). |
-| `core_fo_sd` | fraction | optional | 1-sigma uncertainty on core_fo (Gaussian). |
-| `core_fo_range` | fraction | optional | ± half-width on core_fo (uniform). |
-| `step_fo_sd` | fraction | optional | 1-sigma uncertainty on step_fo (Gaussian). |
-| `step_fo_range` | fraction | optional | ± half-width on step_fo (uniform). |
+| `segment_fo_sd` | fraction | optional | Uncertainty (1 sigma, Gaussian) on each segment's Fo, as segment_fo: one value for every segment, or one per segment ("0.002, , 0.003"); empty or 0 keeps a segment fixed. Replaces edge_fo_sd, core_fo_sd and step_fo_sd. |
+| `segment_fo_range` | fraction | optional | Uncertainty (± half-width, uniform) on each segment's Fo, as segment_fo_sd; a segment may take one of the two, not both. |
 | `scan_method` |  | optional | How the uncertain initial-condition parameters are fitted: auto (default: best fit, then importance sampling from a Laplace proposal, or nested sampling when that has too few effective samples), laplace, nested, or grid (every node of a grid, as before 2026-10-15). Blank with scan_points given means grid. |
 | `scan_seed` |  | optional | Seed of the sampler (default 0); the same seed gives the same result. |
 | `scan_points` |  | optional | scan_method grid: points per uncertain parameter (default 13 for one, 9 for two, 5 for more). |
@@ -332,7 +328,7 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `scan_high_days` | days | High end of that range. |
 | `scan_marginal_low_days` | days | Low end of the Bayesian (marginal) range; with Gaussian uncertainties it is pulled toward the nominal initial condition. |
 | `scan_marginal_high_days` | days | High end of the Bayesian range. |
-| `scan_best` |  | Best values of the scanned parameters (step1_um, edge_fo, ...); the nominal values stay in the parameter columns. |
+| `scan_best` |  | Best values of the scanned parameters (step1_um, a_fo, ...); the nominal values stay in the parameter columns. |
 | `scan_candidates` |  | Initial conditions fitted (one model run each). |
 | `scan_ic_share` |  | Sampled: fraction of the variance of time that comes from the choice of initial condition (the rest is the fit at a fixed initial condition). |
 | `scan_sensitivity` |  | Sampled: change of the expected time per unit of each parameter (days per um for steps, days per unit Fo fraction), from the posterior samples. |
@@ -359,8 +355,11 @@ spreadsheets and the tables of Towbin and Plank (2026), are read too.
 
 - The model is finite differences (implicit by default, explicit on request; see
   `scheme` below) for Fe-Mg interdiffusion with a diffusivity that depends on Fo, oxygen fugacity, temperature and pressure, and
-  on the angles between the profile and the crystal axes. The ends of the model
-  domain are held at `edge_fo` and `core_fo`.
+  on the angles between the profile and the crystal axes. The starting profile is
+  segments of constant Fo between steps (`segment_fo`, labelled a, b, c, ... or by
+  `segment_names`). Edge 1 is held at the first segment's Fo (or `edge1_fo`); the far
+  end at the last segment's (the core), or, with `centre_um`, the crystal is mirrored at
+  its centre so no Fo crosses it and the core is free to change.
 - Every time step is compared with the measured points. The best fit is the time
   with the smallest chi-squared. The 1σ range is where chi-squared rises by about 1
   (a little more for profiles of few points, which corrects for the noise being

@@ -1,6 +1,12 @@
 # Naming the starting profile for half profiles and whole crystals
 
-Status (2026-10-16): **design decided by Henry** (section "Decisions"); ready to build. Nothing is built. Started at Henry's
+Status (2026-10-16): **design decided by Henry** (section "Decisions"). **Built** (steps
+1-3 below): segments (`segment_fo`, `segment_names`), `edge1_fo`, `centre_um` mirroring,
+old names read with a deprecation note, starting-profile fit over segment names; a
+differential replay of every existing run is identical. Not yet built: `origin`
+(zero at the centre), `edge2_fo` and growth stages at edge 2, the edge offsets, and the
+grouping columns (`crystal`, `own_segments`, `sample`, intersections), which come with the
+joint fits. Nothing is built. Started at Henry's
 request so that whole crystals, joint fits, population priors, step proposals, the
 edge-position fit and batch import all use one set of names, settled before any of them
 is built. Requirements were collected from both sessions working on these features

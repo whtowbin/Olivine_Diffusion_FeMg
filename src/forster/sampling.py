@@ -57,8 +57,9 @@ from forster.model import (
     _explicit_substeps,
     check_curve_memory,
     fe_mg_diffusivity,
+    initial_grid,
+    measured_points,
     near_step_at_best_initial,
-    scheme_grid,
 )
 from forster.scan import (
     NORMAL_SPAN,
@@ -67,6 +68,7 @@ from forster.scan import (
     _with_values,
     is_valid,
     parameter_names,
+    resolve_names,
 )
 from forster.uncertainty import (
     ONE_SIGMA,
@@ -115,11 +117,7 @@ class ICLikelihood:
         diffusivity: Diffusivity | str = DEFAULT_DIFFUSIVITY,
         scheme: str = DEFAULT_SCHEME,
     ) -> None:
-        unknown = sorted(set(uncertainties) - set(parameter_names(initial)))
-        if unknown:
-            raise ValueError(
-                f"no parameter {unknown} in this initial condition; use {parameter_names(initial)}"
-            )
+        uncertainties = resolve_names(initial, uncertainties)
         self.names = tuple(n for n in parameter_names(initial) if n in uncertainties)
         if not self.names:
             raise ValueError("no uncertain parameters given")
@@ -131,12 +129,11 @@ class ICLikelihood:
         self.normal = np.array([uncertainties[n].kind == "normal" for n in self.names])
         half = np.where(self.normal, NORMAL_SPAN, 1.0) * self.spread
         self.lo, self.hi = self.nominal - half, self.nominal + half
-        step_x, self.dx_um, (low, high) = scheme_grid(
-            scheme, profile.distance_um, grid, initial.domain_um
-        )
+        measured_x, measured_fo = measured_points(profile, initial)
+        step_x, self.dx_um, (low, high) = initial_grid(scheme, measured_x, grid, initial)
         self.model_x = step_x[low : high + 1]
         check_curve_memory(grid.timesteps + 1, len(self.model_x))
-        self.x, self.y = points_in_domain(self.model_x, profile.distance_um, profile.fo)
+        self.x, self.y = points_in_domain(self.model_x, measured_x, measured_fo)
         self.W = interpolation_matrix(self.model_x, self.x)
         self.rows = grid.timesteps + 1
         self.runs = 0
@@ -471,7 +468,8 @@ def fit_initial_condition(
 ) -> ICPosterior:
     """Best-fit initial condition and the posterior of time over its uncertain parameters.
 
-    ``uncertainties`` as for `forster.scan.candidate_grid` (``step1_um``, ``step2_um``,
+    ``uncertainties`` as for `forster.scan.candidate_grid` (``step1_um``, ``step2_um``, ...,
+    ``a_fo``, ``b_fo``, ... or the old names
     ``edge_fo``, ``core_fo``, ``step_fo``). ``method``: "auto" (importance sampling
     from the Laplace proposal, nested sampling if its effective sample size is below
     ``ess_fallback`` x ``n_samples``), "laplace" or "nested". The same ``seed`` gives

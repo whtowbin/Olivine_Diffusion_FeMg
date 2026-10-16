@@ -99,7 +99,7 @@ def test_angle_and_pa_forms_give_the_same_run_as_euler_and_buffer(tmp_path, exam
         ({"profile_angle_deg": None}, "orientation is missing profile_angle_deg"),
         ({"fO2_buffer": "IW"}, "unknown fO2 buffer 'IW'"),
         ({"steps_um": "10; 33"}, "step positions '10; 33'"),
-        ({"steps_um": "10, 33"}, "use one step, or two with step_fo"),
+        ({"steps_um": "10, 33"}, "give one more Fo than steps"),
         ({"uncertainty": "bayes"}, "uncertainty 'bayes'"),
     ],
 )
@@ -109,7 +109,9 @@ def test_bad_template_rows_name_the_problem(tmp_path, example_row, change, messa
 
 
 def test_two_steps_with_a_plateau(tmp_path, example_row):
-    run = _read_row(tmp_path, dict(example_row, steps_um="10, 33.5", step_fo=0.93))
+    run = _read_row(
+        tmp_path, dict(example_row, steps_um="10, 33.5", segment_fo="0.9146, 0.93, 0.8985")
+    )
     assert run.initial.steps_um == (10, 33.5)
     assert run.initial.step_fo == 0.93
 
@@ -139,16 +141,16 @@ def test_summary_reads_back_as_the_same_runs(tmp_path, example):
     assert rerun == replace(run, metadata={}, grid=result.inputs["grid"])
 
 
-def test_summary_with_a_stage_and_rim_fo_reads_back_and_refits(tmp_path, example, example_row):
+def test_summary_with_a_stage_and_edge1_fo_reads_back_and_refits(tmp_path, example, example_row):
     staged = dict(example_row, domain_start_um=8.0, dx_um=1.5, dt_s=2000.0, max_time_days=20)
-    staged.update(rim_fo=0.912, stage_days=1.5, stage_rim_um=2.5, stage_zone_fo=0.911)
+    staged.update(edge1_fo=0.912, stage_days=1.5, stage_rim_um=2.5, stage_zone_fo=0.911)
     run = _read_row(tmp_path, staged)
     assert run.stages and run.rim_fo == 0.912
     profiles = read_profiles(example / "profiles.csv")
     result = fit_run(run, profiles)
     row = summary_row(result)
     assert set(row) - {c.name for c in (*PARAMETER_COLUMNS, *SUMMARY_COLUMNS)} == set()
-    assert (row["rim_fo"], row["stage_days"], row["stage_rim_um"]) == (0.912, "1.5", "2.5")
+    assert (row["edge1_fo"], row["stage_days"], row["stage_rim_um"]) == (0.912, "1.5", "2.5")
     assert row["time_since_last_stage_days"] == result.time_since_last_stage_days
     rerun = _read_row(tmp_path, dict(row, profile=run.profile_name))
     assert rerun == replace(run, metadata={})
