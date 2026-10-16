@@ -300,8 +300,9 @@ def test_fits_warn_on_the_paper_profiles_with_near_step_misfit():
 
 def test_a_profile_ending_close_to_the_step_warns():
     """FORSTER ends the model at the last measured point and holds the core Fo there. Cut
-    to about 1.6 diffusion lengths past the step, WHT06_ol43 moved by -37% (the
-    plateau-length study); the full profile (about 8 lengths) does not warn."""
+    to about 1.6 diffusion lengths past the step, WHT06_ol43's data stop on the slope
+    before the plateau and the time moves (noise-model-findings.md, section 3); the full
+    profile (about 8 lengths) does not warn."""
     from conftest import PAPER_DATA, PAPER_PARAMS
 
     from forster.io import summary_row

@@ -17,8 +17,8 @@ Public figures (this folder) use only synthetic profiles and published Towbin an
 - fig3_plateau_synthetic.png: bias and coverage of the time against the length of
   plateau measured, synthetic profiles; fig3_plateau_synthetic.csv;
 - fig4_plateau_real.png: real profiles with core-side points dropped; fig4_plateau_real.csv;
-- fig5_short_plateau.png: why a short plateau moves the time (FORSTER ends the model at
-  the last measured point); fig5_short_plateau.csv.
+- fig5_short_plateau.png: data that stop on the slope move the time (FORSTER ends the
+  model at the last measured point); fig5_short_plateau.csv.
 
 The analyses are in findings.py beside this file. Their results are kept in the CSVs
 above and reused; ``--recompute`` reruns them (the two Monte Carlo studies take about
@@ -44,6 +44,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import forster
 from forster.model import Profile
 
 HERE = F.HERE
@@ -77,12 +78,15 @@ mpl.rcParams.update(
 
 PUBLIC_IC = ["AZ18 WHT06_ol43_prof 1", "Xenocryst_ol6_prof_1", "AZ18 WHT06_ol48_prof 1"]
 PRIVATE_IC = ["SH63olv066-1"]
-PUBLIC_PLATEAU = ["AZ18 WHT06_ol43_prof 1", "AZ18 WHT06_ol48_prof 1",
-                  "AZ18 WHT01_Ol_192_prof_1", "AZ18 WHT06_ol_overgrowth2_prof_1"]  # fmt: skip
+# The paper profiles with the longest measured plateaus (their model domains are extended
+# to the end of the data; the plateaus past the published domain ends are flat).
+PUBLIC_PLATEAU = ["AZ18 WHT06_ol43_prof 1", "AZ18 WHT01_Ol_180_prof_1",
+                  "AZ18 WHT01_Ol_181_prof_2", "Xenocryst_ol23_prof_1",
+                  "AZ18 WHT01_Ol_191_prof_1", "AZ18 WHT01_Ol_193_prof_1"]  # fmt: skip
 PRIVATE_PLATEAU = ["SH63olv066-1"]
 SWEEP_PROFILE = "AZ18 WHT06_ol43_prof 1"
 SHORT_PROFILE = "AZ18 WHT06_ol43_prof 1"
-SHORT_CUT_L = 2  # cut at step + 2 l (last kept point 1.6 l past the step)
+SHORT_KEEP_L = (1, -1)  # fig 5 cuts: 1 l into the plateau, and stopping 1 l before it
 # x range of the zoom on the region where the IC moved (um)
 ZOOM = {"AZ18 WHT06_ol43_prof 1": (0, 26), "Xenocryst_ol6_prof_1": (0, 17),
         "AZ18 WHT06_ol48_prof 1": (8, 38), "SH63olv066-1": (0, 30)}  # fmt: skip
@@ -455,7 +459,7 @@ def fig3(s: pd.DataFrame, path: Path):
             if i == 0:
                 ax.set_title(FIG3_CASES[case], fontsize=6.8)
             if i == len(metrics) - 1:
-                ax.set_xlabel("Plateau measured\npast the step (l)")
+                ax.set_xlabel("Data measured past\nthe step (l)")
     axes[1, 0].set_ylim(0, 100)
     axes[2, 0].set_yscale("log")
     axes[2, 0].set_yticks([10, 20, 50, 100, 200], ["10", "20", "50", "100", "200"])
@@ -472,8 +476,9 @@ def fig3(s: pd.DataFrame, path: Path):
                  "longer plateau makes\nthe default 1σ range too narrow (coverage "
                  f"{a[0]:.0f}% → {a[1]:.0f}% and {b[0]:.0f}% → {b[1]:.0f}% from 3 to 20 l); the "
                  "near-step model holds.\nA wrong core Fo biases the time at every length unless "
-                 "core Fo is fitted (which fails on a sloping plateau).\nl: diffusion length; "
-                 f"{n} noise draws per point", fontsize=7.8, fontweight="bold", x=0.01,
+                 "core Fo is fitted (which fails on a sloping plateau).\nl: diffusion length; the "
+                 f"plateau starts about 2.3 l past the step (data within 2 noise sd of it); {n} "
+                 "noise draws per point", fontsize=7.8, fontweight="bold", x=0.01,
                  ha="left")  # fmt: skip
     fig.savefig(path)
     plt.close(fig)
@@ -483,90 +488,94 @@ def fig3(s: pd.DataFrame, path: Path):
 # ================================================================ fig 4: plateau real
 
 FIG4_SERIES = [
-    # (domain, model, label, colour, marker, offset)
-    ("fixed domain", "default", "default noise model, model domain unchanged", C_NOM, "s", -1),
-    ("fixed domain", "near-step", "near-step noise model, model domain unchanged", C_NEAR,
-     "^", 0),
-    ("as used", "default", "default, as FORSTER runs it (model ends at the last point)",
-     C_CUT, "D", 1),
+    # (fit, label, colour, marker, offset)
+    ("domain kept", "full-length model, only the points removed", C_NOM, "s", -0.12),
+    ("as FORSTER runs it", "as FORSTER runs it: the model ends at the last kept point, "
+     "core Fo held there", C_CUT, "D", 0.12),
 ]  # fmt: skip
-MOVE = 0.2  # mark an "as used" time this far (fraction) from the full profile's
+FIG4_ORDER = [-1, 0, 1, 2, 4, 8, "all"]
+MOVE = 0.1  # label an "as FORSTER runs it" time this far (fraction) from the full profile's
+
+
+def _keep_key(v):
+    return "all" if str(v) == "all" else int(float(v))
 
 
 def fig4(df: pd.DataFrame, names, path: Path, title: str):
     ncol = 2
     nrow = int(np.ceil(len(names) / ncol))
-    fig, axes = plt.subplots(nrow, ncol, figsize=(7.2, 2.75 * nrow + 0.7), layout="constrained")
+    fig, axes = plt.subplots(nrow, ncol, figsize=(7.2, 2.45 * nrow + 0.9), layout="constrained")
     axes = np.atleast_1d(axes).ravel()
     for ax in axes[len(names) :]:
         ax.axis("off")
+    df = df.assign(key=df.keep_l.map(_keep_key))
     for ax, name in zip(axes, names, strict=False):
         d = df[df.profile == name]
-        fixed = d[(d.domain == "fixed domain") & (d.model == "default")]
-        full = fixed[fixed.cut_l.astype(str) == "all"].iloc[0]
-        for dom, model, label, c, mk, off in FIG4_SERIES:
-            s = d[(d.domain == dom) & (d.model == model)].sort_values("kept_past_step_l")
-            x = s.kept_past_step_l.to_numpy() * 10 ** (0.018 * off)
-            t = s.time_d.to_numpy()
-            ax.errorbar(x, t, yerr=[t - s.lo2_d, s.hi2_d - t], fmt="none", ecolor=c, lw=0.6,
-                        alpha=0.7)  # fmt: skip
-            ax.errorbar(x, t, yerr=[t - s.lo1_d, s.hi1_d - t], fmt=mk, color=c, ms=3.2,
-                        lw=1.8, label=label, capsize=0)  # fmt: skip
+        order = [k for k in FIG4_ORDER if k in set(d.key)]
+        pos = {k: i for i, k in enumerate(order)}
+        full = d[(d.key == "all") & (d.fit == "domain kept")].iloc[0]
+        lo = d.lo1_d.min() * 0.8
+        hi = 2.2 * full.hi2_d
+        n_slope = sum(1 for k in order if k != "all" and k <= 0)
+        ax.axvspan(-0.5, n_slope - 0.5, color="0.92", lw=0, zorder=0)
+        for fit, label, c, mk, off in FIG4_SERIES:
+            sdf = d[d.fit == fit].sort_values("key", key=lambda v: v.map(pos))
+            x = sdf.key.map(pos).to_numpy() + off
+            t = sdf.time_d.to_numpy()
+            ax.errorbar(x, np.minimum(t, hi), yerr=[np.minimum(t, hi) - np.minimum(sdf.lo2_d, hi),
+                        np.minimum(sdf.hi2_d, hi) - np.minimum(t, hi)], fmt="none", ecolor=c,
+                        lw=0.6, alpha=0.7)  # fmt: skip
+            ax.errorbar(x, np.minimum(t, hi), yerr=[np.minimum(t, hi) - np.minimum(sdf.lo1_d, hi),
+                        np.minimum(sdf.hi1_d, hi) - np.minimum(t, hi)], fmt=mk, color=c,
+                        ms=3.2, lw=1.8, label=label, capsize=0)  # fmt: skip
         ax.axhline(full.time_d, color="0.6", lw=0.6, ls="--", zorder=0)
-        ax.set_xscale("log")
-        ticks = [2, 3, 5, 10, 20]
-        ax.set_xticks(ticks, [str(v) for v in ticks])
-        ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
-        ax.set_xlim(1.3, max(5.0, d.kept_past_step_l.max() * 1.5))
-        lo = d.lo2_d.min() * 0.85
-        hi_all = d.hi2_d.max()
-        hi = min(hi_all, 3 * full.hi2_d) * 1.35
-        ax.set_yscale("log")
-        ax.set_ylim(lo, hi)
-        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        ax.yaxis.set_minor_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        ax.tick_params(axis="y", which="minor", labelsize=6)
-        used = d[(d.domain == "as used") & (d.model == "default")]
-        # near-step dAIC (as used) above each cut
-        prev, low = -np.inf, False
-        for r in used.sort_values("kept_past_step_l").itertuples():
-            v = r.near_step_daic
-            lx = np.log10(r.kept_past_step_l)
-            low = (lx - prev < 0.1) and not low  # stagger labels that would touch
-            prev = lx
-            ax.annotate(fmt_signed(v), (r.kept_past_step_l, 1.0),
-                        xycoords=("data", "axes fraction"),
-                        xytext=(0, -9 if low else -1), textcoords="offset points",
-                        ha="center", va="top",
-                        fontsize=6, color=C_NEAR if v < F.NEAR_STEP_WARN else "0.35",
-                        fontweight="bold" if v < F.NEAR_STEP_WARN else "normal")  # fmt: skip
+        used = d[d.fit == "as FORSTER runs it"]
         for r in used.itertuples():
             ch = r.time_d / full.time_d - 1
+            xi = pos[r.key] + 0.12
+            v = r.near_step_daic
+            ax.annotate(fmt_signed(v), (pos[r.key], 1.0), xycoords=("data", "axes fraction"),
+                        xytext=(0, -1), textcoords="offset points", ha="center", va="top",
+                        fontsize=5.8, color=C_NEAR if v < F.NEAR_STEP_WARN else "0.35",
+                        fontweight="bold" if v < F.NEAR_STEP_WARN else "normal")  # fmt: skip
             if abs(ch) >= MOVE:
-                xy = (r.kept_past_step_l * 10**0.018, r.time_d)
-                ax.annotate(f"{fmt_signed(100 * ch, '+.0f')}%\nmodel ends {r.model_end_um:.0f} µm",
-                            xy, xytext=(30, -34 if ch < 0 else 10), textcoords="offset points",
-                            fontsize=6, color=C_CUT, ha="left", va="center",
-                            arrowprops=dict(arrowstyle="-", lw=0.5, color=C_CUT))  # fmt: skip
-            if r.hi2_d > hi:
-                ax.annotate(f"2σ to {r.hi2_d:.0f} d", (r.kept_past_step_l * 10 ** 0.018, hi),
-                            xytext=(8, -22), textcoords="offset points", fontsize=6,
-                            color=C_CUT, ha="left",
-                            arrowprops=dict(arrowstyle="-", lw=0.5, color=C_CUT))  # fmt: skip
+                txt = (f"{r.time_d:.0f} d (off scale)" if r.time_d > hi
+                       else f"{fmt_signed(100 * ch, '+.0f')}%")  # fmt: skip
+                ax.annotate(txt, (xi, min(r.time_d, hi)), xytext=(5, -8 if ch < 0 else 2),
+                            textcoords="offset points", fontsize=5.8, color=C_CUT, ha="left")
+        ax.set_yscale("log")
+        ax.set_ylim(lo, hi * 1.25)
+        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.yaxis.set_minor_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.tick_params(axis="y", which="minor", labelsize=5.5)
+        labels = []
+        for k in order:
+            if k == "all":
+                labels.append(f"all\n({full.plateau_kept_l:.0f} l)")
+            elif k < 0:
+                labels.append(f"{k:d}\n(slope)")
+            elif k == 0:
+                labels.append("0\n(start)")
+            else:
+                labels.append(str(k))
+        ax.set_xticks(range(len(order)), labels, fontsize=6)
+        ax.set_xlim(-0.5, len(order) - 0.5)
         label = short(name)
-        if name in F.NOMINAL_DAYS and name.startswith("SH63"):
+        if name.startswith("SH63"):
             label += " (round robin, PRIVATE)"
-        dom_end = used[used.cut_l.astype(str) == "all"].model_end_um.iloc[0]
-        ax.set_title(f"{label}\n{int(full.n)} points, l = {full.ell_full_um:.1f} µm, "
-                     f"model domain ends at {dom_end:.0f} µm", fontsize=6.8, pad=10)  # fmt: skip
-        ax.set_xlabel("Plateau kept past the last step (diffusion lengths l)")
-        ax.set_ylabel("Fitted time (days)")
+        dom = (f" (domain was {full.published_domain_end_um:.0f})"
+               if full.data_end_um > full.published_domain_end_um + 0.5 else "")  # fmt: skip
+        ax.set_title(f"{label}: {int(full.n)} points, l = {full.ell_um:.1f} µm\n"
+                     f"plateau from {full.plateau_start_um:.0f} µm, data to "
+                     f"{full.data_end_um:.0f} µm{dom}", fontsize=6.5, pad=9)  # fmt: skip
+        ax.set_xlabel("Plateau kept past where the data reach it (l)", fontsize=6.5)
+        ax.set_ylabel("Fitted time (days)", fontsize=6.5)
     h, lab = axes[0].get_legend_handles_labels()
-    extra = [mpl.lines.Line2D([], [], color="0.4", lw=1.8, label="thick bar: 1σ range"),
-             mpl.lines.Line2D([], [], color="0.4", lw=0.6, label="thin bar: 2σ range")]  # fmt: skip
+    extra = [mpl.lines.Line2D([], [], color="0.4", lw=1.8, label="thick bar: 1σ range; thin: 2σ"),
+             mpl.patches.Patch(color="0.92", label="the data stop on the slope (grey)")]  # fmt: skip
     fig.legend(h + extra, lab + [e.get_label() for e in extra], loc="outside lower center",
-               ncols=2, fontsize=6.3)  # fmt: skip
-    fig.suptitle(title, fontsize=8, fontweight="bold", x=0.01, ha="left")
+               ncols=2, fontsize=6.2)  # fmt: skip
+    fig.suptitle(title, fontsize=7.8, fontweight="bold", x=0.01, ha="left")
     fig.savefig(path)
     plt.close(fig)
     print(f"wrote {path}")
@@ -576,96 +585,94 @@ def fig4(df: pd.DataFrame, names, path: Path, title: str):
 
 
 def short_plateau_data(runs, profiles):
-    run = runs[SHORT_PROFILE]
-    prof = profiles[run.profile_name]
+    """WHT06_ol43 with its domain extended to its data (132 um): every point, the profile
+    cut 1 l into the plateau, and the profile stopping 1 l before the plateau starts."""
+    run0 = runs[SHORT_PROFILE]
+    prof = profiles[run0.profile_name]
+    run = F.extended_run(run0, prof)
     full = F.default_fit(run, profiles, run.initial)
-    full["initial"] = run.initial
-    cut = max(run.initial.steps_um) + SHORT_CUT_L * full["ell_um"]
-    pk = prof.distance_um <= cut
-    cut_prof = {run.profile_name: Profile(prof.distance_um[pk], prof.fo[pk], prof.name)}
-    part = F.default_fit(run, cut_prof, run.initial)
-    part["initial"] = run.initial
-    dropped = (prof.distance_um[~pk], prof.fo[~pk])
-    return full, part, dropped, cut
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fr = forster.fit_run(run, profiles)
+    x_plat = F.plateau_start_um(fr, max(run.initial.steps_um))
+    cuts = []
+    for k in SHORT_KEEP_L:
+        cut = x_plat + k * full["ell_um"]
+        pk = prof.distance_um <= cut
+        cut_prof = {run.profile_name: Profile(prof.distance_um[pk], prof.fo[pk], prof.name)}
+        cuts.append((k, cut, F.default_fit(run, cut_prof, run.initial)))
+    for d in [full] + [c[2] for c in cuts]:
+        d["initial"] = run.initial
+    return full, cuts, x_plat, run0.initial.domain_um[1]
 
 
-def fig5(full, part, dropped, cut, path: Path):
-    fig, (ax_p, ax_z) = plt.subplots(1, 2, figsize=(7.2, 3.3), layout="constrained",
+def fig5(full, cuts, x_plat, published_end, path: Path):
+    fig, (ax_p, ax_z) = plt.subplots(1, 2, figsize=(7.2, 3.4), layout="constrained",
                                      width_ratios=[1.35, 1.0])  # fmt: skip
-    step = max(full["steps"])
+    colours = {SHORT_KEEP_L[0]: C_FIT, SHORT_KEEP_L[1]: C_CUT}
+    series = [("every point", full, C_NOM)] + [
+        (f"cut {k:+d} l {'into' if k > 0 else 'from'} the plateau", d, colours[k])
+        for k, _, d in cuts
+    ]
+    zx = (25.0, 62.0)
     for ax in (ax_p, ax_z):
-        for d, c in ((full, C_NOM), (part, C_CUT)):
+        ax.axvspan(full["steps"][-1], x_plat, color="0.93", lw=0, zorder=0)
+        for _, d, c in series:
             m = d["model_x"]
-            ax.fill_between(m, pct(d["band_lo"]), pct(d["band_hi"]), color=c, alpha=0.3, lw=0)
+            ax.fill_between(m, pct(d["band_lo"]), pct(d["band_hi"]), color=c, alpha=0.25, lw=0)
             ax.plot(m, pct(d["best_curve"]), color=c, lw=1.1)
-            ax.plot(m[-1], pct(d["best_curve"][-1]), "|", color=c, ms=9, mew=1.6)
-            xi, yi = ic_profile(d["initial"], float(m[-1]))
-            ax.plot(xi, pct(yi), color=c, lw=0.9, ls=(0, (3, 1.5)))
-        both = full["x"] <= cut
-        ax.plot(full["x"][both], pct(full["y"][both]), "o", ms=2.8, mfc="white", mec="black",
-                mew=0.6, zorder=5)  # fmt: skip
-        ax.plot(full["x"][~both], pct(full["y"][~both]), "o", ms=2.8, mfc="0.55", mec="0.3",
-                mew=0.6, zorder=5)  # fmt: skip
-        out = dropped[0] > full["model_end_um"]
-        ax.plot(dropped[0][out], pct(dropped[1][out]), "o", ms=2.8, mfc="white", mec="0.7",
-                mew=0.6, zorder=4)  # fmt: skip
-        ax.axvline(cut, color="0.5", lw=0.6, ls=":")
+            ax.plot(m[-1], pct(d["best_curve"][-1]), "|", color=c, ms=10, mew=1.8)
+        ax.plot(full["x"], pct(full["y"]), "o", ms=2.8, mfc="white", mec="black", mew=0.6,
+                zorder=5)  # fmt: skip
+        ax.axvline(x_plat, color="0.35", lw=0.7, ls=":")
+        for k, cut, _ in cuts:
+            ax.axvline(cut, color=colours[k], lw=0.6, ls=(0, (2, 2)))
         ax.set_xlabel("Distance from rim (µm)")
+    ax_p.axvline(published_end, color="0.6", lw=0.6, ls="-.")
+    ax_p.annotate(f"published model domain\nends at {published_end:.0f} µm",
+                  (published_end, pct(full["y"].min()) + 0.6), xytext=(6, 0),
+                  textcoords="offset points", fontsize=6, color="0.4")  # fmt: skip
     ax_p.set_ylabel("Fo (mol%)")
-    ax_p.axvspan(25, 60, color="0.93", lw=0, zorder=0)
-    ax_z.set_xlim(25, 60)
-    zx = (full["x"] >= 25) & (full["x"] <= 60)
-    ax_z.set_ylim(pct(full["y"][zx]).min() - 0.6, pct(full["y"][zx]).max() + 0.4)
-    ell = full["ell_um"]
-    ax_z.annotate(f"model ends at the last kept point\n({part['model_end_um']:.1f} µm, "
-                  f"{(part['model_end_um'] - step) / ell:.1f} l past the step);\n"
-                  "core Fo is held there", (part["model_end_um"], pct(part["best_curve"][-1])),
-                  xytext=(18, -95), textcoords="offset points", fontsize=6.2, color=C_CUT,
-                  arrowprops=dict(arrowstyle="-", lw=0.5, color=C_CUT))  # fmt: skip
-    ax_p.annotate(f"full profile: the model\ndomain ends at {full['model_end_um']:.0f} µm",
-                  (full["model_end_um"], pct(full["best_curve"][-1])), xytext=(6, -28),
-                  textcoords="offset points", fontsize=6.2, color=C_NOM,
-                  arrowprops=dict(arrowstyle="-", lw=0.5, color=C_NOM))  # fmt: skip
-    ax_z.text(step + 0.4, ax_z.get_ylim()[0] + 0.1, "step 2", fontsize=6, color="0.4")
-    ax_z.axvline(step, color="0.6", lw=0.5, ls=(0, (1, 1.5)))
-    ax_p.set_title(short(SHORT_PROFILE) + ": all points against the profile cut at "
-                   f"step + {SHORT_CUT_L} l", fontsize=7)  # fmt: skip
-    ax_z.set_title("Zoom on the core side of step 2", fontsize=7, fontweight="normal")
-    chg = 100 * (part["time_d"] / full["time_d"] - 1)
-    handles = [
-        mpl.lines.Line2D([], [], ls="none", marker="o", ms=3, mfc="white", mec="black",
-                         label="data used by both fits"),
-        mpl.lines.Line2D([], [], ls="none", marker="o", ms=3, mfc="0.55", mec="0.3",
-                         label="data dropped by the cut"),
-        mpl.lines.Line2D([], [], ls="none", marker="o", ms=3, mfc="white", mec="0.7",
-                         label="data past the model domain (used by neither)"),
-        mpl.lines.Line2D([], [], color=C_NOM, lw=4, alpha=0.5,
-                         label=f"all points: {full['time_d']:.2f} d (1σ {full['lo1_d']:.2f}–"
-                               f"{full['hi1_d']:.2f})"),
-        mpl.lines.Line2D([], [], color=C_CUT, lw=4, alpha=0.5,
-                         label=f"cut: {part['time_d']:.2f} d (1σ {part['lo1_d']:.2f}–"
-                               f"{part['hi1_d']:.2f}), {fmt_signed(chg, '+.0f')}%"),
-        mpl.lines.Line2D([], [], color="0.4", lw=0.9, ls=(0, (3, 1.5)),
-                         label="initial condition (t = 0), to the model's end"),
+    ax_z.set_xlim(*zx)
+    inz = (full["x"] >= zx[0]) & (full["x"] <= zx[1])
+    ax_z.set_ylim(pct(full["y"][inz]).min() - 0.5, pct(full["y"][inz]).max() + 0.35)
+    ax_z.annotate("the data reach\nthe plateau", (x_plat, ax_z.get_ylim()[0] + 0.25),
+                  xytext=(4, 0), textcoords="offset points", fontsize=6, color="0.3")
+    ax_z.annotate("slope", ((full["steps"][-1] + x_plat) / 2, ax_z.get_ylim()[0] + 0.1),
+                  ha="center", va="bottom", fontsize=6, color="0.4")
+    ax_p.set_title(short(SHORT_PROFILE) + ": every point and two cuts",
+                   fontsize=7)  # fmt: skip
+    ax_z.set_title("Zoom on the slope", fontsize=7, fontweight="normal")
+    handles = [mpl.lines.Line2D([], [], ls="none", marker="o", ms=3, mfc="white", mec="black",
+                                label="data")]  # fmt: skip
+    rows = []
+    for lab, d, c in series:
+        chg = 100 * (d["time_d"] / full["time_d"] - 1)
+        txt = f"{lab}: {d['time_d']:.2f} d (1σ {d['lo1_d']:.2f}–{d['hi1_d']:.2f})"
+        if d is not full:
+            txt += f", {fmt_signed(chg, '+.0f')}%"
+        handles.append(mpl.lines.Line2D([], [], color=c, lw=4, alpha=0.5, label=txt))
+        rows.append({"fit": lab, "n_points": len(d["x"]), "last_point_um": float(d["x"].max()),
+                     "model_end_um": d["model_end_um"], "plateau_start_um": x_plat,
+                     "time_d": d["time_d"], "lo1_d": d["lo1_d"], "hi1_d": d["hi1_d"],
+                     "lo2_d": d["lo2_d"], "hi2_d": d["hi2_d"],
+                     "near_step_daic": d["near_step_daic"], "ell_um": d["ell_um"]})  # fmt: skip
+    handles += [
         mpl.lines.Line2D([], [], ls="none", marker="|", ms=8, mew=1.6, color="0.4",
-                         label="end of the model (core Fo held fixed)"),
-        mpl.lines.Line2D([], [], color="0.5", lw=0.6, ls=":", label="cut position"),
+                         label="end of each model (core Fo held there)"),
+        mpl.patches.Patch(color="0.93", label="slope between step 2 and the plateau"),
     ]  # fmt: skip
-    fig.legend(handles=handles, loc="outside lower center", ncol=3, fontsize=6.3)
-    fig.suptitle("A plateau measured less than ~2 diffusion lengths past the step moves the "
-                 "time: FORSTER ends the model at\nthe last measured point and holds core Fo "
-                 f"there, which steepens the modelled step ({fmt_signed(chg, '+.0f')}% here)",
-                 fontsize=8, fontweight="bold", x=0.01, ha="left")  # fmt: skip
+    fig.legend(handles=handles, loc="outside lower center", ncol=2, fontsize=6.2)
+    slope = rows[-1]
+    chg = fmt_signed(100 * (slope["time_d"] / full["time_d"] - 1), "+.0f")
+    fig.suptitle("Once the data reach the plateau, how much of it is kept does not move the "
+                 "time.\nData that stop on the slope do: the model ends at the last point and "
+                 f"holds the core Fo there ({chg}% here)", fontsize=8, fontweight="bold", x=0.01,
+                 ha="left")  # fmt: skip
     fig.savefig(path)
     plt.close(fig)
     print(f"wrote {path}")
-    return pd.DataFrame([
-        {"fit": lab, "n_points": len(d["x"]), "last_point_um": float(d["x"].max()),
-         "model_end_um": d["model_end_um"], "time_d": d["time_d"], "lo1_d": d["lo1_d"],
-         "hi1_d": d["hi1_d"], "lo2_d": d["lo2_d"], "hi2_d": d["hi2_d"],
-         "near_step_daic": d["near_step_daic"], "ell_um": d["ell_um"]}
-        for lab, d in (("all points", full), (f"cut at step + {SHORT_CUT_L} l", part))
-    ])  # fmt: skip
+    return pd.DataFrame(rows)
 
 
 # ============================================================================== main
@@ -712,13 +719,13 @@ def public(recompute: set, trials: int):
     real = plateau_real(PUBLIC_PLATEAU, runs, profiles, HERE / "fig4_plateau_real.csv",
                         rc("plateau_real"))  # fmt: skip
     fig4(real, PUBLIC_PLATEAU, HERE / "fig4_plateau_real.png",
-         "Dropping core-side plateau points barely moves the time while the model domain is "
-         "unchanged;\nFORSTER's own fit of a cut profile moves it once the model ends within "
-         "~2 diffusion lengths (l) of the step.\nNumbers on top: near-step ΔAIC of each cut "
+         "Real profiles with long plateaus, cut back from the end of the data: the time stays "
+         "put while the data reach\nthe plateau, and moves once they stop on the slope (grey). "
+         "l: diffusion length. Numbers on top: near-step ΔAIC\nof each cut as FORSTER runs it "
          "(bold: the warning fires, below −6)")  # fmt: skip
 
-    full, part, dropped, cut = short_plateau_data(runs, profiles)
-    fig5(full, part, dropped, cut, HERE / "fig5_short_plateau.png").to_csv(
+    full, cuts, x_plat, published_end = short_plateau_data(runs, profiles)
+    fig5(full, cuts, x_plat, published_end, HERE / "fig5_short_plateau.png").to_csv(
         HERE / "fig5_short_plateau.csv", index=False, float_format="%.6g")  # fmt: skip
 
 
@@ -737,8 +744,9 @@ def private(recompute: set):
     pub = plateau_real(PUBLIC_PLATEAU, runs, profiles, HERE / "fig4_plateau_real.csv", False)
     fig4(pd.concat([pub, rr]), PUBLIC_PLATEAU + PRIVATE_PLATEAU,
          out / "fig4_plateau_real_rr.png",
-         "Plateau truncation, paper profiles and round robin SH63olv066-1 (PRIVATE).\nNumbers "
-         "on top: near-step ΔAIC of each cut (bold: warns, below −6)")  # fmt: skip
+         "Plateau cuts, paper profiles and round robin SH63olv066-1 (PRIVATE): cut back from where "
+         "the data reach the plateau.\nNumbers on top: near-step ΔAIC of each cut (bold: warns, "
+         "below −6)")  # fmt: skip
 
 
 if __name__ == "__main__":

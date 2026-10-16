@@ -26,18 +26,20 @@ is planned for the release.
 3. **Fitting the starting profile can move the time a lot:** −40% for WHT06_ol43. On
    Xenocryst_ol6 the time halved, but only because the fit pushed a step to the edge of
    its allowed range, a sign that a sharp step is the wrong shape for that rim.
-4. **Plateau length does not bias the best-fit time, but it does bias the range** when the
-   misfit sits near the step: the longer the plateau, the more overconfident the 1σ range
-   (73% → 46% coverage from 3 to 20 diffusion lengths of plateau).
-5. **A profile that stops too close to the step moves the time:** −37% and +49% on two real
-   profiles measured only about 2 diffusion lengths past the step, because the model ends
-   at the last measured point and holds the core Fo there.
+4. **Once the data reach the plateau, how much plateau is measured does not move the
+   time** (within 4% on six real profiles cut from 6-21 diffusion lengths of plateau down
+   to 1). It does change the range when the misfit sits near the step: the longer the
+   plateau, the more overconfident the 1σ range (73% → 46% coverage on synthetic profiles).
+5. **Data that stop at or before the plateau move the time:** −15% to +22% when the data
+   end where the plateau starts, and far more when they stop on the slope (−63% on
+   WHT06_ol43), because the model ends at the last measured point and holds the core Fo
+   there. On real profiles the plateau starts about 2 diffusion lengths past the step.
 
 **What changed in FORSTER** (commit a0d676a; details in section 5):
 
 | Change | When it fires | What the user should do |
 |---|---|---|
-| New warning: the profile ends within 3 diffusion lengths of the last step (`core_end_diffusion_lengths`) | The model's core end is close enough to the diffusion front to move the fit | Measure further into the core; never trim plateau points |
+| New warning: the profile ends within 3 diffusion lengths of the last step (`core_end_diffusion_lengths`) | The data probably stop at or before the plateau, where the held core Fo moves the fit | Measure until the data have been flat for at least one more diffusion length; never trim plateau points |
 | The near-step warning now says to fit the starting profile first | `near_step_daic` < −6 | Give the steps and Fo levels uncertainties and use `scan_method`; then check the fitted values are plausible |
 | The starting-profile fit reports `scan_near_step_daic` and warns if misfit near the step remains | `scan_near_step_daic` < −6 | Quote the 2σ range; consider a starting-profile shape the model does not have (a rim zone, growth while diffusing) |
 
@@ -209,63 +211,90 @@ long plateau that fits well therefore pulls the noise estimate down, and the ran
 while the real uncertainty does not.
 
 **Done:**
-- Synthetic profiles of known age (2.5 µm spacing, a 4 mol% step, true diffusion length
-  10 µm) with 3, 5, 10 and 20 diffusion lengths of plateau, the step region identical in
-  each (500 noise draws per case), under eight kinds of misfit, fitted with white noise
-  only, the default noise model, the near-step model and the default with the core Fo
-  fitted.
-- Real profiles with core-side plateau points removed step by step: WHT06_ol43,
-  WHT06_ol48, WHT01_Ol_192, WHT06_ol_overgrowth2 and SH63olv066-1 (round robin, not
-  plotted here). Each cut fitted with the model domain unchanged, and as FORSTER fits a
-  cut profile.
-
-![Plateau length, synthetic](figures/noise_findings/fig3_plateau_synthetic.png)
-
-**Figure 3.** Synthetic profiles. Rows: bias of the best fit, 1σ coverage (dashed: 68%),
-and the 1σ width, against the plateau measured past the step. Columns: white noise; misfit
-near the step (0.4 and 1.2 mol%); a core Fo 0.2 mol% above the model's; a sloping plateau.
-
-**Found:**
-- **The best-fit time does not depend on plateau length** (under 1% from 3 to 20 l in
-  every case; on SH63olv066-1, 10.8-10.9 d at every cut).
-- **With misfit near the step, a longer plateau makes the 1σ range too narrow.** Default
-  coverage falls from 73% to 46% (0.4 mol% misfit) and from 71% to 40% (1.2 mol%) between
-  3 and 20 l, while the real scatter of the fitted time stays the same. Whitening helps
-  (10-20 points more coverage than white noise only at each length) but falls just as
-  steeply, because it too assumes one misfit size. **The near-step model holds at 71-80%
-  at every length.**
-- **With misfit of the same size everywhere, plateau length has no effect.**
-- **A wrong core Fo biases the time at every length:** 0.2 mol% too high gives −9% to −14%
-  (default) and −21% (white noise only), and no warning fires. Fitting the core Fo removes
-  the bias, except on a sloping plateau, where the fitted core matches the average plateau
-  level rather than the level next to the step (+9% at 20 l).
-- **The near-step check needs plateau to see anything:** it caught strong near-step misfit
-  in 25% of draws at 3 l and 95% at 20 l, and on the real profiles it stopped firing once
-  the plateau was cut to about 5-6 l.
+- **Real profiles with long measured plateaus.** The six paper profiles whose data run
+  furthest onto the plateau: WHT06_ol43, WHT01_Ol_180, WHT01_Ol_181_prof_2,
+  Xenocryst_ol23, WHT01_Ol_191 and WHT01_Ol_193 (6-21 diffusion lengths of plateau), and
+  the round robin profile SH63olv066-1 (not plotted here). Five of the six published runs
+  end their model domain short of the data (WHT06_ol43 at 80 µm with data to 132 µm); the
+  plateaus beyond are flat, so each domain was extended to the end of the data.
+  - **Where the plateau starts** is read from the data: the first point past the step
+    from which the full profile's best fit stays within 2 noise standard deviations of
+    its core level. On these profiles that is 1.7-2.3 diffusion lengths past the step.
+  - **Cuts** keep 8, 4, 2, 1 and 0 diffusion lengths of plateau past that point, and one
+    cut stops on the slope, 1 diffusion length before it. Each cut is fitted as FORSTER
+    fits a short profile (the model ends at the last kept point, with the core Fo held
+    there) and with the full-length model and only the points removed, which isolates the
+    effect of plateau points on the noise estimate.
+- **Synthetic profiles of known age** (2.5 µm spacing, a 4 mol% step, true diffusion
+  length 10 µm) with data to 3, 5, 10 and 20 diffusion lengths past the step (the plateau
+  starts about 2.3 past it), the step region identical in each, 500 noise draws per case,
+  under eight kinds of misfit. These measure what real profiles cannot: coverage.
 
 ![Plateau length, real profiles](figures/noise_findings/fig4_plateau_real.png)
 
-**Figure 4.** Real profiles with plateau points removed. Blue and orange: the default and
-near-step models with the model domain unchanged; pink: FORSTER's own fit of the cut
-profile, whose model ends at the last kept point. Numbers on top: the near-step ΔAIC of
-each cut. The time stays put until a cut leaves about 2 l of plateau, where FORSTER's fit
-moves by −37% (WHT06_ol43) and +49% (WHT06_ol_overgrowth2). WHT01_Ol_192, whose misfit
-spans the whole profile, moves 13-19% even with the domain unchanged.
+**Figure 3.** Real profiles cut back from the end of the data. The x axis is the plateau
+kept past where the data reach it, in diffusion lengths; grey marks cuts where the data
+stop at the plateau's start or on the slope. Blue: the full-length model with only the
+points removed; pink: as FORSTER runs a short profile. Numbers on top: the near-step ΔAIC
+of each cut.
 
-![Short plateau](figures/noise_findings/fig5_short_plateau.png)
+![Data that stop on the slope](figures/noise_findings/fig5_short_plateau.png)
 
-**Figure 5.** Why a short plateau moves the time. FORSTER ends the model at the last
-measured point (or the domain's end, if nearer) and holds the core Fo there. Cut 1.6 l
-past step 2, WHT06_ol43's model has a fixed boundary right next to the diffusion front,
-which steepens the modelled step: 1.21 d against 1.92 d (−37%). Also visible: this
-profile's data run to 132 µm but its model domain ends at 80 µm, so the points beyond
-80 µm are not fitted.
+**Figure 4.** WHT06_ol43 with every point (model domain extended to 132 µm), cut 1
+diffusion length into the plateau, and cut on the slope. The pink model ends at its last
+point (40 µm) and holds the core Fo (89.5 mol%) there, where the measured profile is still
+about 1 mol% lower; that steepens the modelled step and the time falls 63%. Cut 1
+diffusion length into the plateau, the time moves 4%.
 
-**Meaning:** plateau length is not a source of bias in the time; it is a source of
+**Found on real profiles:**
+- **Once the data reach the plateau, plateau length does not move the time.** With at
+  least 1 diffusion length of plateau kept (about 3 past the step), every profile stayed
+  within 4% of its full-profile time, both as FORSTER runs it and with the full-length
+  model. SH63olv066-1 stays at 10.8-10.9 d from 22 down to 3 diffusion lengths past the
+  step.
+- **Data that stop at the plateau's start or on the slope move it.** Ending where the
+  plateau starts moved the time by −15% (WHT06_ol43), +5%, −15%, −7%, +1% and +22%; ending
+  1 diffusion length before it by −63% (WHT06_ol43), +11%, +8%, +16% (SH63olv066-1) and
+  off the scale (91 d and 63 d) on two others. The full-length model barely moves at the
+  same cuts, so it is the held core Fo at the end of the model, not the loss of points,
+  that moves the time.
+- **A longer plateau makes the range narrower and the near-step warning stronger when the
+  misfit sits near the step.** WHT06_ol43 with every point (132 µm): 1σ 1.68-2.24 d and
+  near-step ΔAIC −18.3; at the published domain end (80 µm): 1.53-2.38 d and −8.6; with
+  2 diffusion lengths of plateau: −3.0, no warning. SH63olv066-1: −30.6 with the full
+  plateau, −4.2 with 2 diffusion lengths. Profiles without near-step misfit show neither
+  effect.
+
+![Plateau length, synthetic](figures/noise_findings/fig3_plateau_synthetic.png)
+
+**Figure 5.** Synthetic profiles. Rows: bias of the best fit, 1σ coverage (dashed: 68%),
+and the 1σ width, against how far the data extend past the step (the plateau starts about
+2.3 diffusion lengths past it). Columns: white noise; misfit near the step (0.4 and 1.2
+mol%); a core Fo 0.2 mol% above the model's; a sloping plateau.
+
+**Found on synthetic profiles:**
+- **The best-fit time does not depend on plateau length** (under 1% from 3 to 20
+  diffusion lengths past the step in every case).
+- **With misfit near the step, a longer plateau makes the 1σ range too narrow.** Default
+  coverage falls from 73% to 46% (0.4 mol% misfit) and from 71% to 40% (1.2 mol%), while
+  the real scatter of the fitted time stays the same. Whitening helps (10-20 points more
+  coverage than white noise only) but falls just as steeply, because it too assumes one
+  misfit size. **The near-step model holds at 71-80% at every length.** With misfit of
+  the same size everywhere, plateau length has no effect.
+- **A wrong core Fo biases the time at every length:** 0.2 mol% too high gives −9% to −14%
+  (default) and −21% (white noise only), and no warning fires. Fitting the core Fo removes
+  the bias, except on a sloping plateau, where the fitted core matches the average plateau
+  level rather than the level next to the step (+9% at 20 diffusion lengths).
+- **The near-step check needs plateau to see anything:** it caught strong near-step misfit
+  in 25% of draws with data to 3 diffusion lengths past the step and 95% at 20.
+
+**Meaning:** plateau length is not a source of bias in the time. It is a source of
 overconfidence in the range when the misfit sits near the step, and only the near-step
-model removes it. Trimming plateaus is never the answer: it does not move the time and it
-hides the near-step warning. A profile that stops too close to the step is a different
-matter, and now warns.
+model removes that. What does move the time is data that stop before they reach the
+plateau. Trimming plateaus is never the answer: it does not move the time and it hides
+the near-step warning. Two published runs never reach a plateau within their data
+(WHT06_ol_overgrowth2 and GCB1A R31_MP_Ol5_prof_1, 2.8 and 2.7 diffusion lengths past
+the step), so the new warning fires on them.
 
 ## 4. How the fixes work
 
@@ -273,8 +302,11 @@ matter, and now warns.
 computes the diffusion length at the best-fit time, l = √(D t) with D at the middle of the
 starting profile's Fo range, and the distance from the last step to the model's core end.
 Their ratio is reported as `core_end_diffusion_lengths`; below 3 (`SHORT_PLATEAU_LENGTHS`)
-a warning says the core boundary is close enough to move the fit. At 3 l a sharp step has
-spread about 2% of its height to that boundary; at 2 l, about 8%.
+a warning says the data probably stop at or before the plateau. The threshold comes from
+the real profiles above: their plateaus start about 2 diffusion lengths past the step, and
+from about 1 diffusion length into the plateau (3 past the step) every one stayed within
+4%. A rule based on where the data themselves flatten would be more direct; it needs a
+robust way to find the plateau in noisy data (see "Still open").
 
 **Stronger near-step advice** (`forster.model._near_step`). The check itself is unchanged
 (section 1): FORSTER fits the residuals at the white-noise best fit with a noise model
@@ -303,17 +335,20 @@ check, about 0.2 s on a 300-point profile.
   growth while diffusing, steps proposed automatically from the data (ideas in
   `TODO_local.md`). Misfit near the step that survives the starting-profile fit is the
   signal for these.
-- **The model's core end:** extend the model to the domain's end instead of holding the
-  core Fo at the last measured point (a behaviour change; the warning covers it now).
-  Full traverses with two rims need their own rule.
-- **Points beyond the domain's end** are dropped without a warning.
+- **The model's core end:** extend the model past the last measured point, or warn from
+  where the data flatten rather than from the diffusion length (a behaviour change; the
+  warning covers it now). Full traverses with two rims need their own rule.
+- **Points beyond the domain's end** are dropped without a warning; five of the six
+  long-plateau paper runs stop their domain short of flat data. Extending WHT06_ol43's
+  domain from 80 to 132 µm moved its time by 2% but strengthened its near-step warning
+  (−8.6 → −18.3).
 - **A third noise refit** in the starting-profile fit, and a check that the grid scan
   (which fits its noise once, at the white-noise best candidate) behaves like the sampler.
 - **Henry to check the fitted starting profiles** of WHT06_ol43 and Xenocryst_ol6.
 
 ## Reproducing
 
-- Figures 1-5 and the CSVs behind them: `uv run python
+- Figures 1-5 and the CSVs behind them (the file names are numbered differently from the figures here): `uv run python
   docs/references/figures/noise_findings/make_figures.py` (reuses the stored Monte Carlo
   tables; `--recompute all` reruns them, about 30 minutes; `--private` writes the round
   robin versions into the private submodule).

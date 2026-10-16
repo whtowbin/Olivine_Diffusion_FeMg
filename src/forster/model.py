@@ -1134,9 +1134,11 @@ def fit_profile(
 
 
 # Warn when the model's core end lies within this many diffusion lengths of the last step.
-# The core Fo is held there, and a profile measured only about 2 l past the step moved
-# real fits by -37% to +49%; from about 3 l the effect is small, from 5 l nil
-# (docs/plans/2026-10-15-whitening-validity/README.md, "Plateau length").
+# On real profiles the data reach the plateau about 2 l past the step; the core Fo is held
+# at the model's end, so data that stop at or before the plateau move the fit (-15% to
+# +22% at the plateau start, far more on the slope), while from about 1 l into the
+# plateau (about 3 l past the step) every profile tested stayed within 4%
+# (docs/references/noise-model-findings.md, section 3).
 SHORT_PLATEAU_LENGTHS = 3.0
 
 
@@ -1227,11 +1229,12 @@ def _core_end_lengths(
     if lengths < SHORT_PLATEAU_LENGTHS:
         warnings.warn(
             f"the profile ends {lengths:.1f} diffusion lengths past the last step "
-            f"({float(model_x[-1]) - last_step:.0f} um, diffusion length {length:.1f} um): "
-            "the model holds the core Fo at the last measured point, so that boundary is "
-            "close enough to move the fit. Measure further into the core (at least "
-            f"{SHORT_PLATEAU_LENGTHS:g} diffusion lengths) and do not trim plateau points "
-            "(docs/guide/practical-advice.md)",
+            f"({float(model_x[-1]) - last_step:.0f} um, diffusion length {length:.1f} um), "
+            "so the data probably stop at or before the plateau (on real profiles it starts "
+            "about 2 diffusion lengths past the step). The model holds the core Fo at the "
+            "last measured point, and data that stop on the slope move the fit. Measure "
+            "until the data have been flat for at least one more diffusion length, and do "
+            "not trim plateau points (docs/guide/practical-advice.md)",
             stacklevel=3,
         )
     return lengths

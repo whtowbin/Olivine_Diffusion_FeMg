@@ -1,3 +1,4 @@
-fit,n_points,last_point_um,model_end_um,time_d,lo1_d,hi1_d,lo2_d,hi2_d,near_step_daic,ell_um
-all points,28,74.9738,80,1.92292,1.52762,2.3915,1.1742,2.99074,-7.70632,4.63645
-cut at step + 2 l,15,42.4953,42.4953,1.21389,0.788482,2.13468,0.512141,4.12746,1.67888,3.68379
+fit,n_points,last_point_um,model_end_um,plateau_start_um,time_d,lo1_d,hi1_d,lo2_d,hi2_d,near_step_daic,ell_um
+every point,37,131.959,131.959,45.9857,1.94583,1.67743,2.24482,1.42574,2.59519,-18.3093,4.66399
+cut +1 l into the plateau,18,50.0125,50.0125,45.9857,1.86181,1.33038,2.52845,0.877337,3.50615,-2.32405,4.56218
+cut -1 l from the plateau,14,40.0357,40.0357,45.9857,0.720139,0.546896,1.0604,0.420501,5.24524,2,2.83735

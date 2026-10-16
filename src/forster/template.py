@@ -388,7 +388,8 @@ SUMMARY_COLUMNS = (
         "",
         "Distance from the last step to the model's core end (the last measured point), in "
         "diffusion lengths at the best fit. The core Fo is held there; below 3 a warning "
-        "says that boundary is close enough to move the fit (docs/guide/practical-advice.md).",
+        "says the data probably stop at or before the plateau, which moves the fit "
+        "(docs/guide/practical-advice.md).",
     ),
     Column(
         "warnings",

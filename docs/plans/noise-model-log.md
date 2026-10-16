@@ -92,11 +92,35 @@ model, the ranges or the starting-profile fit change, or a new test is run.
   longer plateau pulls the fitted misfit down and the default 1σ range becomes too
   narrow (coverage 73% → 46%); whitening helps but does not stop the trend; the near-step
   model holds (71-80%). A profile measured only about 2 l past the step moves the time
-  by −37% to +49%, because the model ends at the last measured point with the core Fo
+  by −37% to +49% (corrected in the next entry: those cuts stopped on the slope), because
+  the model ends at the last measured point with the core Fo
   held there. A core Fo 0.1-0.2 mol% off biases the time 5-21%, fixed by fitting it.
 - **Decided:** warn when the profile ends within 3 diffusion lengths of the last step
   (`core_end_diffusion_lengths`); the evidence strengthens the case for making the
   near-step model part of the fit (study follow-up 2).
+- **Details:** [findings, section 3](../references/noise-model-findings.md).
+
+## 2026-10-16: plateau test redone on real long plateaus (Henry's correction)
+- **Problem (Henry):** the real-profile cuts were placed by a rule on the starting profile
+  (2 diffusion lengths past the starting step), not on the data: the "−37%" cut on
+  WHT06_ol43 stopped on the diffused slope, where the held core Fo is pegged above the
+  data, and the test never used the long plateau (the run's domain ends at 80 µm, the data
+  run to 132 µm).
+- **Done:** the six paper profiles with the longest measured plateaus, domains extended to
+  the end of the data (five of six published runs stop short of flat data); where the
+  plateau starts read from the data (the full fit within 2 noise sd of its core level,
+  1.7-2.3 diffusion lengths past the step); cuts at 8, 4, 2, 1, 0 diffusion lengths of
+  plateau and one on the slope; fitted as FORSTER runs a short profile and with the
+  full-length model.
+- **Found:** with at least 1 diffusion length of plateau (about 3 past the step), every
+  time within 4% of the full profile's; at the plateau's start −15% to +22%; on the slope
+  −63% to off the scale. The full-length model barely moves at those cuts, so the held
+  core Fo causes it. A longer plateau narrows the range and strengthens the near-step
+  warning on profiles with near-step misfit (WHT06_ol43 to 132 µm: ΔAIC −18.3, against
+  −8.6 at 80 µm).
+- **Decided:** keep the 3-diffusion-length threshold (it marks about 1 diffusion length
+  into the plateau); the warning and the docs now say the data probably stop at or before
+  the plateau. Figures 3-5 of the findings redone.
 - **Details:** [findings, section 3](../references/noise-model-findings.md).
 
 ## Open
@@ -109,8 +133,11 @@ model, the ranges or the starting-profile fit change, or a new test is run.
 - Should the model extend past the last measured point to the domain's end, instead of
   holding the core Fo at the last point? (A behaviour change; the warning covers it now.)
 - A mechanisms guide with full derivations and citations, separate from the summary.
-- Measured points beyond the model domain's end are dropped without a warning (WHT06_ol43:
-  data to 132 µm, domain to 80 µm). Deliberate in some runs; consider a note in the
-  summary or a warning.
+- Measured points beyond the model domain's end are dropped without a warning; five of
+  the six long-plateau paper runs stop their domain short of flat data (WHT06_ol43: data to
+  132 µm, domain to 80 µm). Consider a warning, and whether the paper's tables should be
+  extended.
+- Warn from where the data flatten instead of from the diffusion length (needs a robust
+  plateau finder for noisy data).
 - Full traverses with both rims (an idea in TODO_local.md) need their own rule for the
   core-end warning, which assumes one rim and a held core Fo at the last point.

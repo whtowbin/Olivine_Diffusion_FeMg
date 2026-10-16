@@ -641,7 +641,8 @@ WHT01_Ol_63, _181 or _192. The near-step **term** is not part of the fit. Still 
     untested. Also check that the grid method (`scan.fit_candidates`, one noise fit at the
     white best candidate, no second pass) behaves like the sampler.
 11. **The model's core end:** FORSTER ends the model at the last measured point and holds
-    the core Fo there; a profile ending about 2 diffusion lengths past the step moved by
-    −37% to +49%. A warning covers it now (`core_end_diffusion_lengths` < 3); consider
+    the core Fo there; data that stop at or before the plateau (which starts about 2
+    diffusion lengths past the step) moved the time by −15% to +22% at its start and far
+    more on the slope. A warning covers it now (`core_end_diffusion_lengths` < 3); consider
     extending the model to the domain's end instead (a behaviour change, needs a
     differential replay).

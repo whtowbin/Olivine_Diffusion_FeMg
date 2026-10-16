@@ -20,7 +20,9 @@ Two questions, each answered on synthetic profiles and on published Towbin and P
 2. Plateau. Does the length of the measured core plateau bias the time or its range?
    - `plateau_trial`: synthetic profiles cut at 3, 5, 10 and 20 diffusion lengths past
      the step;
-   - `plateau_cuts`: real profiles with core-side points dropped progressively.
+   - `plateau_cuts`: real profiles with long measured plateaus (model domain extended to
+     the end of the data), cut back from where the data reach the plateau, including cuts
+     that stop on the slope.
 
 Ported from the experiment scripts of 2026-10-16 (scratchpad ic_misfit/ and plateau/);
 the noise model and near-step model are those of `forster.uncertainty` and
@@ -35,6 +37,7 @@ for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB
     os.environ[_v] = "1"
 
 import itertools  # noqa: E402
+import math  # noqa: E402
 import sys  # noqa: E402
 import tempfile  # noqa: E402
 import warnings  # noqa: E402
@@ -746,7 +749,9 @@ def plateau_summary(t: pd.DataFrame) -> pd.DataFrame:
 
 # ------------------------------------------------------------------- plateau: real
 
-PL_CUTS = [None, 15, 10, 7, 5, 4, 3, 2]  # diffusion lengths kept past the last step
+# Plateau kept past the plateau start, in diffusion lengths; None keeps every point and
+# negative values stop the data on the diffused slope, before the plateau.
+PL_KEEP = [None, 8, 4, 2, 1, 0, -1]
 
 
 def _real_rec(i1, i2, dt, **extra):
@@ -755,63 +760,88 @@ def _real_rec(i1, i2, dt, **extra):
             "lo2_d": i2.low * d, "hi2_d": i2.high * d} | extra  # fmt: skip
 
 
+def extended_run(run, profile):
+    """``run`` with its model domain extended to the end of the profile's data (several
+    published runs stop the domain short of a flat plateau)."""
+    lo, hi = run.initial.domain_um
+    end = float(profile.distance_um.max())
+    return replace(run, initial=replace(run.initial, domain_um=(lo, max(hi, end))))
+
+
+def plateau_start_um(fit, step_um: float) -> float:
+    """Where the full profile's best fit reaches the plateau: the first model node past
+    the last step from which the curve stays within 2 fitted white-noise sd of its own
+    core-end value. It follows the data's shape, not the starting profile's."""
+    x, best = fit.model_x_um, fit.best_fit
+    near = np.abs(best - best[-1]) <= 2 * fit.noise.white_sigma
+    for i in np.where((x > step_um) & near)[0]:
+        if near[i:].all():
+            return float(x[i])
+    return math.nan
+
+
 def plateau_cuts(run, profiles) -> list[dict]:
-    """Drop core-side points past the last step at step + m l (l at the full profile's
-    default fit) and refit two ways: "fixed domain" (the full profile's model, only the
-    measured points change; white, default and near-step noise) and "as used"
-    (fit_run on the cut profile: the model ends at the last measured point, core Fo
-    held there)."""
-    from forster.model import fit_profile
+    """Real profile, model domain extended to the end of its data, cut so that it keeps
+    `PL_KEEP` diffusion lengths of plateau past `plateau_start_um` (negative: the data stop
+    on the slope). Each cut is fitted two ways: "domain kept" (the full-length model, only
+    the measured points removed: the effect of plateau points on the noise and the range)
+    and "as FORSTER runs it" (`fit_run` on the cut profile: the model ends at the last
+    measured point with the core Fo held there)."""
+    from forster.model import fe_mg_diffusivity, fit_profile
+
+    prof = profiles[run.profile_name]
+    published_end = run.initial.domain_um[1]
+    run = extended_run(run, prof)
+    law = fe_mg_diffusivity(run.diffusivity)
+    species = [(law, fo_range(run.initial))]
+
+    def length(days):
+        return diffusion_length_um(max(days, 1e-9), species, run.conditions, run.orientation)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         full = forster.fit_run(run, profiles)
-    species = [(run.diffusivity, fo_range(run.initial))]
-
-    def length_days(days):
-        return diffusion_length_um(days, species, run.conditions, run.orientation)
-
-    ell = length_days(full.time_days)
+    ell = length(full.time_days)
+    step = max(run.initial.steps_um)
+    x_plat = plateau_start_um(full, step)
+    grid = full.inputs["grid"]
     hi2 = full.time_days + full.time_plus2_s / DAY
-    long_grid = replace(run.grid, max_time_days=max(3 * full.time_days, 1.5 * hi2))
-    prof = profiles[run.profile_name]
+    long_grid = replace(grid, max_time_days=max(3 * full.time_days, 1.5 * hi2, grid.max_time_days))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         res = fit_profile(prof, run.conditions, run.orientation, run.initial, long_grid,
                           run.kriging, run.diffusivity, run.scheme, run.uncertainty,
                           stop_early=False, keep_curves=True, check_near_step=False)  # fmt: skip
+    xa, ya = points_in_domain(res.model_x_um, prof.distance_um, prof.fo)
+    o = np.argsort(xa)
+    xa, ya = xa[o], ya[o]
+    at_all = res.curves @ interpolation_matrix(res.model_x_um, xa).T
     dt = res.dt_s
-    x_all, y_all = points_in_domain(res.model_x_um, res.fit_x_um, res.fit_fo)
-    o = np.argsort(x_all)
-    x_all, y_all = x_all[o], y_all[o]
-    at_all = res.curves @ interpolation_matrix(res.model_x_um, x_all).T
     del res
-    step = max(run.initial.steps_um)
     rows, seen = [], set()
-    for m in PL_CUTS:
-        cut = np.inf if m is None else step + m * ell
-        keep = x_all <= cut
-        key = int(keep.sum())
-        if key in seen or (x_all[keep] > step).sum() < 2:
+    for k in PL_KEEP:
+        cut = np.inf if k is None else x_plat + k * ell
+        keep = xa <= cut
+        nk = int(keep.sum())
+        if nk in seen or (xa[keep] > step).sum() < 2:
             continue
-        seen.add(key)
-        x, y, at = x_all[keep], y_all[keep], at_all[:, keep]
-        base = {"profile": run.name, "cut_l": "all" if m is None else m, "n": key,
-                "kept_past_step_l": (x.max() - step) / ell, "ell_full_um": ell,
-                "last_point_um": float(x.max())}  # fmt: skip
-        n = len(y)
-        rss = white_rss(at, y)
-        w = int(np.argmin(rss))
-        cov, _, daic = fit_zone_noise(x, y - at[w], bump(x, run.initial.steps_um,
-                                      length_days(max(w, 1) * dt / DAY)), "corr")  # fmt: skip
+        seen.add(nk)
+        x, y, at = xa[keep], ya[keep], at_all[:, keep]
+        base = {"profile": run.name, "keep_l": "all" if k is None else k, "n": nk,
+                "last_point_um": float(x.max()), "plateau_start_um": x_plat,
+                "plateau_kept_l": (x.max() - x_plat) / ell, "past_step_l": (x.max() - step) / ell,
+                "ell_um": ell, "data_end_um": float(xa.max()),
+                "published_domain_end_um": published_end}  # fmt: skip
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             d = fit_correlated_points(at, x, y, end_is_limit=False)
-        fits = {"white": _span(rss / (rss[w] / n), n), "default": (d.interval, d.interval2),
-                "near-step": _ranges(at, y, cov)}  # fmt: skip
-        for model, (i1, i2) in fits.items():
-            rows.append(base | {"domain": "fixed domain", "model": model,
-                                "near_step_daic": daic} | _real_rec(i1, i2, dt))  # fmt: skip
+        w = int(np.argmin(white_rss(at, y)))
+        ns = near_step_check(x, y - at[w], run.initial.steps_um, length(max(w, 1) * dt / DAY))
+        i1, i2 = d.interval, d.interval2 or d.interval
+        rows.append(base | {"fit": "domain kept", "near_step_daic": ns.delta_aic,
+                            "model_end_um": float(xa.max()), "core_end_l": math.nan,
+                            "a_mol": 100 * d.noise.correlated_sigma}
+                    | _real_rec(i1, i2, dt))  # fmt: skip
         pk = prof.distance_um <= cut
         cut_prof = {run.profile_name: Profile(prof.distance_um[pk], prof.fo[pk], prof.name)}
         with warnings.catch_warnings():
@@ -819,10 +849,12 @@ def plateau_cuts(run, profiles) -> list[dict]:
             fr = forster.fit_run(run, cut_prof)
         lo1, hi1 = fr.time_range_days(sigmas=1)
         lo2, hi2c = fr.time_range_days(sigmas=2)
-        rows.append(base | {"domain": "as used", "model": "default", "time_d": fr.time_days,
+        rows.append(base | {"fit": "as FORSTER runs it", "time_d": fr.time_days,
                             "lo1_d": lo1, "hi1_d": hi1, "lo2_d": lo2, "hi2_d": hi2c,
                             "near_step_daic": fr.near_step_delta_aic,
-                            "model_end_um": float(fr.model_x_um[-1])})  # fmt: skip
+                            "model_end_um": float(fr.model_x_um[-1]),
+                            "core_end_l": fr.core_end_lengths,
+                            "a_mol": 100 * fr.noise.correlated_sigma})  # fmt: skip
     return rows
 
 
