@@ -1,6 +1,7 @@
 # Naming the starting profile for half profiles and whole crystals
 
-Status (2026-10-16): **draft for Henry's decision.** Nothing is built. Started at Henry's
+Status (2026-10-16): **design decided by Henry** (section "Decisions"); three small points
+still to confirm (last section). Nothing is built. Started at Henry's
 request so that whole crystals, joint fits, population priors, step proposals, the
 edge-position fit and batch import all use one set of names, settled before any of them
 is built. Requirements were collected from both sessions working on these features
@@ -69,81 +70,90 @@ And always:
     identically (a differential replay on the template example, the paper runs and the
     round robin runs).
 
-## Proposal
+## Decisions (Henry, 2026-10-16)
 
-**Zones and ends named separately.** The starting profile is a list of zones between steps,
-read from `domain_start_um` to `domain_end_um`; the ends are named for what is held there.
+1. **Words.** The held outer ends are **edge 1** and **edge 2**. The regions between steps
+   are **segments** in the tables and the code; the docs and the GUI may also call them
+   zones and plateaus, to help users pick concentrations for different growth periods.
+2. **The core end defaults to no flux.** A half profile's far end becomes a symmetry
+   boundary (no Fo crosses it), so the core is free to change; today it is held fixed.
+   As an option the user models the whole profile by giving the **distance of the
+   crystal's centre**, across which the profile is mirrored. The centre may lie beyond the
+   last measured point when the crystal is large and its core plateau flat.
+3. **Segments are labelled a, b, c, ...**, renamable by the user, and matched across
+   profiles and crystals by label (for joint fits and population priors). In the GUI a
+   table at the side defines the segments, one row each: name, start and end position,
+   and concentration, with the labels shown above the plot where priors are selected and
+   dragged. **An edge concentration may differ from the concentration of the segment next
+   to the edge** (today's `rim_fo` against `edge_fo`).
+4. **Distances.** For a single profile the edges are the first and last modelled points,
+   usually 0 on one side and a larger number on the other; the user may instead put zero
+   at the crystal's centre. Profiles on the same crystal do not share an origin (they do
+   not lie on one line); across them only segment concentrations are matched.
+5. **Names from the papers stay.** (Read as: the papers' tables, column names and sample
+   names keep working unchanged, so the old column names remain accepted; see the last
+   section.)
 
-| Concept | Proposed name (table / Python) | Today's name, kept as an alias |
+## Design
+
+| Concept | Table column / Python | Old name, still accepted |
 |---|---|---|
-| Geometry | `geometry`: `half` (default) or `whole` | (always half) |
-| Model domain | `domain_start_um`, `domain_end_um` (unchanged) | round robin `edge_x1`, `edge_x2` |
-| Step positions | `steps_um`: any number, increasing | `steps_um` (1 or 2) |
-| Zone Fo, one per zone, start to end | `zone_fo` (list, len(steps) + 1) | one step: `edge_fo`, `core_fo`; two steps: `edge_fo`, `step_fo`, `core_fo` |
-| Held value at the start (a rim) | `start_rim_fo` (default: the first zone's Fo); a `RimPath` in Python | `rim_fo` |
-| Held value at the end | half: the last zone's Fo (the core); whole: `end_rim_fo` (default: the last zone's Fo) | `core_fo` |
-| Uncertainties | `steps_sd_um` / `steps_range_um` (one per step, unchanged), `zone_fo_sd` / `zone_fo_range` (one per zone) | `edge_fo_sd`, `core_fo_sd`, `step_fo_sd` (and `_range`) |
-| Edge offsets | `start_offset_um`, `end_offset_um` (whole only), each with `_sd` / `_range` to fit it | (none) |
-| Growth stages | `stage_rim_um`, `stage_zone_fo`, `stage_rim_fo` as today for the start rim; `stage_end_rim_um`, `stage_end_zone_fo`, `stage_end_rim_fo` for the end rim of a whole crystal | today's `stage_*` (start rim) |
+| Model domain: edge 1 and the far end | `domain_start_um` (edge 1), `domain_end_um` (edge 2 of a whole crystal, else the core end) | round robin `edge_x1`, `edge_x2` |
+| Far end | `core_end`: `no_flux` (default for new runs) or `fixed` (held at the last segment's Fo, today's behaviour) | (always fixed) |
+| Whole profile by mirroring | `centre_um`: distance of the crystal's centre; the model runs from edge 1 to the centre (beyond the data if needed) and mirrors there | (none) |
+| Origin | `origin`: `edge` (default: distances from edge 1) or `centre` (zero at `centre_um`) | (always edge) |
+| Segment boundaries | `steps_um`: any number, increasing | `steps_um` (1 or 2) |
+| Segment labels | `segment_names` (list; default `a, b, c, ...` from edge 1 inward) | (none) |
+| Segment Fo | `segment_fo` (list, one per segment) | one step: `edge_fo`, `core_fo`; two: `edge_fo`, `step_fo`, `core_fo` |
+| Held edge values | `edge1_fo` (default: segment a's Fo), `edge2_fo` (whole crystals; default: the last segment's) | `rim_fo` |
+| Uncertainties | `steps_sd_um` / `steps_range_um` (per step), `segment_fo_sd` / `segment_fo_range` (per segment), `edge1_fo_sd` ... | `edge_fo_sd`, `core_fo_sd`, `step_fo_sd` |
+| Edge offsets | `edge1_offset_um`, `edge2_offset_um`, each with `_sd` / `_range` | (none) |
+| Growth stages | `stage_*` as today at edge 1; `stage_edge2_*` at edge 2 of a whole crystal | today's `stage_*` |
+| Crystal | `crystal`: profiles with the same value share segment Fo by label, not step positions or offsets (requirement 8); filled from a confirmed name rule or a GUI check box, an explicit value winning (requirement 14) | (none) |
+| Own segments | `own_segments`: labels this profile fits on its own, e.g. its core (requirement 9) | (none) |
+| Sample | `sample`: crystals forming a population, for priors and the hierarchical fit | (none) |
+| Intersection | `cross_profile`, `cross_at_um`, `cross_other_at_um` (requirement 10) | (none) |
 
-**Grouping columns for joint fits and priors** (none affects a run fitted on its own):
+**Segments in the table and the GUI.** In the parameter table a run's segments are list
+columns (`segment_names`, `segment_fo`, with `steps_um` as the boundaries between them),
+so one row is still one run. The GUI shows the same thing as Henry's side table, one row
+per segment with its start, end and Fo; the starts and ends are the edges and the steps,
+so editing one segment's end moves the next one's start.
 
-| Concept | Proposed column | Meaning |
-|---|---|---|
-| Crystal | `crystal` | Profiles with the same value are one crystal: their `zone_fo` is shared, their `steps_um` and offsets are not (requirement 8). Filled from a confirmed name rule or a GUI check box (requirement 14); a value in the column (typed, or written by the check box) wins, and the name rule only proposes values for empty cells, so a confirmed grouping is never overwritten. |
-| Own core | `own_zones` | Zone indices whose Fo this profile fits on its own instead of sharing, e.g. the core (requirement 9). |
-| Sample | `sample` | Crystals with the same value form a population, the source of priors and of the hierarchical joint fit (requirement 6). |
-| Intersection | `cross_profile`, `cross_at_um`, `cross_other_at_um` | This profile crosses `cross_profile` at `cross_at_um` along itself and `cross_other_at_um` along the other (requirement 10). |
+**Step proposals** need no column: they live in the GUI project (`project.json`) until
+accepted, which writes `steps_um` and `steps_sd_um`, so an accepted proposal is an
+ordinary run row that `forster fit` reruns.
 
-**Step proposals** (requirement 11) need no table column: proposals live in the GUI project
-(`project.json`) until the user accepts one, which then writes its position into
-`steps_um` and its prior into `steps_sd_um` or `steps_range_um`, so an accepted proposal is
-an ordinary run row that `forster fit` reruns.
+**The short-plateau warning** changes with the no-flux default: a far end with no flux
+where the data still slope (they stop before the plateau) is as wrong as a held core
+there. It stays for half profiles without `centre_um`, saying to measure further or give
+the centre; with `centre_um`, or for a whole crystal, it is replaced by a check that the
+fronts are resolved and a note when they meet in the core.
 
-**Reading old tables.** A row that gives `edge_fo` / `core_fo` / `step_fo` and no
-`zone_fo` is read as today, as a half profile. Giving both forms is an error unless they
-agree. summary.csv keeps writing the old names for half profiles until the release, so
-existing summaries refit; whole-crystal rows write the new ones.
+## Still to confirm
 
-## How the pieces use it
+1. **Old tables and the new default.** With `core_end` defaulting to `no_flux`, a table
+   written before this change (no `core_end` column) would refit differently wherever
+   diffusion reaches the far end: exactly the short profiles the warning flags; long
+   plateaus are unaffected. Proposal: rows without a `core_end` column read as `fixed`, so
+   published tables and summaries refit identically, and new templates write `no_flux`.
+   A differential replay measures how much each paper and round robin run would move under
+   `no_flux`.
+2. **Decision 5.** Confirm the reading: the old column names (`edge_fo`, `core_fo`,
+   `step_fo`, `rim_fo`, and the round robin `edge_x1` / `edge_x2`) stay accepted
+   indefinitely, and sample and profile names are never renamed.
+3. **Crystal grouping:** an explicit `crystal` value (typed or from the check box) wins over
+   the file-name rule, which only proposes values for empty cells. Agreed?
 
-- **Whole crystal:** `geometry = whole`, steps e.g. `"12, 40"` with `zone_fo` of the outer
-  zone, the core and the other outer zone; both ends held (`start_rim_fo`, `end_rim_fo`),
-  the core free. The short-plateau warning does not apply; instead check that both rims'
-  fronts are resolved and report when they meet in the core.
-- **Half profile reaching a small crystal's centre:** by symmetry the same as a whole
-  crystal mirrored at the centre. Either model it as `whole` (simple, twice the nodes), or
-  add a half-profile end held as "no flux" (cheaper). Open question below.
-- **Starting-profile fit:** the uncertain parameters become `steps_um[i]`, `zone_fo[j]` and
-  the offsets, so the fit no longer special-cases edge, core and plateau.
-- **Population priors:** a histogram of `zone_fo[j]` across the crystals of a `sample`
-  becomes the prior for that zone; zones are matched by role (outer zone, plateau, core),
-  so a role per zone may be needed (open question).
+## Steps once confirmed
 
-## Questions for Henry
-
-1. **Words.** "rim" or "edge" for the held outer ends? "zone" or "plateau" for the regions
-   between steps? (The proposal uses rim and zone; `edge_fo` stays as an alias.)
-2. **Profiles reaching the centre:** model them as whole crystals, or add a cheaper
-   half-profile end with no flux across the centre?
-3. **Matching zones across crystals** for population priors and joint fits: by position in
-   the list (needs the same number of zones everywhere), or by a role label per zone
-   (outer, plateau, core)?
-4. **Whole-crystal coordinates:** one origin at `domain_start_um` with the second rim at
-   `domain_end_um` (proposed), or each rim its own origin?
-5. **Aliases:** keep `edge_fo` / `core_fo` / `step_fo` indefinitely, or only until the
-   release?
-6. **Crystal grouping:** the proposal lets an explicit `crystal` value (typed or from the
-   check box) win over the file-name rule, which only fills empty cells. Agreed?
-
-## Steps once decided
-
-1. `InitialCondition` gains `zone_fo`, `geometry` and the held ends, with the old fields as
-   aliases; table reader and writer, template and column guide follow.
-2. Differential replay: every half-profile run (template example, paper runs, round robin
-   runs) refits identically, with a baseline-against-itself control.
-3. Whole crystals in the solvers' boundary setup; check a symmetric whole crystal against
-   the half profile and an analytical slab solution.
-4. The starting-profile fit over `steps_um[i]` / `zone_fo[j]` / offsets.
-5. Then the joint fits, population priors, step proposals and batch import, each on these
-   names.
+1. `InitialCondition` gains segments (`steps_um`, `segment_names`, `segment_fo`), the held
+   edges, `core_end`, `centre_um` and `origin`, with the old fields accepted; table
+   reader and writer, template and column guide follow.
+2. Differential replay: every run read from an existing table (template example, paper
+   runs, round robin runs) refits identically, with a baseline-against-itself control;
+   then the same runs under `no_flux`, to report what the new default changes.
+3. No-flux far end and mirroring at `centre_um` in the solvers; check against an
+   analytical slab solution and a whole profile modelled explicitly.
+4. The starting-profile fit over step positions, segment Fo, edge values and offsets.
+5. Then joint fits, population priors, step proposals and batch import on these names.
