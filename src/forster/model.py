@@ -18,14 +18,13 @@ import math
 import os
 import re
 import string
-import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 
-from forster import compiled, dipra, engine, implicit, orientation
+from forster import compiled, dipra, engine, implicit, notes, orientation
 from forster.boundary import (
     SECONDS_PER_DAY,
     BoundaryHistory,
@@ -861,12 +860,10 @@ def _fit_extending(
     Warnings are raised only for the fit that is kept."""
     while True:
         complete = len(rows) - 1 >= total_steps
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
+        with notes.held() as caught:
             result = fit(rows, complete)
         if complete or result.interval.high_row < len(rows) - 1:
-            for w in caught:
-                warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
+            caught.release()
             return rows, result
         extra = min(len(rows) - 1, total_steps - (len(rows) - 1))
         rows = np.concatenate([rows, advance(rows[-1], extra, first_row=len(rows) - 1)[1:]])
@@ -955,13 +952,11 @@ def _correlated_run(
                 break
     while True:
         complete = stream.n_rows - 1 >= total_steps
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
+        with notes.held() as caught:
             fit = fit_correlated_points(stream.points(), px, py, end_is_limit=complete)
         reach = fit.interval2 or fit.interval
         if complete or reach.high_row < stream.n_rows - 1:
-            for w in caught:
-                warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
+            caught.release()
             return stream, fit
         extra = min(stream.n_rows - 1, total_steps - (stream.n_rows - 1))
         stream.append(advance(stream.last, extra, first_row=stream.n_rows - 1)[1:])
@@ -1327,7 +1322,7 @@ def near_step_at_best_initial(
         return NearStepCheck(math.nan, math.nan)
     check = near_step_at(x_um, fo, model_fo, initial, days, diffusivity, conditions, orientation)
     if check.warn:
-        warnings.warn(
+        notes.warn(
             "even at the best-fit initial condition the misfit is concentrated near the step "
             f"(a near-step misfit term improves AIC by {-check.delta_aic:.1f}): the "
             "initial-condition model may be missing something (a step that is not sharp, or "
@@ -1347,7 +1342,7 @@ def _near_step(stream, fit, initial, conditions, orientation, diffusivity, grid)
         fit.x_um, fit.fo, at_points[row], initial, days, diffusivity, conditions, orientation
     )
     if check.warn:
-        warnings.warn(
+        notes.warn(
             f"the misfit is concentrated near the step (a near-step misfit term improves "
             f"AIC by {-check.delta_aic:.1f}): the 1-sigma range is probably too narrow. "
             "The initial condition near the step is probably not quite right: fit it first "
@@ -1378,7 +1373,7 @@ def _core_end_lengths(
     last_step = max(initial.steps_um, default=initial.domain_um[0])
     lengths = (float(model_x[-1]) - last_step) / length
     if lengths < SHORT_PLATEAU_LENGTHS:
-        warnings.warn(
+        notes.warn(
             f"the profile ends {lengths:.1f} diffusion lengths past the last step "
             f"({float(model_x[-1]) - last_step:.0f} um, diffusion length {length:.1f} um), "
             "so the data probably stop at or before the plateau (on real profiles it starts "

@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import ast
 import math
-import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -48,6 +47,7 @@ from typing import Any, NamedTuple
 import numpy as np
 import pandas as pd
 
+from forster import notes
 from forster.boundary import BoundaryHistory, Rim, Stage
 from forster.diffusivity import (
     DEFAULT_DIFFUSIVITY,
@@ -81,7 +81,7 @@ from forster.model import (
 )
 from forster.rescale import ConditionUncertainty, TimeDistribution, monte_carlo
 from forster.sampling import METHODS as SAMPLING_METHODS
-from forster.sampling import ICPosterior, fit_initial_condition
+from forster.sampling import Cancelled, ICPosterior, fit_initial_condition
 from forster.scan import (
     MAX_CANDIDATES,
     ScanResult,
@@ -295,9 +295,7 @@ def read_profiles(
         str(n) for n in df.loc[blank, name_column].unique() if (keep & (df[name_column] == n)).any()
     )
     if partly_blank:
-        warnings.warn(
-            f"{path}: dropped rows with no distance or Fo from {partly_blank}", stacklevel=2
-        )
+        notes.warn(f"{path}: dropped rows with no distance or Fo from {partly_blank}", stacklevel=2)
     profiles = {}
     too_short = []
     for name in names:
@@ -310,7 +308,7 @@ def read_profiles(
             fo = fo / 100
         profiles[str(name)] = Profile(rows[distance_column].to_numpy(), fo, name=str(name))
     if too_short:
-        warnings.warn(
+        notes.warn(
             f"{path}: skipped {len(too_short)} name(s) with fewer than {MIN_PROFILE_POINTS} "
             f"points: {too_short}",
             stacklevel=2,
@@ -821,7 +819,7 @@ def _warn_unknown_columns(path: str | Path, columns: set[str]) -> None:
     )
     unknown = sorted(str(c) for c in columns - known if not str(c).startswith("Unnamed:"))
     if unknown:
-        warnings.warn(
+        notes.warn(
             f"{path}: column(s) not used by FORSTER (check the spelling): {unknown}",
             stacklevel=3,
         )
@@ -832,7 +830,7 @@ def _warn_renamed_columns(path: str | Path, columns: set[str]) -> None:
     old = [c for c in RENAMED_COLUMNS if c in columns]
     if old:
         renames = "; ".join(f"{c} -> {RENAMED_COLUMNS[c]}" for c in old)
-        warnings.warn(
+        notes.warn(
             f"{path}: old column names, read until the release: {renames}",
             RenamedColumnWarning,
             stacklevel=3,
@@ -1114,7 +1112,7 @@ def fit_run(
     if given:
         since = max(result.time_since_last_stage_days, grid.dt_s / SECONDS_PER_DAY)
         for message in check_grid(grid, *args, run.diffusivity, time_days=since, scheme=run.scheme):
-            warnings.warn(f"run {run.name!r}: {message}", stacklevel=2)
+            notes.warn(f"run {run.name!r}: {message}", stacklevel=2)
     return result
 
 
@@ -1250,6 +1248,8 @@ def scan_run(
     time_days: float | None = None,
     max_candidates: int = MAX_CANDIDATES,
     progress: Callable[[int, int], None] | None = None,
+    stage: Callable[[str], None] | None = None,
+    cancel: Callable[[], bool] | None = None,
 ) -> ScanResult | ICPosterior:
     """Fit a run over its uncertain initial-condition parameters.
 
@@ -1260,6 +1260,9 @@ def scan_run(
     (`choose_grid`, purpose "scan"), using ``time_days`` (the nominal fit's time, if
     known) to size it; otherwise a coarse fit estimates the time. The scan does not
     model growth stages or a ``rim_fo``: a run with either raises.
+
+    ``stage(name)`` reports the sampler's stages; ``cancel()``, checked before every
+    model run, stops the scan with `forster.sampling.Cancelled` when it returns True.
     """
     if not run.uncertainties:
         raise ValueError(f"run {run.name!r} has no initial-condition uncertainties to scan")
@@ -1296,7 +1299,11 @@ def scan_run(
             run.scheme,
             method=run.scan_method,
             seed=run.scan_seed,
+            progress=stage,
+            cancel=cancel,
         )
+    if cancel is not None:
+        progress = _cancellable(progress, cancel)
     return scan_initial_conditions(
         profile,
         run.conditions,
@@ -1311,6 +1318,20 @@ def scan_run(
         stability=None if run.scan_grid.dt_s is not None else STABILITY_RATIO,
         progress=progress,
     )
+
+
+def _cancellable(
+    progress: Callable[[int, int], None] | None, cancel: Callable[[], bool]
+) -> Callable[[int, int], None]:
+    """A grid scan's ``progress`` that also stops the scan when ``cancel()`` is True."""
+
+    def report(i: int, n: int) -> None:
+        if cancel():
+            raise Cancelled("the initial-condition scan was cancelled")
+        if progress is not None:
+            progress(i, n)
+
+    return report
 
 
 def _check_scannable(run: Run) -> None:

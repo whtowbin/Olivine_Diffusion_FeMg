@@ -291,3 +291,62 @@ def test_a_crafted_project_file_cannot_delete_outside_the_cache(project, tmp_pat
     assert (victim / "keep.txt").read_text() == "keep"
     with pytest.raises(ValueError, match="not a cache key"):
         opened._cache("../x")
+
+
+def test_a_fits_warnings_are_cached_with_it(project):
+    """`FitTask.run_collecting` returns the warnings as data; `store` keeps them with the
+    result, so a reopened project shows them without refitting."""
+    run = project.run(EXAMPLE)
+    project.update_run(EXAMPLE, initial=replace(run.initial, domain_um=(2.5, 40.0)))
+    assert project.fit_warnings(EXAMPLE) is None
+    task = project.fit_task(EXAMPLE)
+    outcome = task.run_collecting()
+    assert any("past the last step" in m for m in outcome.warnings)
+    assert project.store(task, outcome.result, outcome.warnings)
+    project.save()
+    again = Project.open(project.folder)
+    assert again.fit_warnings(EXAMPLE) == outcome.warnings
+    reopened = again.result(EXAMPLE)
+    assert reopened is not None and reopened.time_s == outcome.result.time_s
+    # Project.fit, outside a worker, issues them as fit_run does.
+    again.update_run(EXAMPLE, conditions=replace(run.conditions, T_C=1251.0))
+    with pytest.warns(UserWarning, match="past the last step"):
+        again.fit(EXAMPLE)
+
+
+def test_the_starting_profile_fit_is_cached_under_its_settings(project):
+    from forster.sampling import Cancelled
+
+    priors = {"step1_um": Uncertainty(2.0), "a_fo": Uncertainty(0.002)}
+    project.update_run(EXAMPLE, uncertainties=priors, scan_method="laplace")
+    project.fit(EXAMPLE)
+    assert project.scan(EXAMPLE) is None
+    task = project.scan_task(EXAMPLE)
+    summary = project.summary(EXAMPLE)
+    assert summary is not None and task.time_days == summary["time_days"]
+    with pytest.raises(Cancelled):
+        task(cancel=lambda: True)
+    stages = []
+    record = task(stage=stages.append)
+    assert stages[:2] == ["best fit", "importance sampling"]
+    assert project.store_scan(task, record)
+    project.save()
+    again = Project.open(project.folder)
+    cached = again.scan(EXAMPLE)
+    assert cached is not None and record.density is not None
+    assert cached.summary == record.summary
+    assert cached.best_initial == record.best_initial
+    np.testing.assert_array_equal(cached.density, record.density)
+    # Another prior is another scan; going back finds the cached one. A Monte Carlo
+    # setting does not change the scan.
+    again.update_run(EXAMPLE, uncertainties={"step1_um": Uncertainty(3.0)})
+    assert again.scan(EXAMPLE) is None
+    again.update_run(EXAMPLE, uncertainties=priors)
+    assert again.scan(EXAMPLE) is not None
+    mc = ConditionUncertainty(T_sd_C=10, fO2_sd_log=0.2, fO2_buffer="QFM", between_study=True)
+    again.update_run(EXAMPLE, mc=mc, mc_samples=900, mc_seed=3)
+    assert again.scan(EXAMPLE) is not None
+    again.rename_run(EXAMPLE, "renamed")
+    assert again.state["scans"]["renamed"] == task.key
+    again.remove_run("renamed")
+    assert "renamed" not in again.state["scans"]

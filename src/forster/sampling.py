@@ -36,7 +36,6 @@ evidence. Priors are as in `forster.scan.candidate_grid`: Gaussian truncated at
 from __future__ import annotations
 
 import math
-import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
@@ -44,6 +43,7 @@ import numpy as np
 import scipy.linalg as sla
 from scipy import optimize, special, stats
 
+from forster import notes
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity
 from forster.model import (
     DEFAULT_SCHEME,
@@ -97,6 +97,10 @@ TAIL_MASS = 1e-3
 _OUTSIDE = 1e12  # objective outside the prior's support
 
 
+class Cancelled(Exception):
+    """Raised inside `fit_initial_condition` when its ``cancel`` hook returns True."""
+
+
 class ICLikelihood:
     """Log prior and per-time log likelihood of the uncertain initial-condition
     parameters, for one profile, grid and noise model.
@@ -137,6 +141,8 @@ class ICLikelihood:
         self.W = interpolation_matrix(self.model_x, self.x)
         self.rows = grid.timesteps + 1
         self.runs = 0
+        # Called before every model run; True stops the fit (`Cancelled`).
+        self.cancel: Callable[[], bool] | None = None
         self.chol: np.ndarray | None = None
         # log of the normalised prior density's constant (truncated Gaussian or uniform)
         mass = 1 - 2 * stats.norm.cdf(-NORMAL_SPAN)
@@ -167,6 +173,8 @@ class ICLikelihood:
 
     def at_points(self, initial: InitialCondition) -> np.ndarray:
         """The model at the measured points, (time steps + 1, points)."""
+        if self.cancel is not None and self.cancel():
+            raise Cancelled("the initial-condition fit was cancelled")
         substeps = 1
         if self.scheme != "implicit":
             substeps = _explicit_substeps(
@@ -465,6 +473,7 @@ def fit_initial_condition(
     seed: int = 0,
     ess_fallback: float = ESS_FALLBACK,
     progress: Callable[[str], None] | None = None,
+    cancel: Callable[[], bool] | None = None,
 ) -> ICPosterior:
     """Best-fit initial condition and the posterior of time over its uncertain parameters.
 
@@ -475,13 +484,16 @@ def fit_initial_condition(
     ``ess_fallback`` x ``n_samples``), "laplace" or "nested". The same ``seed`` gives
     the same result. Every run uses ``grid`` (a scan grid: `forster.grid.choose_grid`
     with purpose "scan" is enough for the 5% the ranges need). ``progress(stage)`` is
-    called at each stage. See the module docstring.
+    called at each stage. ``cancel()`` is called before every model run (in the
+    optimiser, the Hessian and both samplers) and raises `Cancelled` when it returns
+    True; otherwise it leaves the result unchanged. See the module docstring.
     """
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}; use one of {', '.join(METHODS)}")
     like = ICLikelihood(
         profile, conditions, orientation, initial, uncertainties, grid, diffusivity, scheme
     )
+    like.cancel = cancel
     say = progress or (lambda stage: None)
     d = len(like.names)
     say("best fit")
@@ -502,7 +514,7 @@ def fit_initial_condition(
         if abs(zi) >= (NORMAL_SPAN if k else 1.0) - 1e-3
     ]
     if at_edge:
-        warnings.warn(
+        notes.warn(
             f"the best {', '.join(at_edge)} is at the edge of its prior; the data favour "
             "values beyond it, so the range may be cut short",
             stacklevel=2,
@@ -534,7 +546,7 @@ def fit_initial_condition(
         like.orientation,
     )
     if summary["tail"] > TAIL_MASS:
-        warnings.warn(
+        notes.warn(
             f"{summary['tail']:.1%} of the posterior of time lies in the last "
             f"{TAIL_FRACTION:.0%} of the run; give a longer scan_max_time_days",
             stacklevel=2,

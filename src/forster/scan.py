@@ -38,13 +38,13 @@ from __future__ import annotations
 
 import itertools
 import math
-import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 import numpy as np
 import scipy.linalg as sla
 
+from forster import notes
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity
 from forster.grid import (
     STABILITY_RATIO,
@@ -496,7 +496,7 @@ def fit_candidates(
     best_candidate, best_row = np.unravel_index(int(np.argmin(penalised)), table.shape)
     if prior is None:
         if len(chi2) >= 3 and best_candidate in (0, len(chi2) - 1):
-            warnings.warn(
+            notes.warn(
                 f"the best candidate is the {'first' if best_candidate == 0 else 'last'} of "
                 "the scan; extend the scan past it, or the ranges may be cut short",
                 stacklevel=2,
@@ -507,7 +507,7 @@ def fit_candidates(
             if v in (grid_nodes[0], grid_nodes[-1]):
                 u = prior.uncertainties[name]
                 limit = f"{NORMAL_SPAN:g} sigma" if u.kind == "normal" else "the range given"
-                warnings.warn(
+                notes.warn(
                     f"the best {name} ({v:.4g}) is at {limit} from its nominal value; the "
                     "data favour values beyond the scan, so the ranges may be cut short",
                     stacklevel=2,

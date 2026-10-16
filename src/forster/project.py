@@ -12,7 +12,14 @@ parameters.csv`` runs a saved project unchanged:
 Results are cached in ``.forster/cache/<key>/`` under a key computed from everything
 that determines the fit (the run's table row, the profile's numbers, the equations and
 the FORSTER version), so a reopened project shows its results at once, and a run whose
-settings changed has no result rather than a stale one (`Project.result`).
+settings changed has no result rather than a stale one (`Project.result`). The fit's
+warnings are cached with it (`Project.fit_warnings`), and the starting-profile fit
+(`forster.io.scan_run`) is cached the same way under its own key (`Project.scan_task`,
+`Project.store_scan`, `Project.scan`).
+
+Fits for a worker thread are captured as tasks (`FitTask`, `ScanTask`): they collect
+FORSTER's warnings as data (`forster.notes`), never through ``warnings.catch_warnings``,
+which is not thread-safe.
 ``autosave`` writes the same files into ``.forster/autosave/`` without touching the
 saved tables.
 
@@ -27,8 +34,7 @@ import json
 import re
 import shutil
 import tempfile
-import warnings
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, fields, replace
 from importlib.metadata import version
 from pathlib import Path
@@ -37,6 +43,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from forster import notes
 from forster.diffusivity import ArrheniusDiffusivity, diffusivity_table
 from forster.io import (
     METADATA_COLUMNS,
@@ -48,10 +55,13 @@ from forster.io import (
     read_runs,
     read_table,
     run_row,
+    scan_run,
+    scan_summary,
     summary_row,
 )
-from forster.model import Conditions, FitResult, Grid, Orientation, Profile
-from forster.scan import is_valid
+from forster.model import Conditions, FitResult, Grid, InitialCondition, Orientation, Profile
+from forster.sampling import ICPosterior
+from forster.scan import ScanResult, is_valid
 from forster.template import write_template
 from forster.uncertainty import NoiseModel
 
@@ -82,6 +92,22 @@ def _fit_row(run: Run) -> dict[str, Any]:
     }
 
 
+def _scan_row(run: Run) -> dict[str, Any]:
+    """The table row of what determines the starting-profile fit: the fit's row plus the
+    uncertainty and scan columns (not the Monte Carlo's)."""
+    plain = replace(run, fO2_form=None, euler_form=None)
+    return {
+        k: v
+        for k, v in run_row(plain).items()
+        if k not in {"run", *METADATA_COLUMNS} and not k.startswith("mc_")
+    }
+
+
+def _text_tuple(value: Any) -> tuple[str, ...]:
+    """A list of strings read from a cache file (anything else: empty)."""
+    return tuple(str(v) for v in value) if isinstance(value, list) else ()
+
+
 @dataclass(frozen=True)
 class FitTask:
     """One run's fit, captured with its settings so it can run in a worker thread while
@@ -95,6 +121,67 @@ class FitTask:
 
     def __call__(self) -> FitResult:
         return fit_run(self.run, self.profiles)
+
+    def run_collecting(self) -> FitOutcome:
+        """The fit with FORSTER's warnings collected as data (`forster.notes`): safe in a
+        worker thread, and the warnings are not issued."""
+        with notes.collect() as caught:
+            result = fit_run(self.run, self.profiles)
+        return FitOutcome(result, notes.messages(caught))
+
+
+@dataclass(frozen=True)
+class FitOutcome:
+    """A fit and its warnings (`FitTask.run_collecting`)."""
+
+    result: FitResult
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ScanRecord:
+    """What a starting-profile fit (`forster.io.scan_run`) leaves for display and reuse:
+    its summary.csv columns (`forster.io.scan_summary`), the best starting profile, the
+    marginal posterior of time (sampled methods only: ``days``, ``density`` per day) and
+    its warnings."""
+
+    summary: dict[str, Any]
+    best_initial: InitialCondition
+    warnings: tuple[str, ...] = ()
+    days: np.ndarray | None = None
+    density: np.ndarray | None = None
+
+    @classmethod
+    def of(cls, scan: ScanResult | ICPosterior, warnings: tuple[str, ...] = ()) -> ScanRecord:
+        days = density = None
+        if isinstance(scan, ICPosterior):
+            days, density = np.asarray(scan.days), np.asarray(scan.density)
+        return cls(scan_summary(scan), scan.best_initial, warnings, days, density)
+
+
+@dataclass(frozen=True)
+class ScanTask:
+    """One run's starting-profile fit, captured like `FitTask`: call it in a worker
+    thread (``stage`` and ``cancel`` as `forster.io.scan_run`), then hand the record to
+    `Project.store_scan`."""
+
+    name: str
+    key: str
+    run: Run
+    profiles: Mapping[str, Profile]
+    time_days: float | None
+
+    def __call__(
+        self,
+        *,
+        stage: Callable[[str], None] | None = None,
+        cancel: Callable[[], bool] | None = None,
+    ) -> ScanRecord:
+        with notes.collect() as caught:
+            scan = scan_run(
+                self.run, self.profiles, time_days=self.time_days, stage=stage, cancel=cancel
+            )
+        return ScanRecord.of(scan, notes.messages(caught))
 
 
 def profile_table(profiles: Mapping[str, Profile]) -> pd.DataFrame:
@@ -169,12 +256,13 @@ class Project:
                 raise ValueError(f"{folder / STATE}: not a FORSTER project file")
             # project.json comes from whoever sent the folder: keep only well-formed cache
             # keys, which are used to build paths (and to delete stale entries).
-            results = state.get("results", {})
-            state["results"] = {
-                str(k): v
-                for k, v in (results.items() if isinstance(results, dict) else ())
-                if isinstance(v, str) and _KEY.fullmatch(v)
-            }
+            for kind in ("results", "scans"):
+                records = state.get(kind, {})
+                state[kind] = {
+                    str(k): v
+                    for k, v in (records.items() if isinstance(records, dict) else ())
+                    if isinstance(v, str) and _KEY.fullmatch(v)
+                }
             if state.get("format", FORMAT_VERSION) > FORMAT_VERSION:
                 raise ValueError(
                     f"{folder / STATE} was written by a newer FORSTER (format "
@@ -293,15 +381,15 @@ class Project:
 
     def remove_run(self, name: str) -> None:
         del self.runs[self._index(name)]
-        self.state.get("views", {}).pop(name, None)
-        self.state.get("results", {}).pop(name, None)
+        for key in ("views", "results", "scans"):
+            self.state.get(key, {}).pop(name, None)
         self.dirty = True
 
     def rename_run(self, name: str, new_name: str) -> Run:
         self._check_new_name(new_name)
         i = self._index(name)
         self.runs[i] = replace(self.runs[i], name=new_name)
-        for key in ("views", "results"):
+        for key in ("views", "results", "scans"):
             if name in self.state.get(key, {}):
                 self.state[key][new_name] = self.state[key].pop(name)
         if self.state.get("selected_run") == name:
@@ -350,8 +438,7 @@ class Project:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / PARAMETERS
             pd.DataFrame([run_row(run)]).to_csv(path, index=False)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
+            with notes.collect():  # dropped; thread-safe, unlike catch_warnings
                 (back,) = read_runs(path, diffusivities=self.diffusivities)
         if back != run:
             raise ValueError(f"run {run.name!r} does not survive a save and reopen")
@@ -407,10 +494,20 @@ class Project:
     def result_key(self, name: str) -> str:
         """Hash of everything that determines the run's nominal fit (not its name, notes,
         scan or Monte Carlo settings)."""
+        return self._key(self.run(name), _fit_row(self.run(name)))
+
+    def scan_key(self, name: str, time_days: float | None = None) -> str:
+        """Hash of everything that determines the run's starting-profile fit: the fit's
+        settings, the uncertainties and scan settings, and ``time_days`` (the nominal
+        fit's time, which sizes the scan grid)."""
         run = self.run(name)
+        row = {**_scan_row(run), "_scan_time_days": time_days}
+        return self._key(run, row)
+
+    def _key(self, run: Run, row: Mapping[str, Any]) -> str:
         profile = self.profiles[run.profile_name]
         h = hashlib.sha256()
-        h.update(json.dumps(_fit_row(run), sort_keys=True, default=str).encode())
+        h.update(json.dumps(row, sort_keys=True, default=str).encode())
         h.update(np.asarray(profile.distance_um, dtype=float).tobytes())
         h.update(np.asarray(profile.fo, dtype=float).tobytes())
         if isinstance(run.diffusivity, ArrheniusDiffusivity):
@@ -427,30 +524,75 @@ class Project:
         """The run's fit as a task for a worker thread (`FitTask`)."""
         return FitTask(name, self.result_key(name), self.run(name), dict(self.profiles))
 
-    def store(self, task: FitTask, result: FitResult) -> bool:
-        """Cache a task's result under the settings it was made with. Returns whether
-        they are still the run's settings (if not, the result is kept for them but the
-        run shows no result). The run's previous cache entry is removed unless another
-        run uses it, so the cache holds one entry per run."""
-        _store_fit(result, self._cache(task.key))
+    def store(self, task: FitTask, result: FitResult, warnings: Iterable[str] = ()) -> bool:
+        """Cache a task's result (and its warnings, `FitOutcome`) under the settings it
+        was made with. Returns whether they are still the run's settings (if not, the
+        result is kept for them but the run shows no result). The run's previous cache
+        entry is removed unless another run uses it, so the cache holds one entry per
+        run."""
+        _store_fit(result, self._cache(task.key), tuple(warnings))
         current = task.name in self.run_names and self.result_key(task.name) == task.key
         if current:
-            results = self.state.setdefault("results", {})
-            old = results.get(task.name)
-            results[task.name] = task.key
-            if (
-                isinstance(old, str)
-                and _KEY.fullmatch(old)
-                and old != task.key
-                and old not in results.values()
-            ):
-                stale = self._cache(old)
-                if (
-                    not stale.is_symlink()
-                    and stale.resolve().parent == (self.folder / WORK / "cache").resolve()
-                ):
-                    shutil.rmtree(stale, ignore_errors=True)
+            self._record("results", task.name, task.key)
         return current
+
+    def _record(self, kind: str, name: str, key: str) -> None:
+        """Note ``key`` as the run's cache entry of ``kind`` ("results" or "scans") and
+        remove its previous entry unless another run uses it."""
+        records = self.state.setdefault(kind, {})
+        old = records.get(name)
+        records[name] = key
+        in_use = {*self.state.get("results", {}).values(), *self.state.get("scans", {}).values()}
+        if isinstance(old, str) and _KEY.fullmatch(old) and old not in in_use:
+            stale = self._cache(old)
+            if (
+                not stale.is_symlink()
+                and stale.resolve().parent == (self.folder / WORK / "cache").resolve()
+            ):
+                shutil.rmtree(stale, ignore_errors=True)
+
+    def fit_warnings(self, name: str) -> tuple[str, ...] | None:
+        """The warnings of the cached fit for the run's current settings (None: no
+        cached fit)."""
+        path = self._cache(self.result_key(name)) / "warnings.json"
+        if not (path.parent / "fit.json").exists():
+            return None
+        if not path.exists():
+            return ()
+        _no_links(path.parents[2], path.parents[1], path.parent, path)
+        return _text_tuple(json.loads(path.read_text()))
+
+    # -- the starting-profile fit ---------------------------------------------------
+
+    def scan_task(self, name: str) -> ScanTask:
+        """The run's starting-profile fit as a task for a worker thread (`ScanTask`),
+        sized by the cached nominal fit's time when there is one."""
+        cached = self.summary(name)
+        time_days = float(cached["time_days"]) if cached else None
+        return ScanTask(
+            name,
+            self.scan_key(name, time_days),
+            self.run(name),
+            dict(self.profiles),
+            time_days,
+        )
+
+    def store_scan(self, task: ScanTask, record: ScanRecord) -> bool:
+        """Cache a starting-profile fit under the settings it was made with; whether they
+        are still the run's (as `store`)."""
+        _store_scan(record, self._cache(task.key))
+        current = task.name in self.run_names and self.scan_task(task.name).key == task.key
+        if current:
+            self._record("scans", task.name, task.key)
+        return current
+
+    def scan(self, name: str) -> ScanRecord | None:
+        """The cached starting-profile fit for the run's current settings, or None."""
+        folder = self._cache(self.scan_task(name).key)
+        if not (folder / "scan.json").exists():
+            return None
+        _no_links(folder.parents[1], folder.parent, folder, folder / "scan.json")
+        return _load_scan(folder)
 
     def fit(self, name: str) -> FitResult:
         """Fit the run (`forster.io.fit_run`), or return the cached fit of the same
@@ -459,9 +601,11 @@ class Project:
         if cached is not None:
             return cached
         task = self.fit_task(name)
-        result = task()
-        self.store(task, result)
-        return result
+        outcome = task.run_collecting()
+        for message in outcome.warnings:  # issued here, as fit_run issues them
+            notes.warn(message, stacklevel=2)
+        self.store(task, outcome.result, outcome.warnings)
+        return outcome.result
 
     @property
     def selected_run(self) -> str | None:
@@ -531,7 +675,7 @@ def _reconcile(run: Run, changes: Mapping[str, Any]) -> Run:
 _INPUT_FIELDS = ("inputs",)
 
 
-def _store_fit(result: FitResult, folder: Path) -> None:
+def _store_fit(result: FitResult, folder: Path, warnings: tuple[str, ...] = ()) -> None:
     _no_links(folder.parents[1], folder.parent, folder)  # .forster, cache, the entry
     folder.mkdir(parents=True, exist_ok=True)
     arrays, scalars = {}, {}
@@ -555,6 +699,7 @@ def _store_fit(result: FitResult, folder: Path) -> None:
         np.savez(tmp, **arrays)  # uncompressed: compressing took most of a drag's refit
     Path(tmp.name).replace(folder / "fit.npz")
     _write_text(json.dumps(summary_row(result), default=float), folder / "summary.json")
+    _write_text(json.dumps(list(warnings)), folder / "warnings.json")
     _write_text(json.dumps(scalars, default=float), folder / "fit.json")  # last: marks complete
 
 
@@ -584,3 +729,59 @@ def _load_fit(folder: Path, run: Run) -> FitResult:
         "rim_fo": run.rim_fo,
     }
     return FitResult(**values)
+
+
+def _initial_json(initial: InitialCondition) -> dict[str, Any]:
+    return {
+        "domain_um": list(initial.domain_um),
+        "steps_um": list(initial.steps_um),
+        "segment_fo": list(initial.segment_fo),
+        "segment_names": list(initial.segment_names),
+        "centre_um": initial.centre_um,
+    }
+
+
+def _initial_from_json(value: Mapping[str, Any]) -> InitialCondition:
+    low, high = (float(v) for v in value["domain_um"])
+    return InitialCondition(
+        (low, high),
+        steps_um=[float(v) for v in value["steps_um"]],
+        segment_fo=[float(v) for v in value["segment_fo"]],
+        segment_names=[str(v) for v in value["segment_names"]],
+        centre_um=None if value.get("centre_um") is None else float(value["centre_um"]),
+    )
+
+
+def _store_scan(record: ScanRecord, folder: Path) -> None:
+    """A starting-profile fit as scan.json (and scan.npz for the posterior of time), no
+    pickles, like `_store_fit`."""
+    _no_links(folder.parents[1], folder.parent, folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    if record.days is not None and record.density is not None:
+        _no_links(folder / "scan.npz")
+        with tempfile.NamedTemporaryFile(dir=folder, suffix=".npz", delete=False) as tmp:
+            np.savez(tmp, days=record.days, density=record.density)
+        Path(tmp.name).replace(folder / "scan.npz")
+    data = {
+        "summary": record.summary,
+        "best_initial": _initial_json(record.best_initial),
+        "warnings": list(record.warnings),
+        "posterior": record.days is not None,
+    }
+    _write_text(json.dumps(data, default=float), folder / "scan.json")  # last: marks complete
+
+
+def _load_scan(folder: Path) -> ScanRecord:
+    data = json.loads((folder / "scan.json").read_text())
+    days = density = None
+    if data.get("posterior"):
+        _no_links(folder / "scan.npz")
+        with np.load(folder / "scan.npz", allow_pickle=False) as npz:
+            days, density = npz["days"], npz["density"]
+    return ScanRecord(
+        dict(data["summary"]),
+        _initial_from_json(data["best_initial"]),
+        _text_tuple(data.get("warnings")),
+        days,
+        density,
+    )

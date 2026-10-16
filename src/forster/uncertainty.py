@@ -25,13 +25,14 @@ Method, validation and references: ``docs/references/likelihood-method.md``.
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 import scipy.linalg as sla
 from scipy import stats
+
+from forster import notes
 
 # Grid searched for the noise model. rho = a / s is the ratio of correlated misfit to
 # white noise; L runs from the point spacing to half the profile length.
@@ -130,7 +131,7 @@ def fit_noise_model(x_um: np.ndarray, residuals: np.ndarray) -> NoiseModel:
     # end (the point spacing: misfit too short to resolve) is harmless. On pure white
     # noise this fires in about 1% of fits.
     if rho == RHO_GRID[-1] or (rho >= WARN_RHO and lengths[-1] == L):
-        warnings.warn(
+        notes.warn(
             f"the misfit spans the profile (correlated noise {rho * np.sqrt(s2) * 100:.2g} Fo "
             f"over L={L:.3g} um, half the profile): check the initial and boundary "
             "conditions; the range may be too narrow",
@@ -196,13 +197,13 @@ def delta_chi2_interval(
     else:
         low = 0.0
         if best > 0:
-            warnings.warn("1-sigma range reaches time zero", stacklevel=2)
+            notes.warn("1-sigma range reaches time zero", stacklevel=2)
     if hi_row < len(chi2) - 1:
         high = crossing(hi_row, hi_row + 1)
     else:
         high = float(hi_row)
         if end_is_limit:
-            warnings.warn(
+            notes.warn(
                 "1-sigma range reaches the last modelled time step; increase max_time_days",
                 stacklevel=2,
             )
@@ -378,8 +379,7 @@ def _correlated_ranges(chi2, noise, x, y, end_is_limit) -> CorrelatedFit:
     threshold = interval_threshold(len(x))
     threshold2 = interval_threshold(len(x), level=TWO_SIGMA)
     span = delta_chi2_interval(chi2, threshold, end_is_limit=end_is_limit)
-    with warnings.catch_warnings():  # the 1-sigma range already warns about the run's end
-        warnings.simplefilter("ignore")
+    with notes.quiet():  # the 1-sigma range already warns about the run's end
         span2 = delta_chi2_interval(chi2, threshold2, end_is_limit=end_is_limit)
     return CorrelatedFit(chi2, span, noise, x, y, threshold, span2, threshold2)
 

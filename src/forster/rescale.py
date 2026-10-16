@@ -26,12 +26,12 @@ moved between runs by up to about 15%.
 from __future__ import annotations
 
 import math
-import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
 import numpy as np
 
+from forster import notes
 from forster.diffusivity import ArrheniusDiffusivity, Diffusivity
 from forster.model import SECONDS_PER_DAY, Conditions, FitResult, Profile, fit_profile
 from forster.sampling import ICPosterior
@@ -264,8 +264,7 @@ def _refit(result, t_fit, drawn, laws, studies, seed) -> TimeDistribution:
     profile = Profile(result.data_x_um, result.data_fo, name=result.name)
     days = []
     for t, c, lw, b in zip(t_fit, drawn, laws, studies, strict=True):
-        with warnings.catch_warnings():  # the fit itself has already warned
-            warnings.simplefilter("ignore")
+        with notes.quiet():  # the fit itself has already warned
             fit = fit_profile(
                 profile,
                 c,

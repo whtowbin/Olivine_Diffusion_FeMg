@@ -47,12 +47,12 @@ from __future__ import annotations
 
 import itertools
 import math
-import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 import numpy as np
 
+from forster import notes
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
 from forster.model import (
     DEFAULT_SCHEME,
@@ -248,8 +248,7 @@ def _coarse_time_days(
         )
         grid = Grid(dx, dt, max_time_days)
         # Only a time scale: its warnings (about a coarse fit) would repeat the final fit's.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+        with notes.quiet():
             result = fit_profile(
                 profile,
                 conditions,

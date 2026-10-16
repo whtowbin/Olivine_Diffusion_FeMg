@@ -217,3 +217,53 @@ def test_proposal_density_matches_scipy():
     expected = stats.multivariate_t(loc=loc, shape=cov, df=5).logpdf(z)
     got = S._log_t_density(z, loc, np.linalg.cholesky(cov), 5)
     np.testing.assert_allclose(got, expected, rtol=0, atol=1e-12)
+
+
+def test_a_cancel_hook_that_never_fires_leaves_the_result_unchanged(example, laplace):
+    run, profile, grid = example
+    calls = []
+
+    def cancel() -> bool:
+        calls.append(1)
+        return False
+
+    again = fit_initial_condition(
+        *_args(run, profile, grid, TWO), method="laplace", seed=3, cancel=cancel
+    )
+    assert len(calls) == again.runs  # checked before every model run
+    assert again.best_values == laplace.best_values
+    np.testing.assert_array_equal(again.density, laplace.density)
+    assert (again.low_days, again.median_days, again.high_days) == (
+        laplace.low_days,
+        laplace.median_days,
+        laplace.high_days,
+    )
+
+
+def test_cancel_stops_the_sampler_and_the_grid_scan(example):
+    run, profile, grid = example
+    calls = []
+
+    def cancel_after_five() -> bool:
+        calls.append(1)
+        return len(calls) > 5
+
+    with pytest.raises(S.Cancelled):
+        fit_initial_condition(
+            *_args(run, profile, grid, TWO), method="nested", cancel=cancel_after_five
+        )
+    assert len(calls) == 6  # stopped at once, in the optimiser
+    gridded = replace(run, uncertainties={"step1_um": Uncertainty(2.0)}, scan_method="grid")
+    profiles = {run.profile_name: profile}
+    with pytest.raises(S.Cancelled):
+        scan_run(gridded, profiles, time_days=5.0, cancel=lambda: True)
+    stages = []
+    with pytest.raises(S.Cancelled):
+        scan_run(
+            replace(gridded, scan_method="laplace"),
+            profiles,
+            time_days=5.0,
+            stage=stages.append,
+            cancel=lambda: bool(stages),
+        )
+    assert stages == ["best fit"]
