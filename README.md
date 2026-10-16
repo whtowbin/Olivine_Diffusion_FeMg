@@ -308,6 +308,8 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `time_since_last_stage_days` | days | Best-fit time since the start of the last growth stage (stage_days); equal to time_days without stages. |
 | `low_days` | days | Low end of the 1-sigma range. |
 | `high_days` | days | High end of the 1-sigma range. |
+| `low2_days` | days | Low end of the 2-sigma range (95.45%; correlated method, empty for legacy). |
+| `high2_days` | days | High end of the 2-sigma range. |
 | `law_sigma_log10` | log10 | 1-sigma of log10 D from the diffusivity law's covariance at the run's conditions (and of log10 time, with the sign changed). Empty for laws without one (the default) and for fits with growth stages or a rim value that changes in time (docs/references/law-uncertainty-limits.md). |
 | `between_study_log10` | log10 | Spread between laboratories of the law's calibration data (a random study offset). |
 | `law_low_days` | days | Low end of the 1-sigma range with the law's uncertainty added. Use low_days and high_days to compare crystals fitted with the same law (its error is common to all of them); these for a time on its own. |

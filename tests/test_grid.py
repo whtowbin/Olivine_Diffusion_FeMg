@@ -214,7 +214,8 @@ def test_fit_with_a_dt_above_the_stable_step_substeps(two_step):
     fine = fit_profile(*args, Grid(1.0, dt, 120), None, run.diffusivity, scheme="central")
     coarse = fit_profile(*args, Grid(1.0, 3 * dt, 120), None, run.diffusivity, scheme="central")
     assert abs(coarse.time_days - fine.time_days) <= 1.5 * 3 * dt / 86400
-    assert len(coarse.curves) <= len(fine.curves) // 3 + 2
+    assert coarse.n_rows is not None and fine.n_rows is not None
+    assert coarse.n_rows <= fine.n_rows // 3 + 2
 
 
 def test_a_step_next_to_the_rim_does_not_ask_for_a_huge_grid(two_step):

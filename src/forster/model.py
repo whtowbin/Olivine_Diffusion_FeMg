@@ -41,11 +41,13 @@ from forster.diffusivity import (
     resolve,
 )
 from forster.uncertainty import (
+    CorrelatedFit,
     NoiseModel,
     chi2_per_step,
-    fit_correlated,
+    fit_correlated_points,
     interpolation_matrix,
     points_in_domain,
+    white_rss,
     widen_log10,
 )
 
@@ -222,9 +224,13 @@ class KrigingSettings:
 class FitResult:
     """Best-fit diffusion time with its uncertainty, and the curves behind it.
 
-    ``curves`` holds the model profile at every time step (row ``i`` is at
-    ``i * dt_s``); ``indices`` are the rows of the best fit and of the low and high
-    ends of the uncertainty range.
+    Row ``i`` of a run is the model profile at ``i * dt_s``. ``indices`` are the rows of
+    the best fit and of the low and high ends of the 1-sigma range, ``indices2`` of the
+    2-sigma range. ``curves`` holds every row when ``curve_rows`` is None (the legacy
+    method, or ``fit_profile(..., keep_curves=True)``); otherwise only the rows
+    ``curve_rows`` (the start, the best fit and the ends of both ranges), so a fit
+    keeps a few profiles rather than one per time step: use `curve` to read a row.
+    ``n_rows`` is the number of rows the run modelled.
 
     ``uncertainty`` names the method. "correlated": ``sum_chi2`` is the generalised
     chi-squared of the measured points (``fit_x_um``, ``fit_fo``) under the fitted
@@ -263,6 +269,24 @@ class FitResult:
     # when the law has no covariance or the fit has growth stages (`time_range_days`).
     law_sigma_log10: float | None = None
     between_study_log10: float | None = None
+    # The 2-sigma range (correlated method; NaN and None for legacy fits).
+    time_minus2_s: float = float("nan")
+    time_plus2_s: float = float("nan")
+    indices2: tuple[int, int] | None = None
+    # Rows kept in ``curves`` (None: every row) and the rows the run modelled.
+    curve_rows: tuple[int, ...] | None = None
+    n_rows: int | None = None
+
+    def curve(self, row: int) -> np.ndarray:
+        """The model profile at time step ``row`` (a kept row unless every row is kept)."""
+        if self.curve_rows is None:
+            return self.curves[row]
+        if row not in self.curve_rows:
+            raise KeyError(
+                f"row {row} was not kept (kept: {self.curve_rows}); fit with "
+                "keep_curves=True to keep every row"
+            )
+        return self.curves[self.curve_rows.index(row)]
 
     @property
     def time_days(self) -> float:
@@ -283,8 +307,9 @@ class FitResult:
     def time_plus_days(self) -> float:
         return self.time_plus_s / SECONDS_PER_DAY
 
-    def time_range_days(self, include: str = "fit") -> tuple[float, float]:
-        """Low and high ends of the 1-sigma range of time (days).
+    def time_range_days(self, include: str = "fit", sigmas: int = 1) -> tuple[float, float]:
+        """Low and high ends of the 1-sigma range of time (days); ``sigmas=2`` for the
+        2-sigma range (95.45%; the law's error is then doubled).
 
         - "fit": from the profile alone (``time_minus_days``, ``time_plus_days``). For
           comparing crystals fitted with the same law, whose error is common to all.
@@ -298,8 +323,17 @@ class FitResult:
         log10 (`forster.uncertainty.widen_log10`). Where that holds and where it does
         not: ``docs/references/law-uncertainty-limits.md``.
         """
-        low = self.time_days + self.time_minus_days
-        high = self.time_days + self.time_plus_days
+        if sigmas not in (1, 2):
+            raise ValueError(f"sigmas must be 1 or 2, not {sigmas!r}")
+        minus, plus = (
+            (self.time_minus_s, self.time_plus_s)
+            if sigmas == 1
+            else (self.time_minus2_s, self.time_plus2_s)
+        )
+        if sigmas == 2 and not math.isfinite(minus):
+            raise ValueError("no 2-sigma range for this fit (legacy method)")
+        low = self.time_days + minus / SECONDS_PER_DAY
+        high = self.time_days + plus / SECONDS_PER_DAY
         if include == "fit":
             return low, high
         if include not in ("law", "law_and_studies"):
@@ -313,7 +347,7 @@ class FitResult:
         sigma = self.law_sigma_log10
         if include == "law_and_studies":
             sigma = math.hypot(sigma, self.between_study_log10 or 0.0)
-        return widen_log10(self.time_days, low, high, sigma)
+        return widen_log10(self.time_days, low, high, sigmas * sigma)
 
     @property
     def reduced_chi2(self) -> np.ndarray:
@@ -326,15 +360,16 @@ class FitResult:
     @property
     def modelled_days(self) -> float:
         """Time the model was run to: ``max_time_days`` unless the run stopped early."""
-        return (len(self.curves) - 1) * self.dt_s / SECONDS_PER_DAY
+        rows = self.n_rows if self.n_rows is not None else len(self.curves)
+        return (rows - 1) * self.dt_s / SECONDS_PER_DAY
 
     @property
     def best_fit(self) -> np.ndarray:
-        return self.curves[self.indices[0]]
+        return self.curve(self.indices[0])
 
     @property
     def initial(self) -> np.ndarray:
-        return self.curves[0]
+        return self.curve(0)
 
 
 # advance(c, n, first_row=0): rows first_row .. first_row + n, the first being c.
@@ -683,6 +718,47 @@ def _fit_extending(
         rows = np.concatenate([rows, advance(rows[-1], extra, first_row=len(rows) - 1)[1:]])
 
 
+@dataclass
+class _Stream:
+    """A run kept as the model at the measured points (for the fit), with full profiles
+    only at the end of each block (to rebuild any row exactly: the steppers restart
+    exactly where they stopped) and, with ``keep_curves``, every row."""
+
+    W: np.ndarray
+    at_points: list[np.ndarray]
+    checkpoints: dict[int, np.ndarray]
+    last: np.ndarray
+    n_rows: int
+    full: list[np.ndarray] | None
+
+    @classmethod
+    def begin(cls, start: np.ndarray, W: np.ndarray, keep: bool) -> _Stream:
+        return cls(
+            W, [start[None] @ W.T], {0: start.copy()}, start, 1, [start[None]] if keep else None
+        )
+
+    def append(self, rows: np.ndarray) -> None:
+        self.at_points.append(rows @ self.W.T)
+        if self.full is not None:
+            self.full.append(rows)
+        self.last = rows[-1]
+        self.n_rows += len(rows)
+        self.checkpoints[self.n_rows - 1] = rows[-1].copy()
+
+    def points(self) -> np.ndarray:
+        return np.concatenate(self.at_points)
+
+    def rows(self, wanted: Sequence[int], advance: Advance) -> np.ndarray:
+        """Full profiles at the ``wanted`` rows, each advanced from the nearest earlier
+        checkpoint (at most one block of steps)."""
+        out = []
+        for r in wanted:
+            c = max(k for k in self.checkpoints if k <= r)
+            state = self.checkpoints[c]
+            out.append(state if r == c else advance(state, r - c, first_row=c)[-1])
+        return np.array(out)
+
+
 def _correlated_run(
     start: np.ndarray,
     advance: Advance,
@@ -692,20 +768,49 @@ def _correlated_run(
     y: np.ndarray,
     stop_early: bool,
     min_steps: int = 0,
-):
-    """Model rows from ``start`` and their correlated fit (`fit_correlated`)."""
-    if stop_early:
-        px, py = points_in_domain(model_x, x, y)
-        W = interpolation_matrix(model_x, px)
-        curves = _run_past_best_fit(start, advance, total_steps, W, py, min_steps=min_steps)
-    else:
-        curves = advance(start, total_steps)
-    return _fit_extending(
-        curves,
-        advance,
-        total_steps,
-        lambda rows, complete: fit_correlated(rows, model_x, x, y, end_is_limit=complete),
-    )
+    keep_curves: bool = False,
+) -> tuple[_Stream, CorrelatedFit]:
+    """Model rows from ``start`` and their correlated fit (`fit_correlated_points`).
+
+    Advances in blocks, keeping the model at the measured points, and with
+    ``stop_early`` stops once the run is `STOP_TIME_FACTOR` times past the lowest sum of
+    squared residuals so far, the sum is `STOP_RSS_RATIO` times that lowest value and
+    still rising (never before ``min_steps``). Then extends the run while the 2-sigma
+    range reaches its end. Warnings are raised only for the fit that is kept.
+    """
+    px, py = points_in_domain(model_x, x, y)
+    stream = _Stream.begin(start, interpolation_matrix(model_x, px), keep_curves)
+
+    def rss(at_points: np.ndarray) -> np.ndarray:
+        return white_rss(at_points, py)
+
+    block = max(500, -(-total_steps // STOP_BLOCKS))
+    rss_min, k_min, done = float(rss(stream.at_points[0])[0]), 0, 0
+    while done < total_steps:
+        rows = advance(stream.last, min(block, total_steps - done), first_row=done)[1:]
+        stream.append(rows)
+        if stop_early:
+            sums = rss(stream.at_points[-1])
+            i = int(np.argmin(sums))
+            if sums[i] < rss_min:
+                rss_min, k_min = float(sums[i]), done + 1 + i
+        done += len(rows)
+        if stop_early:
+            past = done >= max(STOP_TIME_FACTOR * max(k_min, 1), min_steps)
+            if past and sums[-1] >= STOP_RSS_RATIO * rss_min and sums[-1] >= sums[0]:
+                break
+    while True:
+        complete = stream.n_rows - 1 >= total_steps
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            fit = fit_correlated_points(stream.points(), px, py, end_is_limit=complete)
+        reach = fit.interval2 or fit.interval
+        if complete or reach.high_row < stream.n_rows - 1:
+            for w in caught:
+                warnings.warn_explicit(w.message, w.category, w.filename, w.lineno)
+            return stream, fit
+        extra = min(stream.n_rows - 1, total_steps - (stream.n_rows - 1))
+        stream.append(advance(stream.last, extra, first_row=stream.n_rows - 1)[1:])
 
 
 def _explicit_substeps(
@@ -776,6 +881,7 @@ def fit_profile(
     stop_early: bool = True,
     stages: Sequence[Stage] = (),
     rim_fo: Rim | None = None,
+    keep_curves: bool = False,
 ) -> FitResult:
     """Fit Fe-Mg diffusion from a step-function start to a measured Fo profile.
 
@@ -823,8 +929,13 @@ def fit_profile(
     With "correlated" and ``stop_early`` (the default) the model stops once the fit
     is well behind it (see `STOP_TIME_FACTOR`, `STOP_RSS_RATIO`) instead of running to
     ``grid.max_time_days``, and is extended if the 1-sigma range reaches the end;
-    ``FitResult.curves`` then ends at ``FitResult.modelled_days``. The fit is the same
-    as with the full run. The legacy method always runs to ``max_time_days``.
+    ``FitResult.modelled_days`` then says how far it ran. The fit is the same as with the
+    full run. The legacy method always runs to ``max_time_days``.
+
+    The correlated method keeps the model at the measured points for every time step
+    but full profiles only for the start, the best fit and the ends of the 1- and
+    2-sigma ranges (`FitResult.curve`), so a fit holds a few profiles, not one per time
+    step; ``keep_curves=True`` keeps every row (the legacy method always does).
 
     ``stages`` (`forster.boundary.Stage`) are instantaneous growth steps after the
     start: at each stage's start the rim moves outward and the new zone appears, then
@@ -913,6 +1024,10 @@ def fit_profile(
     settle_s = settles_at_s(last_rim)
     min_steps = 0 if settle_s is None else max(0, math.ceil(settle_s / grid.dt_s) - offset)
     noise = None
+    time2: tuple[float, float] = (math.nan, math.nan)
+    indices2: tuple[int, int] | None = None
+    curve_rows: tuple[int, ...] | None = None
+    n_rows: int | None = None
     if uncertainty == "legacy":
         curves = advance(start, grid.timesteps)
         time, indices, sum_chi2 = engine.Best_fit_Chi2(
@@ -920,7 +1035,7 @@ def fit_profile(
         )
         fit_x, fit_fo = model_x, data_interp
     else:
-        curves, fit = _correlated_run(
+        stream, fit = _correlated_run(
             start,
             advance,
             grid.timesteps - offset,
@@ -929,17 +1044,21 @@ def fit_profile(
             y,
             stop_early and settle_s is not None,
             min_steps,
+            keep_curves,
         )
-        span = fit.interval
+        span, span2 = fit.interval, fit.interval2 or fit.interval
         time = (
             (offset + span.best) * grid.dt_s,
             (span.low - span.best) * grid.dt_s,
             (span.high - span.best) * grid.dt_s,
         )
+        time2 = ((span2.low - span.best) * grid.dt_s, (span2.high - span.best) * grid.dt_s)
         indices = (offset + span.best, offset + span.low_row, offset + span.high_row)
+        indices2 = (offset + span2.low_row, offset + span2.high_row)
         sum_chi2, noise, fit_x, fit_fo = fit.chi2, fit.noise, fit.x_um, fit.fo
+        n_rows = offset + stream.n_rows
+        curves, curve_rows = _kept_curves(stream, advance, offset, prefix, span, span2)
         if prefix is not None:
-            curves = np.concatenate([prefix, curves])
             sum_chi2 = np.concatenate([np.full(offset, np.nan), sum_chi2])
     law_sigma, between = _law_uncertainty(
         diffusivity, conditions, orientation, initial, stages, rim_fo
@@ -979,7 +1098,26 @@ def fit_profile(
         last_stage_s=last_stage_s,
         law_sigma_log10=law_sigma,
         between_study_log10=between,
+        time_minus2_s=float(time2[0]),
+        time_plus2_s=float(time2[1]),
+        indices2=indices2,
+        curve_rows=curve_rows,
+        n_rows=n_rows,
     )
+
+
+def _kept_curves(stream, advance, offset, prefix, span, span2):
+    """Every row with ``keep_curves`` (the stream kept them), else the start, the best fit
+    and the ends of both ranges, rebuilt from the stream's checkpoints."""
+    if stream.full is not None:
+        curves = np.concatenate(stream.full)
+        return (curves if prefix is None else np.concatenate([prefix, curves])), None
+    wanted = {0, span.best, span.low_row, span.high_row, span2.low_row, span2.high_row}
+    local = sorted(r for r in wanted if 0 <= r < stream.n_rows)
+    kept, rows = stream.rows(local, advance), [offset + r for r in local]
+    if prefix is not None and offset > 0:
+        kept, rows = np.vstack([prefix[:1], kept]), [0, *rows]
+    return kept, tuple(rows)
 
 
 def _law_uncertainty(

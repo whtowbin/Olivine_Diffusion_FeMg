@@ -301,6 +301,13 @@ SUMMARY_COLUMNS = (
     Column("low_days", "days", "", "Low end of the 1-sigma range."),
     Column("high_days", "days", "", "High end of the 1-sigma range."),
     Column(
+        "low2_days",
+        "days",
+        "",
+        "Low end of the 2-sigma range (95.45%; correlated method, empty for legacy).",
+    ),
+    Column("high2_days", "days", "", "High end of the 2-sigma range."),
+    Column(
         "law_sigma_log10",
         "log10",
         "",

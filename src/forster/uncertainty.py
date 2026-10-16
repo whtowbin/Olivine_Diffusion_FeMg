@@ -38,6 +38,7 @@ RHO_GRID = np.concatenate([[0.0], np.geomspace(0.1, 30.0, 12)])
 N_LENGTHS = 12
 CHUNK_ROWS = 20_000  # time steps per block when evaluating chi2 (bounds memory)
 ONE_SIGMA = 0.6827  # probability inside a 1-sigma range
+TWO_SIGMA = 0.9545  # and a 2-sigma range
 WARN_RHO = 0.5  # warn of a profile-wide misfit only if it is at least half the white noise
 
 
@@ -247,6 +248,8 @@ class CorrelatedFit:
     x_um: np.ndarray
     fo: np.ndarray
     threshold: float  # rise in chi2 that bounds the 1-sigma range (`interval_threshold`)
+    interval2: Interval | None = None  # the 2-sigma range
+    threshold2: float = float("nan")
 
 
 def points_in_domain(
@@ -279,9 +282,50 @@ def fit_correlated(
     first = int(np.argmin(chi2_per_step(curves, W, y)))
     noise = fit_noise_model(x, y - W @ curves[first])
     chi2 = chi2_per_step(curves, W, y, noise.covariance(x))
+    return _correlated_ranges(chi2, noise, x, y, end_is_limit)
+
+
+def fit_correlated_points(
+    at_points: np.ndarray, x_um: np.ndarray, fo: np.ndarray, *, end_is_limit: bool = True
+) -> CorrelatedFit:
+    """`fit_correlated` from the model at the measured points only (``at_points[k]`` is the
+    model at ``x_um`` at time step k), so a run need not keep its full profiles. ``x_um``
+    and ``fo`` are the fitted points (`points_in_domain`)."""
+    chi2, noise = correlated_chi2(at_points, x_um, fo)
+    return _correlated_ranges(chi2, noise, x_um, fo, end_is_limit)
+
+
+def white_rss(at_points: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Sum of squared residuals at every time step, from the model at the points."""
+    r = at_points - y
+    return np.einsum("kp,kp->k", r, r)
+
+
+def correlated_chi2(
+    at_points: np.ndarray, x_um: np.ndarray, y: np.ndarray
+) -> tuple[np.ndarray, NoiseModel]:
+    """Generalised chi-squared at every time step from the model at the points: the noise
+    model is fitted at the white (least-squares) best row, then r_k^T C^-1 r_k."""
+    residuals = at_points - y
+    first = int(np.argmin(white_rss(at_points, y)))
+    noise = fit_noise_model(x_um, -residuals[first])
+    chol = np.linalg.cholesky(noise.covariance(x_um))
+    chi2 = np.empty(len(at_points))
+    for start in range(0, len(at_points), CHUNK_ROWS):
+        z = sla.solve_triangular(chol, residuals[start : start + CHUNK_ROWS].T, lower=True)
+        chi2[start : start + CHUNK_ROWS] = np.einsum("pk,pk->k", z, z)
+    return chi2, noise
+
+
+def _correlated_ranges(chi2, noise, x, y, end_is_limit) -> CorrelatedFit:
+    """The 1- and 2-sigma ranges of a generalised chi-squared series."""
     threshold = interval_threshold(len(x))
+    threshold2 = interval_threshold(len(x), level=TWO_SIGMA)
     span = delta_chi2_interval(chi2, threshold, end_is_limit=end_is_limit)
-    return CorrelatedFit(chi2, span, noise, x, y, threshold)
+    with warnings.catch_warnings():  # the 1-sigma range already warns about the run's end
+        warnings.simplefilter("ignore")
+        span2 = delta_chi2_interval(chi2, threshold2, end_is_limit=end_is_limit)
+    return CorrelatedFit(chi2, span, noise, x, y, threshold, span2, threshold2)
 
 
 def widen_log10(time: float, low: float, high: float, sigma_log10: float) -> tuple[float, float]:

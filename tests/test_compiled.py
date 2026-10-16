@@ -89,4 +89,4 @@ def test_fits_are_the_same_with_and_without_numba(monkeypatch, scheme):
         monkeypatch.undo()
         assert fast.indices == slow.indices
         assert fast.time_s == slow.time_s
-        assert np.abs(fast.curves[fast.indices[0]] - slow.curves[slow.indices[0]]).max() < 1e-10
+        assert np.abs(fast.best_fit - slow.best_fit).max() < 1e-10

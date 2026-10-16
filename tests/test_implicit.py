@@ -117,7 +117,14 @@ def test_a_stage_starting_one_ulp_after_a_step():
     def curves(start_s):
         stage = Stage(start_s, rim_um=0.0, zone_value=0.82)
         return fit_profile(
-            dummy, CONDITIONS, ALONG_001, early, grid, stop_early=False, stages=[stage]
+            dummy,
+            CONDITIONS,
+            ALONG_001,
+            early,
+            grid,
+            stop_early=False,
+            stages=[stage],
+            keep_curves=True,
         ).curves
 
     late = curves(float(np.nextafter(on_step, np.inf)))
@@ -202,6 +209,7 @@ def test_staged_implicit_run_matches_an_on_node_reference():
         scheme="implicit",
         stop_early=False,
         stages=[GROWTH],
+        keep_curves=True,
     )
     x = result.model_x_um
     assert 40.3 in x.tolist()

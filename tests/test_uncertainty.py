@@ -106,7 +106,7 @@ def round_robin_fit():
     """KS20-527_2-transect-1 (29 points), fitted with the default method."""
     require_round_robin()
     runs = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults())}
-    return fit_run(runs["KS20-527_2-transect-1"], read_profiles(ROUND_ROBIN_DATA))
+    return fit_run(runs["KS20-527_2-transect-1"], read_profiles(ROUND_ROBIN_DATA), keep_curves=True)
 
 
 @pytest.mark.parametrize(

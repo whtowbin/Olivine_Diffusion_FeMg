@@ -4,10 +4,21 @@ Both sides run the same engine on the same inputs: the reference reads the
 parameter row inside model_diffusion (verbatim copy in tests/reference), the new
 side goes through read_runs, read_profiles and fit_run. The fits are
 deterministic, so any difference at all is a bug. Full model curves are compared
-by SHA-256 to keep memory down (one run holds about 250 MB of curves).
+by SHA-256 to keep memory down.
+
+Both sides get the round robin table with a longer time step than the batch used
+(`REPLAY_DT_S`, each under the run's stability limit, D dt / dx^2 = 0.4): the same
+inputs still give the same outputs, at up to 50x fewer time steps. With the batch's
+own steps one run held up to 631 MB of curves and peaked at 3.4 GB, and the suite at
+about 16 GB (2026-10-15). `test_package_reads_the_same_runs` still checks the original
+table.
 """
 
+import atexit
 import hashlib
+import os
+import tempfile
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -41,9 +52,34 @@ BATCH_DEFAULTS = RunDefaults(
 if not HAS_ROUND_ROBIN:
     pytest.skip(ROUND_ROBIN_MISSING, allow_module_level=True)
 
-PARAMS = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
+ORIGINAL_PARAMS = pd.read_excel(ROUND_ROBIN_PARAMS, engine="openpyxl")
 DATA = pd.read_excel(ROUND_ROBIN_DATA, engine="openpyxl")
-SAMPLES = list(PARAMS.Sample.dropna().unique())
+SAMPLES = list(ORIGINAL_PARAMS.Sample.dropna().unique())
+# Time step per sample for the replay, a round value under each run's stable step
+# (forster.grid.stable_dt at D dt / dx^2 = 0.4: 1397, 5502, 1575, 6622 and 7573 s).
+REPLAY_DT_S = {
+    "KS20-527_2": 1200.0,
+    "KS20-527_5": 4800.0,
+    "KS20-527-8": 1200.0,
+    "SH63olv066": 6000.0,
+    "SH63olv084": 7200.0,
+}
+
+
+def _replay_dt(sample) -> float:
+    if not isinstance(sample, str):
+        return float("nan")
+    return next(dt for prefix, dt in REPLAY_DT_S.items() if sample.startswith(prefix))
+
+
+PARAMS = ORIGINAL_PARAMS.assign(dt_s=ORIGINAL_PARAMS.Sample.map(_replay_dt))
+PARAMS.loc[PARAMS.Sample.isna(), "dt_s"] = ORIGINAL_PARAMS.dt_s  # keep blank rows as read
+# The package reads the same table from a file.
+_fd, _replay_name = tempfile.mkstemp(suffix="_round_robin_replay.csv")
+os.close(_fd)
+REPLAY_PARAMS = Path(_replay_name)
+PARAMS.to_csv(REPLAY_PARAMS, index=False)
+atexit.register(REPLAY_PARAMS.unlink, missing_ok=True)
 
 
 def fingerprint(time, indices, sum_chi2, model_x, curves, interp_fo, interp_sigma):
@@ -75,7 +111,7 @@ def reference_fit(sample):
 
 
 def package_fit(sample):
-    runs = {run.name: run for run in read_runs(ROUND_ROBIN_PARAMS, defaults=BATCH_DEFAULTS)}
+    runs = {run.name: run for run in read_runs(REPLAY_PARAMS, defaults=BATCH_DEFAULTS)}
     result = fit_run(runs[sample], read_profiles(ROUND_ROBIN_DATA))
     time = (result.time_s, result.time_minus_s, result.time_plus_s)
     return fingerprint(

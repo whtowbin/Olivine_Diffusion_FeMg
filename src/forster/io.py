@@ -828,6 +828,8 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "time_since_last_stage_days": result.time_since_last_stage_days,
         "low_days": result.time_days + result.time_minus_days,
         "high_days": result.time_days + result.time_plus_days,
+        "low2_days": result.time_days + result.time_minus2_s / SECONDS_PER_DAY,
+        "high2_days": result.time_days + result.time_plus2_s / SECONDS_PER_DAY,
         **_law_columns(result),
         "reduced_chi2": float(result.reduced_chi2[result.indices[0]]),
         "points_fitted": n_fitted,
@@ -862,7 +864,8 @@ def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
     """The curves and data behind a fit, keyed by a short name for the file.
 
     - "curves": the model on its grid at time zero, the best fit, and the time
-      steps at the low and high ends of the 1-sigma range;
+      steps at the low and high ends of the 1- and 2-sigma ranges (2-sigma columns
+      only where the fit has that range: not legacy);
     - "kriged": the kriged profile and its uncertainty (legacy method only: the
       correlated method fits the measured points and does not krige);
     - "points": the measured points that were fitted, with the best fit
@@ -878,8 +881,16 @@ def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
                 "distance_um": result.model_x_um,
                 "initial_fo": result.initial,
                 "best_fit_fo": result.best_fit,
-                "minus_1sigma_fo": result.curves[low],
-                "plus_1sigma_fo": result.curves[high],
+                "minus_1sigma_fo": result.curve(low),
+                "plus_1sigma_fo": result.curve(high),
+                **(
+                    {
+                        "minus_2sigma_fo": result.curve(result.indices2[0]),
+                        "plus_2sigma_fo": result.curve(result.indices2[1]),
+                    }
+                    if result.indices2 is not None
+                    else {}
+                ),
             }
         ),
         "points": pd.DataFrame(
@@ -907,8 +918,11 @@ def _profile(run: Run, profiles: Mapping[str, Profile]) -> Profile:
     return Profile(measured.distance_um, measured.fo, name=run.name)
 
 
-def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = True) -> FitResult:
-    """Fit one run against its measured profile (``stop_early``: see `fit_profile`).
+def fit_run(
+    run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = True, keep_curves: bool = False
+) -> FitResult:
+    """Fit one run against its measured profile (``stop_early``, ``keep_curves``: see
+    `fit_profile`).
 
     A grid with parts left blank (`GridRequest`) is completed by `choose_grid` for a
     final fit (1%); a grid given in full is checked (`check_grid`): unstable raises,
@@ -943,6 +957,7 @@ def fit_run(run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = Tru
         stop_early=stop_early,
         stages=run.stages,
         rim_fo=run.rim_fo,
+        keep_curves=keep_curves,
     )
     if given:
         since = max(result.time_since_last_stage_days, grid.dt_s / SECONDS_PER_DAY)

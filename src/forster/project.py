@@ -567,7 +567,7 @@ def _load_fit(folder: Path, run: Run) -> FitResult:
     for name, value in scalars.items():
         if isinstance(value, dict) and "noise" in value:
             value = NoiseModel(*value["noise"])
-        elif name == "indices":
+        elif name in ("indices", "indices2", "curve_rows") and value is not None:
             value = tuple(value)
         values[name] = value
     values["inputs"] = {

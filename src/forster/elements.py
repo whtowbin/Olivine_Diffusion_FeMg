@@ -53,12 +53,13 @@ from forster.model import (
 from forster.uncertainty import (
     CHUNK_ROWS,
     NoiseModel,
-    chi2_per_step,
+    correlated_chi2,
     delta_chi2_interval,
     fit_noise_model,
     interpolation_matrix,
     interval_threshold,
     points_in_domain,
+    white_rss,
 )
 
 ELEMENTS = ("Ni", "Mn", "Ca")
@@ -383,18 +384,18 @@ class _Observed:
     def rss(self, rows: np.ndarray) -> np.ndarray:
         """Plain sum of squared residuals at every row (concentrations fitted if free)."""
         if not self.fitted:
-            return chi2_per_step(rows[:, self.blocks[0]], self.W, self.values)
+            return white_rss(rows[:, self.blocks[0]] @ self.W.T, self.values)
         return self._profiled(rows, None)[0]
 
     def fit(self, rows: np.ndarray) -> _SpeciesFit:
         """As `fit_correlated`: a white first pass, the noise model at its best row, then
         the correlated chi-squared at every row."""
         if not self.fitted:
-            curves = rows[:, self.blocks[0]]
-            first = int(np.argmin(chi2_per_step(curves, self.W, self.values)))
-            noise = fit_noise_model(self.x_um, self.values - self.W @ curves[first])
-            cov = noise.covariance(self.x_um)
-            return _SpeciesFit(chi2_per_step(curves, self.W, self.values, cov), noise, None)
+            # The same calculation as an Fo fit (`forster.uncertainty.correlated_chi2`),
+            # so a joint fit of Fo alone equals `fit_profile` exactly.
+            at_points = rows[:, self.blocks[0]] @ self.W.T
+            chi2, noise = correlated_chi2(at_points, self.x_um, self.values)
+            return _SpeciesFit(chi2, noise, None)
         white, coef = self._profiled(rows, None)
         first = int(np.argmin(white))
         predicted = self._design(rows[first : first + 1])[0] @ coef[first]

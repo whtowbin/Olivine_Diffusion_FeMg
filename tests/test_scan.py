@@ -38,7 +38,7 @@ def setup():
     k = truth.indices[0]
     x = truth.fit_x_um
     assert x is not None
-    model = interpolation_matrix(truth.model_x_um, x) @ truth.curves[k]
+    model = interpolation_matrix(truth.model_x_um, x) @ truth.best_fit
     return run, x, model, k, truth.dt_s
 
 

@@ -95,10 +95,21 @@ def plot_fit(result: FitResult, ax: Axes | None = None) -> Axes:
             label=f"Kriged ± {SIGMA} (fitted)",
         )
     ax.plot(x, result.initial * scale, color=CONTEXT_COLOR, linestyle="--", lw=1.2, label="Initial")
+    if result.indices2 is not None:
+        low2_days, high2_days = result.time_range_days(sigmas=2)
+        ax.fill_between(
+            x,
+            result.curve(result.indices2[0]) * scale,
+            result.curve(result.indices2[1]) * scale,
+            color=MODEL_COLOR,
+            alpha=0.12,
+            linewidth=0,
+            label=f"2{SIGMA} range, {low2_days:.1f}-{high2_days:.1f} d",
+        )
     ax.fill_between(
         x,
-        result.curves[low] * scale,
-        result.curves[high] * scale,
+        result.curve(low) * scale,
+        result.curve(high) * scale,
         color=MODEL_COLOR,
         alpha=0.25,
         linewidth=0,

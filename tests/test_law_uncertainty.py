@@ -240,7 +240,7 @@ def test_the_composition_term_moves_time_as_evaluated_a_third_of_the_way_in(edge
     dummy = Profile(x, np.full(len(x), 0.85) + 1e-4 * np.sin(x))
     grid = Grid(1.0, 1800.0, max_time_days=20)
     curves = fit_profile(
-        dummy, KS20, ALONG_001, initial, grid, diffusivity=law, stop_early=False
+        dummy, KS20, ALONG_001, initial, grid, diffusivity=law, stop_early=False, keep_curves=True
     ).curves
     points = np.arange(2.0, 120.0, 2.0)
     truth = np.interp(points, x, curves[int(10 * 86400 / grid.dt_s)])
