@@ -424,6 +424,14 @@ SUMMARY_COLUMNS = (
         "(docs/guide/practical-advice.md).",
     ),
     Column(
+        "points_outside_domain",
+        "",
+        "",
+        "Measured points before domain_start_um or past domain_end_um, which are not fitted. "
+        "Often deliberate (an earlier stage left out); if they continue a flat plateau, "
+        "extending the domain to include them makes the near-step check more reliable.",
+    ),
+    Column(
         "warnings",
         "",
         "",

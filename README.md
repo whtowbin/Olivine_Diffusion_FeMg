@@ -319,6 +319,7 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `correlation_length_um` | µm | Length scale of that misfit; near half the profile length, the misfit is profile-wide. |
 | `near_step_daic` |  | AIC change when the misfit may be larger near the steps (correlated method, no growth stages); below -6 a warning says the misfit is concentrated near the step and the 1-sigma range is probably too narrow (docs/references/noise-models-guide.md). |
 | `core_end_diffusion_lengths` |  | Distance from the last step to the model's core end (the last measured point), in diffusion lengths at the best fit. The core Fo is held there; below 3 a warning says the data probably stop at or before the plateau, which moves the fit (docs/guide/practical-advice.md). |
+| `points_outside_domain` |  | Measured points before domain_start_um or past domain_end_um, which are not fitted. Often deliberate (an earlier stage left out); if they continue a flat plateau, extending the domain to include them makes the near-step check more reliable. |
 | `warnings` |  | Warnings from the fit, such as a range that reaches the last time step. |
 | `forster_version` |  | FORSTER version that made the fit. |
 | `scan_best_days` | days | With uncertainties: best-fit time over all scanned initial conditions (sampled: the time of the best-fit initial condition). |

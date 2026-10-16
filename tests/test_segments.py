@@ -189,3 +189,16 @@ def read_runs_row(row):
         path = Path(d) / "p.csv"
         pd.DataFrame([row]).to_csv(path, index=False)
         return read_runs(path)[0]
+
+
+def test_summary_counts_points_outside_the_domain():
+    """WHT06_ol43's data run to 132 um, its domain to 80 um: 9 of 37 points are not
+    fitted, reported as a note in summary.csv."""
+    from conftest import PAPER_DATA, PAPER_PARAMS
+
+    from forster.io import summary_row
+
+    run = next(r for r in read_runs(PAPER_PARAMS) if r.name == "AZ18 WHT06_ol43_prof 1")
+    profiles = read_profiles(PAPER_DATA, sheet="Olivine")
+    row = summary_row(fit_run(run, profiles, check_near_step=False))
+    assert row["points_outside_domain"] == 9

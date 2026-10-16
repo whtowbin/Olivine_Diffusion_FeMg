@@ -625,7 +625,8 @@ WHT01_Ol_63, _181 or _192. The near-step **term** is not part of the fit. Still 
    `zone_noise.py`) after any change to the noise model, and compare with these CSVs.
 7. **Round robin note** (private submodule, `outputs/refit_2026/NOTE.md`): the
    SH63olv066 ranges are probably too narrow; add the caveat or the 2-sigma ranges
-   before it goes to the organisers.
+   before it goes to the organisers. **Done 2026-10-16:** caveat added (read the 2σ ranges for the original
+   starting profiles; the fitted-starting-profile row is the one to quote).
 8. **Done 2026-10-16 (item 4):** fitting the starting profile cleared the warning on
    SH63olv066-1 (ΔAIC −30.6 → −4.3), WHT06_ol43 (−7.7 → +1.2) and Xenocryst_ol6 (−10.4 →
    +2.0), and only just on WHT06_ol48 (−6.6 → −5.4, its near-step bump remains). Times

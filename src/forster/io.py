@@ -996,7 +996,14 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "core_end_diffusion_lengths": (
             result.core_end_lengths if result.core_end_lengths is not None else math.nan
         ),
+        "points_outside_domain": _points_outside(result.data_x_um, initial.domain_um),
     }
+
+
+def _points_outside(x_um: np.ndarray, domain_um: tuple[float, float]) -> int:
+    """Measured points before the domain's start or past its end: not fitted. A note, not
+    a warning (leaving points out can be deliberate)."""
+    return int(np.sum((x_um < domain_um[0]) | (x_um > domain_um[1])))
 
 
 def fit_tables(result: FitResult) -> dict[str, pd.DataFrame]:
