@@ -1,7 +1,7 @@
 # Naming the starting profile for half profiles and whole crystals
 
-Status (2026-10-16): **design decided by Henry** (section "Decisions"); three small points
-still to confirm (last section). Nothing is built. Started at Henry's
+Status (2026-10-16): **design decided by Henry** (section "Decisions"); one point still to
+confirm (crystal grouping). Nothing is built. Started at Henry's
 request so that whole crystals, joint fits, population priors, step proposals, the
 edge-position fit and batch import all use one set of names, settled before any of them
 is built. Requirements were collected from both sessions working on these features
@@ -75,11 +75,13 @@ And always:
 1. **Words.** The held outer ends are **edge 1** and **edge 2**. The regions between steps
    are **segments** in the tables and the code; the docs and the GUI may also call them
    zones and plateaus, to help users pick concentrations for different growth periods.
-2. **The core end defaults to no flux.** A half profile's far end becomes a symmetry
-   boundary (no Fo crosses it), so the core is free to change; today it is held fixed.
-   As an option the user models the whole profile by giving the **distance of the
-   crystal's centre**, across which the profile is mirrored. The centre may lie beyond the
-   last measured point when the crystal is large and its core plateau flat.
+2. **The far end stays fixed unless the user asks for a whole crystal** (clarified
+   2026-10-16, replacing a first reading of "no-flux default"). "Fixed" holds the far
+   end's Fo constant, as today; Fo flows in or out there as needed. An edge may still have
+   a boundary that changes in time (`edge1_fo` as a `RimPath`). To model a whole crystal,
+   the user gives the **distance of the crystal's centre**: the profile is mirrored across
+   it, so no Fo crosses the centre and the core is free to change. The centre may lie
+   beyond the last measured point when the crystal is large and its core plateau flat.
 3. **Segments are labelled a, b, c, ...**, renamable by the user, and matched across
    profiles and crystals by label (for joint fits and population priors). In the GUI a
    table at the side defines the segments, one row each: name, start and end position,
@@ -90,17 +92,15 @@ And always:
    usually 0 on one side and a larger number on the other; the user may instead put zero
    at the crystal's centre. Profiles on the same crystal do not share an origin (they do
    not lie on one line); across them only segment concentrations are matched.
-5. **Names from the papers stay.** (Read as: the papers' tables, column names and sample
-   names keep working unchanged, so the old column names remain accepted; see the last
-   section.)
+5. **Column names may change to better ones** (clarified 2026-10-16). Sample and profile
+   names stay as in the papers.
 
 ## Design
 
 | Concept | Table column / Python | Old name, still accepted |
 |---|---|---|
-| Model domain: edge 1 and the far end | `domain_start_um` (edge 1), `domain_end_um` (edge 2 of a whole crystal, else the core end) | round robin `edge_x1`, `edge_x2` |
-| Far end | `core_end`: `no_flux` (default for new runs) or `fixed` (held at the last segment's Fo, today's behaviour) | (always fixed) |
-| Whole profile by mirroring | `centre_um`: distance of the crystal's centre; the model runs from edge 1 to the centre (beyond the data if needed) and mirrors there | (none) |
+| Model domain: edge 1 and the far end | `domain_start_um` (edge 1), `domain_end_um` (the far end of a half profile, or edge 2 of a whole crystal modelled rim to rim) | round robin `edge_x1`, `edge_x2` |
+| Whole crystal by mirroring | `centre_um`: distance of the crystal's centre. Empty (default): a half profile, its far end held fixed as today. Given: the model runs from edge 1 to the centre (beyond the data if needed) and mirrors there, so the core is free | (none) |
 | Origin | `origin`: `edge` (default: distances from edge 1) or `centre` (zero at `centre_um`) | (always edge) |
 | Segment boundaries | `steps_um`: any number, increasing | `steps_um` (1 or 2) |
 | Segment labels | `segment_names` (list; default `a, b, c, ...` from edge 1 inward) | (none) |
@@ -124,36 +124,32 @@ so editing one segment's end moves the next one's start.
 accepted, which writes `steps_um` and `steps_sd_um`, so an accepted proposal is an
 ordinary run row that `forster fit` reruns.
 
-**The short-plateau warning** changes with the no-flux default: a far end with no flux
-where the data still slope (they stop before the plateau) is as wrong as a held core
-there. It stays for half profiles without `centre_um`, saying to measure further or give
-the centre; with `centre_um`, or for a whole crystal, it is replaced by a check that the
-fronts are resolved and a note when they meet in the core.
+**The short-plateau warning** stays as it is for half profiles (no `centre_um`), and adds
+"or give the crystal's centre" to its advice. With `centre_um`, or for a crystal modelled
+rim to rim, it is replaced by a check that the fronts are resolved and a note when they
+meet in the core.
+
+**Old column names** (`edge_fo`, `core_fo`, `step_fo`, `rim_fo`, the round robin
+`edge_x1` / `edge_x2`) are read with a deprecation note until the release, and the
+repository's own tables (template, paper runs, round robin) are converted to the new
+names; after the release the old names are an error that names the new column.
 
 ## Still to confirm
 
-1. **Old tables and the new default.** With `core_end` defaulting to `no_flux`, a table
-   written before this change (no `core_end` column) would refit differently wherever
-   diffusion reaches the far end: exactly the short profiles the warning flags; long
-   plateaus are unaffected. Proposal: rows without a `core_end` column read as `fixed`, so
-   published tables and summaries refit identically, and new templates write `no_flux`.
-   A differential replay measures how much each paper and round robin run would move under
-   `no_flux`.
-2. **Decision 5.** Confirm the reading: the old column names (`edge_fo`, `core_fo`,
-   `step_fo`, `rim_fo`, and the round robin `edge_x1` / `edge_x2`) stay accepted
-   indefinitely, and sample and profile names are never renamed.
-3. **Crystal grouping:** an explicit `crystal` value (typed or from the check box) wins over
-   the file-name rule, which only proposes values for empty cells. Agreed?
+1. **Crystal grouping** (explained to Henry 2026-10-16): when the file-name rule and a
+   check box disagree, what is set by hand wins, and the name rule only suggests values
+   for profiles not yet assigned. Agreed?
 
 ## Steps once confirmed
 
 1. `InitialCondition` gains segments (`steps_um`, `segment_names`, `segment_fo`), the held
-   edges, `core_end`, `centre_um` and `origin`, with the old fields accepted; table
-   reader and writer, template and column guide follow.
+   edges, `centre_um` and `origin`, with the old fields read with a deprecation note;
+   table reader and writer, template and column guide follow; the repository's tables
+   are converted.
 2. Differential replay: every run read from an existing table (template example, paper
-   runs, round robin runs) refits identically, with a baseline-against-itself control;
-   then the same runs under `no_flux`, to report what the new default changes.
-3. No-flux far end and mirroring at `centre_um` in the solvers; check against an
-   analytical slab solution and a whole profile modelled explicitly.
+   runs, round robin runs) refits identically after the renaming, with a
+   baseline-against-itself control.
+3. Mirroring at `centre_um` (no flux across the centre) in the solvers; check against an
+   analytical slab solution and against a whole crystal modelled rim to rim.
 4. The starting-profile fit over step positions, segment Fo, edge values and offsets.
 5. Then joint fits, population priors, step proposals and batch import on these names.
