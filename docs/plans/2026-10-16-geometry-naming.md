@@ -6,7 +6,7 @@ edge-position fit and batch import all use one set of names, settled before any 
 is built. Requirements were collected from both sessions working on these features
 (`TODO_local.md`: "Whole crystals", "Priors from the crystal population", "Automated
 proposals", "Profiles along more than one axis", "Fit the profile edge position", "Batch
-data import").
+data import"). Both sessions have reviewed it.
 
 ## The problem
 
@@ -53,7 +53,16 @@ From the joint-fit, edge, proposal and import sections (the other session):
 12. Template columns that carry units (oxide wt%, element wt%, ppm, molar); stage x/y
     passed through unconverted; beam-scan profiles in their own layout. (These are profile
     table columns, not starting-profile names, but they share the template and its
-    column guide.)
+    column guide.) In detail:
+    - each concentration column declares its unit, by a header suffix (`NiO_wt%`,
+      `Ni_ppm`) or a units row; a missing or ambiguous unit fails the import loudly
+      instead of being guessed;
+    - Fo is computed from FeO and MgO when there is no Fo column;
+    - Ni, Mn and Ca columns go through the minor-elements stage-2 reader, so there is one
+      profile reader, not two.
+14. Profiles marked as one crystal "by file name or by selecting a box" (Henry): the
+    `crystal` column filled either from the file or profile name, by a rule the batch
+    reader proposes and the user confirms (never assumed), or from a GUI check box.
 
 And always:
 13. Every existing table, summary.csv and round robin table reads unchanged and refits
@@ -81,7 +90,7 @@ read from `domain_start_um` to `domain_end_um`; the ends are named for what is h
 
 | Concept | Proposed column | Meaning |
 |---|---|---|
-| Crystal | `crystal` | Profiles with the same value are one crystal: their `zone_fo` is shared, their `steps_um` and offsets are not (requirement 8). |
+| Crystal | `crystal` | Profiles with the same value are one crystal: their `zone_fo` is shared, their `steps_um` and offsets are not (requirement 8). Filled from a confirmed name rule or a GUI check box (requirement 14); a value in the column (typed, or written by the check box) wins, and the name rule only proposes values for empty cells, so a confirmed grouping is never overwritten. |
 | Own core | `own_zones` | Zone indices whose Fo this profile fits on its own instead of sharing, e.g. the core (requirement 9). |
 | Sample | `sample` | Crystals with the same value form a population, the source of priors and of the hierarchical joint fit (requirement 6). |
 | Intersection | `cross_profile`, `cross_at_um`, `cross_other_at_um` | This profile crosses `cross_profile` at `cross_at_um` along itself and `cross_other_at_um` along the other (requirement 10). |
@@ -124,6 +133,8 @@ existing summaries refit; whole-crystal rows write the new ones.
    `domain_end_um` (proposed), or each rim its own origin?
 5. **Aliases:** keep `edge_fo` / `core_fo` / `step_fo` indefinitely, or only until the
    release?
+6. **Crystal grouping:** the proposal lets an explicit `crystal` value (typed or from the
+   check box) win over the file-name rule, which only fills empty cells. Agreed?
 
 ## Steps once decided
 
