@@ -857,6 +857,9 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "white_sigma_fo": noise.white_sigma if noise else math.nan,
         "correlated_sigma_fo": noise.correlated_sigma if noise else math.nan,
         "correlation_length_um": noise.correlation_length_um if noise else math.nan,
+        "near_step_daic": (
+            result.near_step_delta_aic if result.near_step_delta_aic is not None else math.nan
+        ),
     }
 
 
@@ -919,7 +922,12 @@ def _profile(run: Run, profiles: Mapping[str, Profile]) -> Profile:
 
 
 def fit_run(
-    run: Run, profiles: Mapping[str, Profile], *, stop_early: bool = True, keep_curves: bool = False
+    run: Run,
+    profiles: Mapping[str, Profile],
+    *,
+    stop_early: bool = True,
+    keep_curves: bool = False,
+    check_near_step: bool = True,
 ) -> FitResult:
     """Fit one run against its measured profile (``stop_early``, ``keep_curves``: see
     `fit_profile`).
@@ -958,6 +966,7 @@ def fit_run(
         stages=run.stages,
         rim_fo=run.rim_fo,
         keep_curves=keep_curves,
+        check_near_step=check_near_step,
     )
     if given:
         since = max(result.time_since_last_stage_days, grid.dt_s / SECONDS_PER_DAY)

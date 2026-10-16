@@ -375,6 +375,14 @@ SUMMARY_COLUMNS = (
         "Length scale of that misfit; near half the profile length, the misfit is profile-wide.",
     ),
     Column(
+        "near_step_daic",
+        "",
+        "",
+        "AIC change when the misfit may be larger near the steps (correlated method, no "
+        "growth stages); below -6 a warning says the misfit is concentrated near the step "
+        "and the 1-sigma range is probably too narrow (docs/references/noise-models-guide.md).",
+    ),
+    Column(
         "warnings",
         "",
         "",

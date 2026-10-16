@@ -589,3 +589,35 @@ profile-wide-misfit warning.
 | SH63 298 pts | 1-2 outliers (5 sd) | 69 | 65 | 68 | 96 | 95 | 96 | 1 | 87 | 4 | 84 | 0 |
 | SH63 298 pts | sd grows with \|Fo − core\| | 33 | 32 | 28 | 61 | 59 | 52 | 2 | 100 | 78 | 100 | 0 |
 | SH63 298 pts | sd rises 4x to the rim | 53 | 50 | 52 | 86 | 84 | 84 | 2 | 27 | 14 | 76 | 0 |
+
+## Follow-ups to keep evaluating (added 2026-10-15)
+
+The near-step **warning** is now in the package (`forster.uncertainty.near_step_check`,
+run by `fit_profile` on correlated fits without growth stages; summary column
+`near_step_daic`; it warns below -6). It fires on the three paper profiles this study
+flagged (Xenocryst_ol6_prof_1 -10.4, WHT06_ol43 -7.7, WHT06_ol48 -6.6) and not on
+WHT01_Ol_63, _181 or _192. The near-step **term** is not part of the fit. Still to do:
+
+1. **Fit h continuously.** h reaches the top of its grid (100) on all three warned
+   paper profiles and on 11 of the 36 real profiles here, so the size of the
+   near-step misfit, and the shift in time it implies, is not yet measured.
+2. **Decide whether the term becomes part of the model.** Before switching it on:
+   - a differential check that h = 0 reproduces today's fits exactly;
+   - coverage on more geometries, and on the heteroscedastic cases it did not fix;
+   - other non-stationary shapes (a rim zone, an asymmetric zone, two steps);
+   - a review of what it does to real profiles (SH63olv066 -10 to -15%,
+     Xenocryst_ol6_prof_1 +54%; 3 of 11 move outside today's 1-sigma range).
+3. **Power on sparse, paper-like profiles.** The term recovered only +3 to +7 points of
+   coverage there; measure the warning's detection rate at 15-20 points.
+4. **Does fitting the initial condition remove it?** For SH63olv066 the round robin
+   refit's wider Fo priors lowered the correlated misfit from 0.46-0.77 to 0.25 mol%.
+   Rerun the check after `scan_method` fits to see whether the warning clears; if so,
+   the warning should point users there first.
+5. **Wider reach.** Run the check in the samplers' posterior (`forster.sampling`)
+   and on growth-stage fits (both skipped today); show it in the GUI (shade the
+   near-step zone, run the check on release or idle, not during drags).
+6. **Regression harness.** Rerun this study (`real_profiles.py`, `synthetic.py`,
+   `zone_noise.py`) after any change to the noise model, and compare with these CSVs.
+7. **Round robin note** (private submodule, `outputs/refit_2026/NOTE.md`): the
+   SH63olv066 ranges are probably too narrow; add the caveat or the 2-sigma ranges
+   before it goes to the organisers.

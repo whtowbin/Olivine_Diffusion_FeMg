@@ -26,6 +26,7 @@ Method, validation and references: ``docs/references/likelihood-method.md``.
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -293,6 +294,61 @@ def fit_correlated_points(
     and ``fo`` are the fitted points (`points_in_domain`)."""
     chi2, noise = correlated_chi2(at_points, x_um, fo)
     return _correlated_ranges(chi2, noise, x_um, fo, end_is_limit)
+
+
+# Near-step misfit check (docs/plans/2026-10-15-whitening-validity): the correlated
+# misfit's amplitude may grow within about one diffusion length of a step,
+# C = s^2 (I + rho^2 S K S), S = diag(sqrt(1 + h e)), e the largest of
+# exp(-(x - step)^2 / 2 l^2) over the steps. h = 0 is the default noise model.
+NEAR_STEP_H_GRID = (0.0, 1.0, 3.0, 10.0, 30.0, 100.0)
+# Warn when the near-step term improves AIC by more than this (one extra parameter). In
+# the validation it fired in at most 0.2% of well-specified synthetic fits and caught
+# 76-94% of strong near-step misfits on 29- and 298-point profiles.
+NEAR_STEP_AIC = -6.0
+
+
+@dataclass(frozen=True)
+class NearStepCheck:
+    """AIC change when the correlated misfit may grow near the steps (< 0 favours it), and
+    the fitted growth h (0: the default noise model was best)."""
+
+    delta_aic: float
+    h: float
+
+    @property
+    def warn(self) -> bool:
+        return self.delta_aic < NEAR_STEP_AIC
+
+
+def near_step_check(
+    x_um: np.ndarray, residuals: np.ndarray, steps_um: Sequence[float], length_um: float
+) -> NearStepCheck:
+    """Maximum likelihood of the default noise model and of the near-step model at the
+    residuals of the white best fit (``length_um``: the diffusion length there), on the
+    same (rho, L) grid as `fit_noise_model`, and the AIC change for the extra parameter.
+    A warning sign that the misfit is concentrated near a step, where the default model
+    (one misfit amplitude along the whole profile) makes the range too narrow."""
+    n = len(x_um)
+    spacing = float(np.median(np.diff(np.sort(x_um))))
+    span = float(x_um.max() - x_um.min())
+    lengths = np.geomspace(max(spacing, 1e-3), max(span / 2, 2 * spacing), N_LENGTHS)
+    d2 = (x_um[:, None] - x_um[None, :]) ** 2
+    ell = max(float(length_um), 1e-6)
+    e = np.exp(-0.5 * ((x_um[:, None] - np.asarray(steps_um)[None, :]) / ell) ** 2).max(axis=1)
+    white = 0.5 * n * np.log(max(float(residuals @ residuals) / n, 1e-30))
+    nll = {h: white for h in NEAR_STEP_H_GRID}  # rho = 0 is the same for every h
+    for L in lengths:
+        K = np.exp(-0.5 * d2 / L**2)
+        for h in NEAR_STEP_H_GRID:
+            sc = np.sqrt(1.0 + h * e)
+            M = sc[:, None] * K * sc[None, :]
+            for rho in RHO_GRID[1:]:
+                chol = np.linalg.cholesky(np.eye(n) + rho**2 * M)
+                z = sla.solve_triangular(chol, residuals, lower=True)
+                value = 0.5 * n * np.log(max(float(z @ z) / n, 1e-30)) + np.log(np.diag(chol)).sum()
+                nll[h] = min(nll[h], float(value))
+    best_h = min(nll, key=lambda h: nll[h])
+    return NearStepCheck(float(2 * (nll[best_h] - nll[0.0]) + 2), float(best_h))
 
 
 def white_rss(at_points: np.ndarray, y: np.ndarray) -> np.ndarray:

@@ -42,10 +42,12 @@ from forster.diffusivity import (
 )
 from forster.uncertainty import (
     CorrelatedFit,
+    NearStepCheck,
     NoiseModel,
     chi2_per_step,
     fit_correlated_points,
     interpolation_matrix,
+    near_step_check,
     points_in_domain,
     white_rss,
     widen_log10,
@@ -276,6 +278,11 @@ class FitResult:
     # Rows kept in ``curves`` (None: every row) and the rows the run modelled.
     curve_rows: tuple[int, ...] | None = None
     n_rows: int | None = None
+    # Near-step misfit check (`forster.uncertainty.near_step_check`): AIC change when the
+    # misfit may grow near the steps (< -6 warns) and the fitted growth; None when not run
+    # (legacy method, growth stages, or ``check_near_step=False``).
+    near_step_delta_aic: float | None = None
+    near_step_h: float | None = None
 
     def curve(self, row: int) -> np.ndarray:
         """The model profile at time step ``row`` (a kept row unless every row is kept)."""
@@ -882,6 +889,7 @@ def fit_profile(
     stages: Sequence[Stage] = (),
     rim_fo: Rim | None = None,
     keep_curves: bool = False,
+    check_near_step: bool = True,
 ) -> FitResult:
     """Fit Fe-Mg diffusion from a step-function start to a measured Fo profile.
 
@@ -936,6 +944,12 @@ def fit_profile(
     but full profiles only for the start, the best fit and the ends of the 1- and
     2-sigma ranges (`FitResult.curve`), so a fit holds a few profiles, not one per time
     step; ``keep_curves=True`` keeps every row (the legacy method always does).
+
+    ``check_near_step`` (correlated method, no growth stages): test whether the misfit is
+    concentrated near the steps (`forster.uncertainty.near_step_check`) and warn if a
+    near-step misfit term improves AIC by more than 6; the default noise model then makes
+    the range too narrow (``docs/plans/2026-10-15-whitening-validity``). About 0.2 s on
+    a 300-point profile, milliseconds on 30 points; switch it off for rapid refits.
 
     ``stages`` (`forster.boundary.Stage`) are instantaneous growth steps after the
     start: at each stage's start the rim moves outward and the new zone appears, then
@@ -1028,6 +1042,7 @@ def fit_profile(
     indices2: tuple[int, int] | None = None
     curve_rows: tuple[int, ...] | None = None
     n_rows: int | None = None
+    near_step: NearStepCheck | None = None
     if uncertainty == "legacy":
         curves = advance(start, grid.timesteps)
         time, indices, sum_chi2 = engine.Best_fit_Chi2(
@@ -1058,6 +1073,8 @@ def fit_profile(
         sum_chi2, noise, fit_x, fit_fo = fit.chi2, fit.noise, fit.x_um, fit.fo
         n_rows = offset + stream.n_rows
         curves, curve_rows = _kept_curves(stream, advance, offset, prefix, span, span2)
+        if check_near_step and history is None:
+            near_step = _near_step(stream, fit, initial, conditions, orientation, diffusivity, grid)
         if prefix is not None:
             sum_chi2 = np.concatenate([np.full(offset, np.nan), sum_chi2])
     law_sigma, between = _law_uncertainty(
@@ -1103,7 +1120,29 @@ def fit_profile(
         indices2=indices2,
         curve_rows=curve_rows,
         n_rows=n_rows,
+        near_step_delta_aic=None if near_step is None else near_step.delta_aic,
+        near_step_h=None if near_step is None else near_step.h,
     )
+
+
+def _near_step(stream, fit, initial, conditions, orientation, diffusivity, grid) -> NearStepCheck:
+    """The near-step misfit check at the white best fit, with a warning if it fires."""
+    from forster.grid import diffusion_length_um, fo_range
+
+    at_points = stream.points()
+    row = int(np.argmin(white_rss(at_points, fit.fo)))
+    days = max(row, 1) * grid.dt_s / SECONDS_PER_DAY
+    length = diffusion_length_um(days, [(diffusivity, fo_range(initial))], conditions, orientation)
+    check = near_step_check(fit.x_um, fit.fo - at_points[row], initial.steps_um, length)
+    if check.warn:
+        warnings.warn(
+            f"the misfit is concentrated near the step (a near-step misfit term improves "
+            f"AIC by {-check.delta_aic:.1f}): the 1-sigma range is probably too narrow. "
+            "Check the initial condition near the step (or fit it: scan_method), and quote "
+            "the 2-sigma range (docs/references/noise-models-guide.md)",
+            stacklevel=3,
+        )
+    return check
 
 
 def _kept_curves(stream, advance, offset, prefix, span, span2):

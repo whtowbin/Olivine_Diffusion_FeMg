@@ -282,7 +282,8 @@ What the table shows:
   misfit. With 29 or more points the correlated likelihood stays at 58–72% for
   misfit up to 10 µm long.
 - **Misfit about as long as the diffusion length** (L = 30 µm here, where
-  √(D t) ≈ 27 µm) lowers coverage to 53–62%. The misfit term and the diffusion
+  √(D t) ≈ 27 µm) lowers coverage to 53–62%. With paper-style sampling (17 points 2.9 µm apart) it
+  fell to 52% (the 2026-10-15 whitening-validity study). The misfit term and the diffusion
   profile then trade off, a known limit of model-discrepancy terms (Brynjarsdóttir
   and O'Hagan 2014). It is still far better than the 20–34% from independent
   errors.
@@ -658,6 +659,10 @@ so tight that the run has to be extended.
   Gaussian or uniform, from Python and `parameters.csv`; a cheaper scan time step;
   a two-parameter validation.
 - **Still open:**
+  - Misfit concentrated near the step makes the 1σ range too narrow (45–60% coverage,
+    worst on dense profiles): a warning now flags it (`near_step_daic`); whether to make
+    the near-step term part of the model, and the other follow-ups, are listed in
+    `docs/plans/2026-10-15-whitening-validity/README.md`.
   - Validate on a paper profile (2–5 µm spacing, 15–30 points), and with misfit
     shapes other than the squared-exponential kernel.
   - Scans of three or more parameters are allowed but not validated. Their cost

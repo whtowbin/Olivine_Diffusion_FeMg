@@ -258,3 +258,40 @@ def test_early_stopping_gives_the_same_fit_as_the_full_run(monkeypatch):
         full.time_minus_s,
         full.time_plus_s,
     )
+
+
+def test_near_step_check_flags_misfit_concentrated_at_the_step():
+    """Residuals with a smooth misfit only near the step favour the near-step term by far
+    more than 6 AIC; white residuals rarely do (the validation: at most 0.2%)."""
+    from forster.uncertainty import NEAR_STEP_AIC, near_step_check
+
+    rng = np.random.default_rng(3)
+    x = np.linspace(0.0, 90.0, 60)
+    step, ell = 40.0, 6.0
+    envelope = np.exp(-0.5 * ((x - step) / ell) ** 2)
+    smooth = np.sin(x / 3.0)
+    near = 0.002 * rng.standard_normal(x.size) + 0.012 * envelope * smooth
+    check = near_step_check(x, near, [step], ell)
+    assert check.warn and check.delta_aic < NEAR_STEP_AIC and check.h > 0
+    false_alarms = sum(
+        near_step_check(x, 0.002 * rng.standard_normal(x.size), [step], ell).warn for _ in range(60)
+    )
+    assert false_alarms <= 2
+
+
+def test_fits_warn_on_the_paper_profiles_with_near_step_misfit():
+    """The three paper profiles where the validity study found the near-step term clearly
+    preferred warn; a well-behaved one does not; and the check can be switched off."""
+    from conftest import PAPER_DATA, PAPER_PARAMS
+
+    runs = {r.name: r for r in read_runs(PAPER_PARAMS)}
+    profiles = read_profiles(PAPER_DATA, sheet="Olivine")
+    for name, expect in (("Xenocryst_ol6_prof_1", True), ("AZ18 WHT01_Ol_63_prof_1", False)):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = fit_run(runs[name], profiles)
+        assert any("near the step" in str(w.message) for w in caught) is expect, name
+        assert result.near_step_delta_aic is not None
+        assert (result.near_step_delta_aic < -6) is expect
+    quiet = fit_run(runs["Xenocryst_ol6_prof_1"], profiles, check_near_step=False)
+    assert quiet.near_step_delta_aic is None
