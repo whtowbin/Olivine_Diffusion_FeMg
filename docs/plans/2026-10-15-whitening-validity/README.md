@@ -446,6 +446,11 @@ near-step white candidate.
 | AZ18 WHT06_ol43_prof 1 | -7.288 | 30 | 1.923 | 1.528 | 2.392 | 2.268 | 1.862 | 2.703 | False |
 | AZ18 WHT06_ol48_prof 1 | -6.635 | 100 | 3.039 | 2.77 | 3.332 | 2.662 | 2.383 | 2.958 | True |
 
+This study took D at the mean measured Fo. FORSTER's `near_step_check` (and so
+`near_step_daic` in `summary.csv`) takes D at the middle of the initial condition's Fo
+range, so its values differ slightly: Xenocryst_ol6_prof_1 gives −10.4 and +58%, not
+−9.4 and +54%. The figures in `docs/references/noise-models-guide.md` use FORSTER's values.
+
 ## 6. Verdict
 
 **Valid:**
