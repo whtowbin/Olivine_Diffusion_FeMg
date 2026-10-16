@@ -27,7 +27,8 @@ Optional, about 5× faster fits and scans: add the `fast` extra, which installs
 [Numba](https://numba.pydata.org/) to compile the time steppers
 (`uv tool install "forster[fast] @ git+https://github.com/whtowbin/Olivine_Diffusion_FeMg"`,
 or `pip install "forster[fast] @ git+..."`). Results are the same to rounding; without
-Numba the same code runs in NumPy. `FORSTER_NO_NUMBA=1` turns it off.
+Numba the same code runs in NumPy. `FORSTER_NO_NUMBA=1` turns it off. The desktop app
+needs the `gui` extra (see [Desktop app](#3-desktop-app)).
 
 ## Three ways to run it
 
@@ -185,11 +186,39 @@ other evidence; `docs/plans/2026-10-13-growth-stages.md`.
 
 ### 3. Desktop app
 
-A desktop app (`forster gui`) is planned for the next version: load a profile,
-place the initial steps by dragging them on the plot, edit the parameters, fit and
-export. It uses tkinter, which ships with most Python installs; Homebrew and Linux
-system Pythons need it installed separately (`brew install python-tk`,
-`apt install python3-tk`).
+```bash
+uv tool install "forster[gui] @ git+https://github.com/whtowbin/Olivine_Diffusion_FeMg"
+forster gui my_project/      # an empty or new folder starts from the worked example
+```
+
+The app (Qt, through the `gui` extra: PySide6-Essentials) works on a **project
+folder**: the same `profiles.csv`, `parameters.csv` and `diffusivities.csv` the
+command line reads, plus `project.json` for what only the app needs, so
+`forster fit profiles.csv parameters.csv` reruns a saved project unchanged. Every edit
+is checked by writing the run as a table row and reading it back, so the app accepts
+exactly what the command line does, and a refused value is explained next to its field.
+
+- **Left:** the runs: add (on a profile, with the selected run's settings), duplicate,
+  rename, delete.
+- **Centre:** the measured points with the best fit, its 1σ and 2σ bands and the
+  residuals; the time and both ranges in the title. The starting profile is drawn as
+  orange lines: drag a step (dashed) or a segment's Fo (solid), or the grey domain
+  ends, and the run is refitted when you let go (the example refits in about 35 ms).
+  FORSTER's warnings (a short plateau, misfit near the step, ...) are shown under the
+  plot. The Results tab lists every run's time and ranges.
+- **Right:** *Segments*, one row per segment (a, b, c, ... from edge 1; rename them
+  if you like): start, end, Fo in mol% and its uncertainty (sd or range); a held edge 1
+  Fo when it differs from segment a's; the crystal centre for a whole crystal.
+  *Conditions* (T, P, fO2 relative to a buffer or in Pa), *Orientation* (angles to
+  the axes or EBSD Euler angles with the profile angle), *Diffusion equation* (the
+  four named choices) and *Uncertainties* (the step positions' uncertainty, the
+  sampler, and **Fit starting profile**, which fits the step positions and segment Fo
+  with the time, with progress and cancel).
+
+Fits and starting-profile fits are cached in the folder (`.forster/cache`), so a
+reopened project shows its results at once; the project is autosaved every minute
+(`.forster/autosave`) and Save writes the tables. **Export summary CSV** writes the
+same `summary.csv` as `forster fit` for the fitted runs.
 
 ## Table columns
 
