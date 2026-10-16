@@ -1,6 +1,5 @@
 # %%w
 import numpy as np
-from pykrige import UniversalKriging
 
 # import mc3
 
@@ -479,6 +478,8 @@ def _kriging_model(X, Y, variogram_model, variogram_parameters):
     key = (X.tobytes(), Y.tobytes(), variogram_model, repr(variogram_parameters))
     uk = _KRIGING_MODELS.get(key)
     if uk is None:
+        from pykrige import UniversalKriging  # imported here: only the legacy method krigs
+
         # uk = OrdinaryKriging(
         uk = UniversalKriging(
             X,
