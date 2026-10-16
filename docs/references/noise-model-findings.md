@@ -294,7 +294,11 @@ model removes that. What does move the time is data that stop before they reach 
 plateau. Trimming plateaus is never the answer: it does not move the time and it hides
 the near-step warning. Two published runs never reach a plateau within their data
 (WHT06_ol_overgrowth2 and GCB1A R31_MP_Ol5_prof_1, 2.8 and 2.7 diffusion lengths past
-the step), so the new warning fires on them.
+the step), so the new warning fires on them. Their profiles reach the centre of small
+crystals, and their core Fo was set from other crystals of the same sample, so measuring
+further is not possible: for them the issue is FORSTER's fixed core Fo at the end of the
+model, where a symmetry (no-flux) boundary belongs. That boundary is not available yet
+(see "Still open").
 
 ## 4. How the fixes work
 
@@ -335,9 +339,14 @@ check, about 0.2 s on a 300-point profile.
   growth while diffusing, steps proposed automatically from the data (ideas in
   `TODO_local.md`). Misfit near the step that survives the starting-profile fit is the
   signal for these.
-- **The model's core end:** extend the model past the last measured point, or warn from
-  where the data flatten rather than from the diffusion length (a behaviour change; the
-  warning covers it now). Full traverses with two rims need their own rule.
+- **The model's core end:** a centre (no-flux) boundary for profiles that reach the
+  centre of a small crystal; warning from where the data flatten rather than from the
+  diffusion length. Full traverses with two rims need their own rule.
+- **Priors from the crystal population:** core, rim and plateau Fo differ between crystals
+  of a sample; histograms across the sample, or a joint fit of its crystals, would give
+  priors for the starting-profile fit.
+- **The plateau points dropped from the paper runs** (to save model time, or because they
+  showed earlier stages) can now be brought back, with growth stages where needed.
 - **Points beyond the domain's end** are dropped without a warning; five of the six
   long-plateau paper runs stop their domain short of flat data. Extending WHT06_ol43's
   domain from 80 to 132 µm moved its time by 2% but strengthened its near-step warning

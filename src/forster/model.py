@@ -1234,7 +1234,9 @@ def _core_end_lengths(
             "about 2 diffusion lengths past the step). The model holds the core Fo at the "
             "last measured point, and data that stop on the slope move the fit. Measure "
             "until the data have been flat for at least one more diffusion length, and do "
-            "not trim plateau points (docs/guide/practical-advice.md)",
+            "not trim plateau points. If the profile already reaches the crystal's centre, "
+            "the fixed core boundary is the problem, not the data (a centre boundary is not "
+            "available yet; docs/guide/practical-advice.md)",
             stacklevel=3,
         )
     return lengths
