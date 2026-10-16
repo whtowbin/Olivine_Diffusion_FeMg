@@ -1,4 +1,5 @@
-"""Command line: ``forster template DIR`` and ``forster fit PROFILES PARAMETERS``."""
+"""Command line: ``forster template DIR``, ``forster fit PROFILES PARAMETERS`` and
+``forster gui [FOLDER]`` (the desktop app, `forster.gui`; needs the ``gui`` extra)."""
 
 from __future__ import annotations
 
@@ -297,6 +298,12 @@ def template_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def gui_command(args: argparse.Namespace) -> int:
+    from forster.gui import main as gui_main  # Qt is imported only here
+
+    return gui_main(args.folder)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forster",
@@ -347,6 +354,18 @@ def build_parser() -> argparse.ArgumentParser:
         + " (runs named <run>_<choice>)",
     )
     fit.set_defaults(handler=fit_command)
+
+    gui = commands.add_parser(
+        "gui",
+        help='open the desktop app (needs PySide6: pip install "forster[gui]")',
+    )
+    gui.add_argument(
+        "folder",
+        nargs="?",
+        help="project folder to open (a folder of FORSTER tables); an empty or new folder "
+        "starts from the worked example",
+    )
+    gui.set_defaults(handler=gui_command)
     return parser
 
 

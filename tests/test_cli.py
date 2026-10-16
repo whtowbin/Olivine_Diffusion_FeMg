@@ -315,3 +315,20 @@ def test_monte_carlo_and_sampled_scan_from_the_table_refit_identically(tmp_path,
     refit = read_csv(tmp_path / "again" / "summary.csv").iloc[0]
     for column in ("scan_median_days", "scan_low_days", "mc_median_days", "mc_p95_days"):
         assert refit[column] == row[column]
+
+
+def test_gui_subcommand_and_qt_imported_only_by_the_app():
+    """``forster gui [FOLDER]`` parses; importing forster, the command line and the GUI's
+    plain-Python state never imports Qt (or pykrige, which only the legacy method needs)."""
+    from forster.cli import build_parser, gui_command
+
+    args = build_parser().parse_args(["gui", "some/folder"])
+    assert args.handler is gui_command and args.folder == "some/folder"
+    assert build_parser().parse_args(["gui"]).folder is None
+    code = (
+        "import sys, forster, forster.cli, forster.project, forster.gui, forster.gui.state; "
+        "print(sorted(m for m in ('PySide6', 'pykrige') if m in sys.modules))"
+    )
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "[]"
