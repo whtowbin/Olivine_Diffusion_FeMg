@@ -82,6 +82,10 @@ COARSE_MIN_RESOLUTION = 8.0  # refine the coarse fit once if l / dx is below thi
 # the rim asked for dx = 0.015 um and an explicit run of tens of GB (round robin refit,
 # 2026-10-15). `check_grid` still reports the unresolved gap.
 COARSE_MAX_NODES = 600
+# Most time steps the coarse fit records: above this its dt is longer than the stable
+# step and the explicit run takes stable substeps within it (`fit_profile`), so a dense
+# profile (SH63olv066-1: 9.1 GB of rows at the stable step) stays small.
+COARSE_MAX_ROWS = 20_000
 MAX_GAP_NODES = 5000
 COST_FACTOR = 4.0  # warn of wasted time when a grid is this much finer than needed
 IMPLICIT_ERROR_COEFFICIENT = 0.2  # implicit: error ~ this x (dx / l)^2 (worst case measured)
@@ -237,7 +241,11 @@ def _coarse_time_days(
     dx = min(span / COARSE_POINTS, gap_dx)
     for _ in range(2):
         actual = actual_dx_um(profile, dx, initial, scheme)
-        grid = Grid(dx, stable_dt(actual, species, conditions, orientation), max_time_days)
+        dt = max(
+            stable_dt(actual, species, conditions, orientation),
+            max_time_days * SECONDS_PER_DAY / COARSE_MAX_ROWS,
+        )
+        grid = Grid(dx, dt, max_time_days)
         result = fit_profile(
             profile,
             conditions,

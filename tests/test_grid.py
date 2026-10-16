@@ -248,3 +248,20 @@ def test_a_grid_too_big_for_memory_is_refused(two_step, monkeypatch):
     monkeypatch.setenv("FORSTER_MAX_CURVES_GB", "0.001")
     with pytest.raises(ValueError, match=r"limit 0\.001 GB"):
         fit_profile(*args, Grid(1.0, 3600.0, 50), None, run.diffusivity, scheme="implicit")
+
+
+def test_blank_grid_on_a_dense_profile_stays_within_memory():
+    """A dense profile (SH63olv066-1: 298 points 0.5 um apart) with dx and dt left to
+    choose_grid: its coarse fit used to record every stable step (9.1 GB, refused by the
+    curve-memory guard); it now records at most COARSE_MAX_ROWS rows."""
+    from conftest import require_round_robin
+
+    require_round_robin()
+    from forster.grid import GridRequest
+
+    run = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS)}["SH63olv066-1"]
+    profile = read_profiles(ROUND_ROBIN_DATA)[run.profile_name]
+    choice = GridRequest().resolve(
+        profile, run.conditions, run.orientation, run.initial, run.diffusivity
+    )
+    assert choice.coarse_time_days > 0 and choice.grid.timesteps > 0
