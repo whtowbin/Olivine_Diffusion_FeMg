@@ -1,7 +1,6 @@
 # Naming the starting profile for half profiles and whole crystals
 
-Status (2026-10-16): **design decided by Henry** (section "Decisions"); one point still to
-confirm (crystal grouping). Nothing is built. Started at Henry's
+Status (2026-10-16): **design decided by Henry** (section "Decisions"); ready to build. Nothing is built. Started at Henry's
 request so that whole crystals, joint fits, population priors, step proposals, the
 edge-position fit and batch import all use one set of names, settled before any of them
 is built. Requirements were collected from both sessions working on these features
@@ -94,6 +93,9 @@ And always:
    not lie on one line); across them only segment concentrations are matched.
 5. **Column names may change to better ones** (clarified 2026-10-16). Sample and profile
    names stay as in the papers.
+6. **Crystal grouping: what the user picks by hand wins.** Users can also type a group name
+   by hand, including a new one; the file-name rule only suggests groups for profiles not
+   yet assigned.
 
 ## Design
 
@@ -109,7 +111,7 @@ And always:
 | Uncertainties | `steps_sd_um` / `steps_range_um` (per step), `segment_fo_sd` / `segment_fo_range` (per segment), `edge1_fo_sd` ... | `edge_fo_sd`, `core_fo_sd`, `step_fo_sd` |
 | Edge offsets | `edge1_offset_um`, `edge2_offset_um`, each with `_sd` / `_range` | (none) |
 | Growth stages | `stage_*` as today at edge 1; `stage_edge2_*` at edge 2 of a whole crystal | today's `stage_*` |
-| Crystal | `crystal`: profiles with the same value share segment Fo by label, not step positions or offsets (requirement 8); filled from a confirmed name rule or a GUI check box, an explicit value winning (requirement 14) | (none) |
+| Crystal | `crystal`: profiles with the same value share segment Fo by label, not step positions or offsets (requirement 8); filled by hand (GUI check boxes, or typing a group name, including a new one) or from a file-name rule the user confirms. **What the user sets by hand always wins** (Henry, 2026-10-16); the name rule only suggests groups for profiles not yet assigned (requirement 14) | (none) |
 | Own segments | `own_segments`: labels this profile fits on its own, e.g. its core (requirement 9) | (none) |
 | Sample | `sample`: crystals forming a population, for priors and the hierarchical fit | (none) |
 | Intersection | `cross_profile`, `cross_at_um`, `cross_other_at_um` (requirement 10) | (none) |
@@ -134,13 +136,7 @@ meet in the core.
 repository's own tables (template, paper runs, round robin) are converted to the new
 names; after the release the old names are an error that names the new column.
 
-## Still to confirm
-
-1. **Crystal grouping** (explained to Henry 2026-10-16): when the file-name rule and a
-   check box disagree, what is set by hand wins, and the name rule only suggests values
-   for profiles not yet assigned. Agreed?
-
-## Steps once confirmed
+## Steps to build
 
 1. `InitialCondition` gains segments (`steps_um`, `segment_names`, `segment_fo`), the held
    edges, `centre_um` and `origin`, with the old fields read with a deprecation note;
