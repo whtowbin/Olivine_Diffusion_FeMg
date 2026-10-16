@@ -860,6 +860,9 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "near_step_daic": (
             result.near_step_delta_aic if result.near_step_delta_aic is not None else math.nan
         ),
+        "core_end_diffusion_lengths": (
+            result.core_end_lengths if result.core_end_lengths is not None else math.nan
+        ),
     }
 
 
@@ -1205,6 +1208,7 @@ def _posterior_summary(post: ICPosterior) -> dict[str, Any]:
         ),
         "scan_ess": post.ess,
         "scan_log_evidence": post.log_evidence,
+        "scan_near_step_daic": post.near_step_delta_aic,
         "scan_dx_um": post.grid.dx_um,
         "scan_dt_s": post.grid.dt_s,
         "scan_max_time_days": post.grid.max_time_days,
@@ -1226,6 +1230,7 @@ def scan_summary(scan: ScanResult | ICPosterior) -> dict[str, Any]:
         "scan_best": "; ".join(f"{k}={v:.6g}" for k, v in best.items()),
         "scan_candidates": len(scan.runs.candidates),
         "scan_dropped": scan.prior.dropped if scan.prior is not None else 0,
+        "scan_near_step_daic": scan.near_step_delta_aic,
         # The grid as requested, so a refit rebuilds the same one.
         "scan_dx_um": scan.runs.grid.dx_um,
         "scan_dt_s": scan.runs.grid.dt_s,

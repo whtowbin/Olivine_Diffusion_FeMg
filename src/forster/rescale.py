@@ -26,6 +26,7 @@ moved between runs by up to about 15%.
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
@@ -263,19 +264,22 @@ def _refit(result, t_fit, drawn, laws, studies, seed) -> TimeDistribution:
     profile = Profile(result.data_x_um, result.data_fo, name=result.name)
     days = []
     for t, c, lw, b in zip(t_fit, drawn, laws, studies, strict=True):
-        fit = fit_profile(
-            profile,
-            c,
-            inputs["orientation"],
-            inputs["initial"],
-            inputs["grid"],
-            None,
-            lw,
-            inputs["scheme"],
-            stop_early=inputs["stop_early"],
-            stages=inputs["stages"],
-            rim_fo=inputs["rim_fo"],
-        )
+        with warnings.catch_warnings():  # the fit itself has already warned
+            warnings.simplefilter("ignore")
+            fit = fit_profile(
+                profile,
+                c,
+                inputs["orientation"],
+                inputs["initial"],
+                inputs["grid"],
+                None,
+                lw,
+                inputs["scheme"],
+                stop_early=inputs["stop_early"],
+                stages=inputs["stages"],
+                rim_fo=inputs["rim_fo"],
+                check_near_step=False,
+            )
         days.append(fit.time_days * (t / result.time_days) * 10 ** (-b))
     days = np.array(days)
     return TimeDistribution("refit", days, _percentiles(days), {}, seed)

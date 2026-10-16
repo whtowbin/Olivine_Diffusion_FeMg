@@ -64,6 +64,7 @@ from forster.model import (
     _run_past_best_fit,
     check_curve_memory,
     fe_mg_diffusivity,
+    near_step_at_best_initial,
     scheme_grid,
 )
 from forster.uncertainty import (
@@ -305,6 +306,9 @@ class ScanResult:
     marginal: Interval  # central 68% of the marginal posterior of time
     candidate_probability: np.ndarray
     prior: CandidateGrid | None = None  # when built with `candidate_grid`
+    # `forster.uncertainty.near_step_check` at the best candidate and time (NaN when not
+    # run, as from `fit_candidates` alone)
+    near_step_delta_aic: float = math.nan
 
     @property
     def best_initial(self) -> InitialCondition:
@@ -551,4 +555,15 @@ def scan_initial_conditions(
         stop_early=stop_early,
         progress=progress,
     )
-    return fit_candidates(runs, n_free=n_free, prior=prior)
+    scan = fit_candidates(runs, n_free=n_free, prior=prior)
+    near = near_step_at_best_initial(
+        runs.x_um,
+        runs.fo,
+        runs.at_points[scan.best_candidate][scan.best_row],
+        scan.best_initial,
+        scan.time_days,
+        fe_mg_diffusivity(diffusivity),
+        conditions,
+        orientation,
+    )
+    return replace(scan, near_step_delta_aic=near.delta_aic)

@@ -28,6 +28,7 @@ from forster import (
     fit_run,
     read_profiles,
     read_runs,
+    write_template,
 )
 from forster.uncertainty import (
     chi2_per_step,
@@ -295,3 +296,57 @@ def test_fits_warn_on_the_paper_profiles_with_near_step_misfit():
         assert (result.near_step_delta_aic < -6) is expect
     quiet = fit_run(runs["Xenocryst_ol6_prof_1"], profiles, check_near_step=False)
     assert quiet.near_step_delta_aic is None
+
+
+def test_a_profile_ending_close_to_the_step_warns():
+    """FORSTER ends the model at the last measured point and holds the core Fo there. Cut
+    to about 1.6 diffusion lengths past the step, WHT06_ol43 moved by -37% (the
+    plateau-length study); the full profile (about 8 lengths) does not warn."""
+    from conftest import PAPER_DATA, PAPER_PARAMS
+
+    from forster.io import summary_row
+    from forster.model import SHORT_PLATEAU_LENGTHS
+
+    run = next(r for r in read_runs(PAPER_PARAMS) if r.name == "AZ18 WHT06_ol43_prof 1")
+    profiles = read_profiles(PAPER_DATA, sheet="Olivine")
+    full = profiles[run.profile_name]
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        whole = fit_run(run, profiles, check_near_step=False)
+    assert not any("past the last step" in str(w.message) for w in caught)
+    assert whole.core_end_lengths is not None and whole.core_end_lengths > 5
+    keep = full.distance_um <= max(run.initial.steps_um) + 7.5  # about 1.6 l
+    cut = Profile(full.distance_um[keep], full.fo[keep], name=full.name)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        short = fit_run(run, {**profiles, run.profile_name: cut}, check_near_step=False)
+    assert any("past the last step" in str(w.message) for w in caught)
+    assert short.core_end_lengths is not None and short.core_end_lengths < SHORT_PLATEAU_LENGTHS
+    assert summary_row(short)["core_end_diffusion_lengths"] == short.core_end_lengths
+
+
+def test_the_near_step_check_at_a_best_fit_initial_condition_warns(tmp_path):
+    """`near_step_at_best_initial` (run after an initial-condition fit) warns when the
+    residuals still carry misfit concentrated at the step, and not for white residuals."""
+    from forster.grid import diffusion_length_um, fo_range
+    from forster.model import fe_mg_diffusivity, near_step_at_best_initial
+
+    write_template(tmp_path)
+    (run,) = read_runs(tmp_path / "parameters.csv")
+    rng = np.random.default_rng(5)
+    initial, law = run.initial, fe_mg_diffusivity(run.diffusivity)
+    x = np.linspace(initial.domain_um[0], initial.domain_um[1], 60)
+    step = initial.steps_um[0]
+    model = np.full(x.size, 0.85)
+    days = 5.0
+    ell = diffusion_length_um(days, [(law, fo_range(initial))], run.conditions, run.orientation)
+    envelope = np.exp(-0.5 * ((x - step) / ell) ** 2)
+    near = model + 0.002 * rng.standard_normal(x.size) + 0.012 * envelope * np.sin(x / 3.0)
+    args = (initial, days, law, run.conditions, run.orientation)
+    with pytest.warns(UserWarning, match="best-fit initial condition"):
+        check = near_step_at_best_initial(x, near, model, *args)
+    assert check.warn
+    white = model + 0.002 * rng.standard_normal(x.size)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert not near_step_at_best_initial(x, white, model, *args).warn

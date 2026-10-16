@@ -283,6 +283,10 @@ class FitResult:
     # (legacy method, growth stages, or ``check_near_step=False``).
     near_step_delta_aic: float | None = None
     near_step_h: float | None = None
+    # Distance from the last step to the model's core end (the last measured point, or the
+    # domain's end if nearer), in diffusion lengths at the best fit; below
+    # SHORT_PLATEAU_LENGTHS a warning says the core boundary is close enough to move the fit.
+    core_end_lengths: float | None = None
 
     def curve(self, row: int) -> np.ndarray:
         """The model profile at time step ``row`` (a kept row unless every row is kept)."""
@@ -1077,6 +1081,9 @@ def fit_profile(
             near_step = _near_step(stream, fit, initial, conditions, orientation, diffusivity, grid)
         if prefix is not None:
             sum_chi2 = np.concatenate([np.full(offset, np.nan), sum_chi2])
+    core_end = _core_end_lengths(
+        model_x, initial, float(time[0]) / SECONDS_PER_DAY, diffusivity, conditions, orientation
+    )
     law_sigma, between = _law_uncertainty(
         diffusivity, conditions, orientation, initial, stages, rim_fo
     )
@@ -1122,27 +1129,111 @@ def fit_profile(
         n_rows=n_rows,
         near_step_delta_aic=None if near_step is None else near_step.delta_aic,
         near_step_h=None if near_step is None else near_step.h,
+        core_end_lengths=core_end,
     )
+
+
+# Warn when the model's core end lies within this many diffusion lengths of the last step.
+# The core Fo is held there, and a profile measured only about 2 l past the step moved
+# real fits by -37% to +49%; from about 3 l the effect is small, from 5 l nil
+# (docs/plans/2026-10-15-whitening-validity/README.md, "Plateau length").
+SHORT_PLATEAU_LENGTHS = 3.0
+
+
+def near_step_at(
+    x_um: np.ndarray,
+    fo: np.ndarray,
+    model_fo: np.ndarray,
+    initial: InitialCondition,
+    days: float,
+    diffusivity: Diffusivity,
+    conditions: Conditions,
+    orientation: Orientation,
+) -> NearStepCheck:
+    """`near_step_check` on the residuals ``fo - model_fo`` of a fit of ``days`` from
+    ``initial``, with the near-step zone sized by the diffusion length at that time."""
+    from forster.grid import diffusion_length_um, fo_range
+
+    length = diffusion_length_um(days, [(diffusivity, fo_range(initial))], conditions, orientation)
+    return near_step_check(x_um, fo - model_fo, initial.steps_um, length)
+
+
+def near_step_at_best_initial(
+    x_um: np.ndarray,
+    fo: np.ndarray,
+    model_fo: np.ndarray,
+    initial: InitialCondition,
+    days: float,
+    diffusivity: Diffusivity,
+    conditions: Conditions,
+    orientation: Orientation,
+) -> NearStepCheck:
+    """`near_step_at` for an initial-condition fit's best initial condition and time, with
+    a warning if the misfit is still concentrated near the step."""
+    if not days > 0:  # best fit at time zero: no diffusion length to size the zone by
+        return NearStepCheck(math.nan, math.nan)
+    check = near_step_at(x_um, fo, model_fo, initial, days, diffusivity, conditions, orientation)
+    if check.warn:
+        warnings.warn(
+            "even at the best-fit initial condition the misfit is concentrated near the step "
+            f"(a near-step misfit term improves AIC by {-check.delta_aic:.1f}): the "
+            "initial-condition model may be missing something (a step that is not sharp, or "
+            "growth while diffusing). Quote the 2-sigma range of the fit "
+            "(docs/references/noise-models-guide.md)",
+            stacklevel=3,
+        )
+    return check
 
 
 def _near_step(stream, fit, initial, conditions, orientation, diffusivity, grid) -> NearStepCheck:
     """The near-step misfit check at the white best fit, with a warning if it fires."""
-    from forster.grid import diffusion_length_um, fo_range
-
     at_points = stream.points()
     row = int(np.argmin(white_rss(at_points, fit.fo)))
     days = max(row, 1) * grid.dt_s / SECONDS_PER_DAY
-    length = diffusion_length_um(days, [(diffusivity, fo_range(initial))], conditions, orientation)
-    check = near_step_check(fit.x_um, fit.fo - at_points[row], initial.steps_um, length)
+    check = near_step_at(
+        fit.x_um, fit.fo, at_points[row], initial, days, diffusivity, conditions, orientation
+    )
     if check.warn:
         warnings.warn(
             f"the misfit is concentrated near the step (a near-step misfit term improves "
             f"AIC by {-check.delta_aic:.1f}): the 1-sigma range is probably too narrow. "
-            "Check the initial condition near the step (or fit it: scan_method), and quote "
-            "the 2-sigma range (docs/references/noise-models-guide.md)",
+            "The initial condition near the step is probably not quite right: fit it first "
+            "(give the step positions and the edge, plateau and core Fo uncertainties; "
+            "scan_method), which removed this misfit on the profiles tested. If the warning "
+            "remains, quote the 2-sigma range (docs/references/noise-models-guide.md)",
             stacklevel=3,
         )
     return check
+
+
+def _core_end_lengths(
+    model_x: np.ndarray,
+    initial: InitialCondition,
+    days: float,
+    diffusivity: Diffusivity,
+    conditions: Conditions,
+    orientation: Orientation,
+) -> float | None:
+    """Distance from the last step to the model's core end in diffusion lengths at
+    ``days``, with a warning below `SHORT_PLATEAU_LENGTHS`; None at time zero."""
+    from forster.grid import diffusion_length_um, fo_range
+
+    if not days > 0:
+        return None
+    length = diffusion_length_um(days, [(diffusivity, fo_range(initial))], conditions, orientation)
+    last_step = max(initial.steps_um, default=initial.domain_um[0])
+    lengths = (float(model_x[-1]) - last_step) / length
+    if lengths < SHORT_PLATEAU_LENGTHS:
+        warnings.warn(
+            f"the profile ends {lengths:.1f} diffusion lengths past the last step "
+            f"({float(model_x[-1]) - last_step:.0f} um, diffusion length {length:.1f} um): "
+            "the model holds the core Fo at the last measured point, so that boundary is "
+            "close enough to move the fit. Measure further into the core (at least "
+            f"{SHORT_PLATEAU_LENGTHS:g} diffusion lengths) and do not trim plateau points "
+            "(docs/guide/practical-advice.md)",
+            stacklevel=3,
+        )
+    return lengths
 
 
 def _kept_curves(stream, advance, offset, prefix, span, span2):

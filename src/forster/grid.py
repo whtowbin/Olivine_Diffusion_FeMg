@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
@@ -246,16 +247,20 @@ def _coarse_time_days(
             max_time_days * SECONDS_PER_DAY / COARSE_MAX_ROWS,
         )
         grid = Grid(dx, dt, max_time_days)
-        result = fit_profile(
-            profile,
-            conditions,
-            orientation,
-            initial,
-            grid,
-            None,
-            fe_mg_diffusivity(diffusivity),
-            scheme,
-        )
+        # Only a time scale: its warnings (about a coarse fit) would repeat the final fit's.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = fit_profile(
+                profile,
+                conditions,
+                orientation,
+                initial,
+                grid,
+                None,
+                fe_mg_diffusivity(diffusivity),
+                scheme,
+                check_near_step=False,
+            )
         time = max(result.time_days, grid.dt_s / SECONDS_PER_DAY)
         length = diffusion_length_um(time, species, conditions, orientation)
         if length / actual >= COARSE_MIN_RESOLUTION:

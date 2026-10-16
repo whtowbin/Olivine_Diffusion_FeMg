@@ -383,6 +383,14 @@ SUMMARY_COLUMNS = (
         "and the 1-sigma range is probably too narrow (docs/references/noise-models-guide.md).",
     ),
     Column(
+        "core_end_diffusion_lengths",
+        "",
+        "",
+        "Distance from the last step to the model's core end (the last measured point), in "
+        "diffusion lengths at the best fit. The core Fo is held there; below 3 a warning "
+        "says that boundary is close enough to move the fit (docs/guide/practical-advice.md).",
+    ),
+    Column(
         "warnings",
         "",
         "",
@@ -460,6 +468,14 @@ SUMMARY_COLUMNS = (
         "",
         "Sampled: log evidence; compare initial-condition models (one step or two) fitted "
         "to the same profile with the same grid.",
+    ),
+    Column(
+        "scan_near_step_daic",
+        "",
+        "",
+        "near_step_daic at the best-fit initial condition. Fitting the initial condition "
+        "usually clears a near-step warning; below -6 the misfit is still concentrated near "
+        "the step, so quote the 2-sigma range.",
     ),
     Column(
         "mc_method",

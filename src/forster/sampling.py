@@ -57,6 +57,7 @@ from forster.model import (
     _explicit_substeps,
     check_curve_memory,
     fe_mg_diffusivity,
+    near_step_at_best_initial,
     scheme_grid,
 )
 from forster.scan import (
@@ -249,6 +250,9 @@ class ICPosterior:
     grid: Grid
     days: np.ndarray  # time axis of `density`
     density: np.ndarray  # marginal posterior of time, per day
+    # `forster.uncertainty.near_step_check` at the best initial condition and time (below
+    # -6: the misfit is still concentrated near the step)
+    near_step_delta_aic: float = math.nan
 
     @property
     def time_days(self) -> float:
@@ -520,6 +524,17 @@ def fit_initial_condition(
         samples, log_z = _nested(like, nlive, seed)
         used = "nested"
     summary = _summarise(like, samples)
+    best_days = best_row * grid.dt_s / SECONDS_PER_DAY
+    near = near_step_at_best_initial(
+        like.x,
+        like.y,
+        like.at_points(best)[best_row],
+        best,
+        best_days,
+        like.diffusivity,
+        like.conditions,
+        like.orientation,
+    )
     if summary["tail"] > TAIL_MASS:
         warnings.warn(
             f"{summary['tail']:.1%} of the posterior of time lies in the last "
@@ -531,7 +546,7 @@ def fit_initial_condition(
         names=like.names,
         best_values=dict(zip(like.names, map(float, best_theta), strict=True)),
         best_initial=best,
-        best_days=best_row * grid.dt_s / SECONDS_PER_DAY,
+        best_days=best_days,
         median_days=summary["median_days"],
         low_days=summary["low_days"],
         high_days=summary["high_days"],
@@ -549,4 +564,5 @@ def fit_initial_condition(
         grid=grid,
         days=summary["days"],
         density=summary["density"],
+        near_step_delta_aic=near.delta_aic,
     )

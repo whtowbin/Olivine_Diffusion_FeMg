@@ -189,11 +189,16 @@ def test_table_runs_default_to_auto_and_the_summary_refits(tmp_path):
     assert row["scan_sampler"] in ("laplace", "nested")
     assert row["scan_low_days"] <= row["scan_median_days"] <= row["scan_high_days"]
     assert 0 <= row["scan_ic_share"] <= 1
+    # the near-step check at the best-fit initial condition (no near-step misfit here)
+    assert -6 < row["scan_near_step_daic"] <= 2.0 + 1e-9
     again = scan_run(table_run, profiles, time_days=nominal.time_days)
     assert scan_summary(again)["scan_median_days"] == row["scan_median_days"]
     # scan_points without scan_method still means the grid, as tables written before.
     params.assign(scan_points=3).to_csv(path, index=False)
-    assert read_runs(path)[0].scan_method == "grid"
+    (grid_run,) = read_runs(path)
+    assert grid_run.scan_method == "grid"
+    grid_row = scan_summary(scan_run(grid_run, profiles, time_days=nominal.time_days))
+    assert -6 < grid_row["scan_near_step_daic"] <= 2.0 + 1e-9
     params.assign(scan_method="mcmc").to_csv(path, index=False)
     with pytest.raises(ValueError, match="scan_method 'mcmc'"):
         read_runs(path)
