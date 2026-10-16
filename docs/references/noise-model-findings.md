@@ -297,8 +297,8 @@ the near-step warning. Two published runs never reach a plateau within their dat
 the step), so the new warning fires on them. Their profiles reach the centre of small
 crystals, and their core Fo was set from other crystals of the same sample, so measuring
 further is not possible: for them the issue is FORSTER's fixed core Fo at the end of the
-model, where a symmetry (no-flux) boundary belongs. That boundary is not available yet
-(see "Still open").
+model. FORSTER models half profiles (one rim, a held core); these crystals need the whole
+crystal modelled, rim to rim, with the core free to change (see "Still open").
 
 ## 4. How the fixes work
 
@@ -339,9 +339,11 @@ check, about 0.2 s on a 300-point profile.
   growth while diffusing, steps proposed automatically from the data (ideas in
   `TODO_local.md`). Misfit near the step that survives the starting-profile fit is the
   signal for these.
-- **The model's core end:** a centre (no-flux) boundary for profiles that reach the
-  centre of a small crystal; warning from where the data flatten rather than from the
-  diffusion length. Full traverses with two rims need their own rule.
+- **Whole crystals:** model two rims and a free core, not only half profiles with a held
+  core (the solvers already hold a value at each end; the starting-profile names and
+  tables assume a half profile). That also covers profiles reaching a small crystal's
+  centre. The short-plateau warning applies to half profiles only; it could also be based
+  on where the data flatten rather than on the diffusion length.
 - **Priors from the crystal population:** core, rim and plateau Fo differ between crystals
   of a sample; histograms across the sample, or a joint fit of its crystals, would give
   priors for the starting-profile fit.

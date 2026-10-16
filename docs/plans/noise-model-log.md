@@ -141,8 +141,9 @@ model, the ranges or the starting-profile fit change, or a new test is run.
   plateau finder for noisy data).
 - Henry, 2026-10-16: the two published runs the short-plateau warning fires on
   (WHT06_ol_overgrowth2, GCB1A R31_MP_Ol5_prof_1) reach the centre of small crystals, with
-  their core Fo set from other crystals of the sample. Needed: a centre (no-flux)
-  boundary; the warning now says so. Also to do: priors for core, rim and plateau Fo from
+  their core Fo set from other crystals of the sample. FORSTER models half profiles with
+  a held core; Henry wants whole crystals (two rims set, core free), which needs naming
+  that works for both geometries; the warning now says so. Also to do: priors for core, rim and plateau Fo from
   the crystal population (histograms, joint fits), and bring back the plateau points
   dropped from the paper runs (dropped to save model time or because of earlier stages).
   All three are in TODO_local.md.
