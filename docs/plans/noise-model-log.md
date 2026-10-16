@@ -123,6 +123,17 @@ model, the ranges or the starting-profile fit change, or a new test is run.
   the plateau. Figures 3-5 of the findings redone.
 - **Details:** [findings, section 3](../references/noise-model-findings.md).
 
+## 2026-10-16: the plateau points dropped from the paper runs
+- **Done:** every paper run whose data extend past its domain (7 of 18), refitted with the
+  domain extended to the data; the dropped points classified as flat plateau or a feature
+  (five tests on the residuals, then by eye).
+- **Found:** five flat (time moves -1.1% to +1.2%), two features (WHT01_bigol1's dropped
+  points sit 0.5 mol% above the core: an older inner core; WHT01_Ol_193 marginal).
+  WHT06_ol43 extended: same time, but 1σ narrows by a third and the near-step warning
+  strengthens (-7.7 -> -18.3), the overconfidence of section 3 of the findings.
+- **Decided:** nothing changed in the paper tables; recommendations await Henry.
+- **Details:** `docs/plans/2026-10-16-dropped-plateau/`.
+
 ## Open
 - Make the near-step model part of the fit? (whitening study, follow-ups 1-6).
 - Henry to check the fitted starting profiles of WHT06_ol43 (step 1 moved to 6.7 µm, with

@@ -1,0 +1,19 @@
+run,domain_start_um,domain_end_um,data_start_um,data_end_um,points_before_start,points_past_end,past_end_um
+GCB1A R31_MP_Ol5_prof_1,0,48,5.089,48.32,0,1,0.3232
+GCB1A R31_MP_Ol5_prof_2,0,55,5.84,55.48,0,1,0.481
+AZ18 WHT06_ol_overgrowth2_prof_1,2,48,1.99,48.41,1,1,0.4101
+AZ18 WHT06_ol_overgrowth1_prof_1,0,34,0,34.02,0,1,0.01528
+AZ18 WHT01_bigol1_overgrowth_prof_1,3,75,0,99.01,2,2,24.01
+AZ18 WHT01_bigol2_overgrowth_prof_1,0,47,0,47.55,0,1,0.5502
+AZ18 WHT01_Ol_63_prof_1,2.5,72,0,72.27,2,1,0.2696
+AZ18 WHT01_Ol_180_prof_1,0,150,12,146,0,0,-4
+AZ18 WHT01_Ol_181_prof_2,0,150,7,203,0,5,53
+AZ18 WHT01_Ol_190_prof_1,0,80,2,91.63,0,3,11.63
+AZ18 WHT01_Ol_191_prof_1,0,100,2,145.8,0,10,45.85
+AZ18 WHT01_Ol_192_prof_1,2,90,2,91.19,0,1,1.189
+AZ18 WHT01_Ol_193_prof_1,0,100,6.771,139.3,0,9,39.3
+Xenocryst_ol6_prof_1,0,40,4.502,42.06,0,1,2.056
+Xenocryst_ol6_prof_2,0,53,2.245,53.83,0,1,0.8285
+AZ18 WHT06_ol43_prof 1,0,80,7.517,132,0,9,51.96
+Xenocryst_ol23_prof_1,15,60,2,81,5,8,21
+AZ18 WHT06_ol48_prof 1,0,67,0,67.09,0,1,0.09439
