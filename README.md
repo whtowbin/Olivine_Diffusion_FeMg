@@ -199,26 +199,54 @@ is checked by writing the run as a table row and reading it back, so the app acc
 exactly what the command line does, and a refused value is explained next to its field.
 
 - **Left:** the runs: add (on a profile, with the selected run's settings), duplicate,
-  rename, delete.
+  rename, delete, and **copy settings to other runs** (choose which: conditions,
+  orientation, equation, starting-profile uncertainties, Monte Carlo, grid and scheme).
 - **Centre:** the measured points with the best fit, its 1σ and 2σ bands and the
   residuals; the time and both ranges in the title. The starting profile is drawn as
   orange lines: drag a step (dashed) or a segment's Fo (solid), or the grey domain
   ends, and the run is refitted when you let go (the example refits in about 35 ms).
-  FORSTER's warnings (a short plateau, misfit near the step, ...) are shown under the
-  plot. The Results tab lists every run's time and ranges.
+  Shift-click a point to mask it (a grey cross: kept in the project, left out of the
+  fits). FORSTER's warnings (a short plateau, misfit near the step, ...) are shown
+  under the plot. Next to it: **Time distribution** (the fit alone, with the starting
+  profile's uncertainty, with the conditions and the equation: the figure `forster fit`
+  writes as `_time.png`), **Law comparison** (the run refitted under each of the four
+  named equations, as `forster fit --compare-laws` draws it) and **Results** (every
+  run's time, ranges and Monte Carlo).
 - **Right:** *Segments*, one row per segment (a, b, c, ... from edge 1; rename them
   if you like): start, end, Fo in mol% and its uncertainty (sd or range); a held edge 1
   Fo when it differs from segment a's; the crystal centre for a whole crystal.
-  *Conditions* (T, P, fO2 relative to a buffer or in Pa), *Orientation* (angles to
-  the axes or EBSD Euler angles with the profile angle), *Diffusion equation* (the
-  four named choices) and *Uncertainties* (the step positions' uncertainty, the
-  sampler, and **Fit starting profile**, which fits the step positions and segment Fo
-  with the time, with progress and cancel).
+  *Data*: the profile's points, each with a check box (untick to mask), moving the
+  distances so the rim is at 0 (a shift, or a flip when the rim is at the far end),
+  and **Import profiles…**. *Conditions* (T, P, fO2 relative to a buffer or in Pa),
+  *Orientation* (angles to the axes or EBSD Euler angles with the profile angle),
+  *Equation* (the four named choices and the project's own Fe-Mg equations; the
+  tooltip gives each one's source), *Uncertainties* (the step positions' uncertainty,
+  the sampler, and **Fit starting profile**, which fits the step positions and segment
+  Fo with the time; then the **Monte Carlo** over T, P, fO2 and the equation, with
+  fO2 held to a buffer or not, the spread between laboratories, draws and seed; both
+  with progress and cancel) and *Advanced* (the numerical scheme; the grid's dx, dt and
+  longest time, blank to let FORSTER choose, with how well the last fit's grid
+  resolved it; growth stages as a table). Every field's tooltip gives its unit and the
+  table column it is saved in.
 
-Fits and starting-profile fits are cached in the folder (`.forster/cache`), so a
-reopened project shows its results at once; the project is autosaved every minute
-(`.forster/autosave`) and Save writes the tables. **Export summary CSV** writes the
-same `summary.csv` as `forster fit` for the fitted runs.
+**Importing profiles:** choose a CSV or Excel file, then say which column holds the
+profile name (none: the whole file is one profile), the distance (µm, mm or nm) and Fo
+(mol% or a fraction; guessed from the values). The dialog guesses from the headers and
+shows what it would import; it can flip and shift the distances so the rim is at 0
+and add a run on each new profile. Masked points are saved in `profiles.csv` with
+`Marked_bad` = `bad`, which the table reader skips, so `forster fit` leaves them out
+too.
+
+Fits, starting-profile fits and Monte Carlos are cached in the folder
+(`.forster/cache`), so a reopened project shows its results at once; each run's view
+(tabs, zoom) is saved in `project.json`; the project is autosaved every minute
+(`.forster/autosave`) and Save writes the tables. **Export** writes the plot or view
+shown as PNG or PDF, the fit figure as `forster fit` draws it, the same `summary.csv`
+as `forster fit` for the fitted runs, and the project as a zip to share.
+
+Standalone installers (macOS, Windows, Linux) are built by GitHub Actions
+(`.github/workflows/gui-installers.yml`, run by hand or on a `v*` tag) and kept as the
+run's artefacts; they are not signed yet, so macOS and Windows warn on first launch.
 
 ## Table columns
 
@@ -233,6 +261,7 @@ One row per analysis point.
 | `profile` |  | required | Profile name; `profile` in parameters.csv refers to it. |
 | `distance_um` | µm | required | Distance of the analysis from the crystal edge. |
 | `fo` | fraction | required | Forsterite content, 0-1 (0.895, not 89.5). |
+| `Marked_bad` |  | optional | `bad` leaves the point out of the fits (the desktop app's masked points). |
 
 **Importing other layouts (`forster import`).** For a spreadsheet straight from the
 microprobe or another lab, `forster import data.xlsx` proposes a column mapping (which

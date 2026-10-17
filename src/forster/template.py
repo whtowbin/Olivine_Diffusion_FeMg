@@ -32,6 +32,12 @@ PROFILE_COLUMNS = (
     Column("profile", "", "required", "Profile name; `profile` in parameters.csv refers to it."),
     Column("distance_um", "µm", "required", "Distance of the analysis from the crystal edge."),
     Column("fo", "fraction", "required", "Forsterite content, 0-1 (0.895, not 89.5)."),
+    Column(
+        "Marked_bad",
+        "",
+        "optional",
+        "`bad` leaves the point out of the fits (the desktop app's masked points).",
+    ),
 )
 
 PARAMETER_COLUMNS = (
