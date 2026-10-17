@@ -38,6 +38,7 @@ evidence. Priors are as in `forster.scan.candidate_grid`: Gaussian truncated at
 
 from __future__ import annotations
 
+import functools
 import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -92,6 +93,13 @@ DEFAULT_NLIVE = 200
 # 0.15-0.40 was within 0.81% on p16/50/84; the six cases more than 2% off all had 0.11
 # or less, and the next case above 0.25 had 0.26 (0.6% off).
 ESS_FALLBACK = 0.25
+# Those profiles had 2-5 uncertain parameters, mostly 3-4. The proposal's ESS fraction
+# falls with the number of parameters even when the posterior is exactly its Laplace
+# Gaussian (`ideal_ess_fraction`: 0.64 at 2, 0.48 at 4, 0.34 at 8, 0.25 at 15), so a joint
+# fit of many parameters scales the threshold by ideal(d) / ideal(ESS_REFERENCE_DIMENSION)
+# (`sample_posterior`'s ``scaled``). Not yet checked against nested-sampling references.
+ESS_REFERENCE_DIMENSION = 4
+MAX_SAMPLE_FACTOR = 4  # scaled: importance samples doubled up to this many x n_samples
 PROPOSAL_DF = 5
 PROPOSAL_INFLATION = 1.5
 HESSIAN_STEP = 0.15  # finite-difference step, in prior spreads
@@ -105,7 +113,88 @@ class Cancelled(Exception):
     """Raised inside `fit_initial_condition` when its ``cancel`` hook returns True."""
 
 
-class ICLikelihood:
+def model_at_points(
+    scheme: str,
+    diffusivity: Diffusivity,
+    conditions: Conditions,
+    orientation: Orientation,
+    initial: InitialCondition,
+    grid: Grid,
+    model_x: np.ndarray,
+    dx_um: float,
+    W: np.ndarray,
+) -> np.ndarray:
+    """One model run from ``initial`` on ``model_x``, read at the points of the
+    interpolation matrix ``W``: (time steps + 1, points)."""
+    substeps = 1
+    if scheme != "implicit":
+        substeps = _explicit_substeps(
+            diffusivity, conditions, orientation, initial, None, None, grid, dx_um
+        )
+    start, advance = _diffusion_model(
+        scheme,
+        conditions,
+        orientation,
+        initial,
+        grid,
+        diffusivity,
+        model_x,
+        dx_um,
+        substeps=substeps,
+    )
+    return advance(start, grid.timesteps) @ W.T
+
+
+class PriorLikelihood:
+    """The prior over a parameter vector and the likelihood interface the optimiser and
+    samplers below use (`ICLikelihood` for one profile, `forster.joint.JointLikelihood`
+    for a crystal's profiles).
+
+    Each parameter has a nominal value and a Gaussian (sd ``spread``, truncated at
+    `NORMAL_SPAN` sigma) or uniform (half-width ``spread``) prior. A subclass sets
+    ``names``, ``grid`` and ``rows`` (time steps + 1), calls `_set_prior` and gives
+    ``log_like_rows(theta)``: the log likelihood at every time step, or None for
+    invalid values.
+    """
+
+    names: tuple[str, ...]
+    grid: Grid
+    rows: int
+
+    def _set_prior(self, nominal: np.ndarray, spread: np.ndarray, normal: np.ndarray) -> None:
+        self.nominal, self.spread, self.normal = nominal, spread, normal
+        half = np.where(self.normal, NORMAL_SPAN, 1.0) * self.spread
+        self.lo, self.hi = self.nominal - half, self.nominal + half
+        # log of the normalised prior density's constant (truncated Gaussian or uniform)
+        mass = 1 - 2 * stats.norm.cdf(-NORMAL_SPAN)
+        self.log_norm = float(
+            np.sum(
+                np.where(
+                    self.normal,
+                    -np.log(self.spread * math.sqrt(2 * math.pi) * mass),
+                    -np.log(2 * self.spread),
+                )
+            )
+        )
+
+    def log_prior(self, theta: np.ndarray) -> float:
+        """Normalised log prior density (-inf outside the support)."""
+        if np.any(theta < self.lo) or np.any(theta > self.hi):
+            return -math.inf
+        z = (theta - self.nominal) / self.spread
+        return self.log_norm - 0.5 * float(np.sum(np.where(self.normal, z**2, 0.0)))
+
+    def log_like_rows(self, theta: np.ndarray) -> np.ndarray | None:
+        """The log likelihood at every time step, or None for invalid values."""
+        raise NotImplementedError
+
+    def log_marginal(self, theta: np.ndarray) -> float:
+        """Log likelihood with time marginalised (flat prior over the run's time steps)."""
+        rows = self.log_like_rows(theta)
+        return -math.inf if rows is None else float(special.logsumexp(rows) - math.log(self.rows))
+
+
+class ICLikelihood(PriorLikelihood):
     """Log prior and per-time log likelihood of the uncertain initial-condition
     parameters, for one profile, grid and noise model.
 
@@ -132,11 +221,11 @@ class ICLikelihood:
         self.initial, self.conditions, self.orientation = initial, conditions, orientation
         self.grid, self.scheme = grid, scheme
         self.diffusivity = fe_mg_diffusivity(diffusivity)
-        self.nominal = np.array([_nominal(initial, n) for n in self.names])
-        self.spread = np.array([uncertainties[n].spread for n in self.names])
-        self.normal = np.array([uncertainties[n].kind == "normal" for n in self.names])
-        half = np.where(self.normal, NORMAL_SPAN, 1.0) * self.spread
-        self.lo, self.hi = self.nominal - half, self.nominal + half
+        self._set_prior(
+            np.array([_nominal(initial, n) for n in self.names]),
+            np.array([uncertainties[n].spread for n in self.names]),
+            np.array([uncertainties[n].kind == "normal" for n in self.names]),
+        )
         measured_x, measured_fo = measured_points(profile, initial)
         step_x, self.dx_um, (low, high) = initial_grid(scheme, measured_x, grid, initial)
         self.model_x = step_x[low : high + 1]
@@ -148,17 +237,6 @@ class ICLikelihood:
         # Called before every model run; True stops the fit (`Cancelled`).
         self.cancel: Callable[[], bool] | None = None
         self.chol: np.ndarray | None = None
-        # log of the normalised prior density's constant (truncated Gaussian or uniform)
-        mass = 1 - 2 * stats.norm.cdf(-NORMAL_SPAN)
-        self.log_norm = float(
-            np.sum(
-                np.where(
-                    self.normal,
-                    -np.log(self.spread * math.sqrt(2 * math.pi) * mass),
-                    -np.log(2 * self.spread),
-                )
-            )
-        )
 
     def candidate(self, theta: np.ndarray) -> InitialCondition | None:
         """The initial condition with values ``theta``, or None if it is invalid."""
@@ -168,42 +246,22 @@ class ICLikelihood:
             return None
         return c if is_valid(c, self.initial.domain_um) else None
 
-    def log_prior(self, theta: np.ndarray) -> float:
-        """Normalised log prior density (-inf outside the support)."""
-        if np.any(theta < self.lo) or np.any(theta > self.hi):
-            return -math.inf
-        z = (theta - self.nominal) / self.spread
-        return self.log_norm - 0.5 * float(np.sum(np.where(self.normal, z**2, 0.0)))
-
     def at_points(self, initial: InitialCondition) -> np.ndarray:
         """The model at the measured points, (time steps + 1, points)."""
         if self.cancel is not None and self.cancel():
             raise Cancelled("the initial-condition fit was cancelled")
-        substeps = 1
-        if self.scheme != "implicit":
-            substeps = _explicit_substeps(
-                self.diffusivity,
-                self.conditions,
-                self.orientation,
-                initial,
-                None,
-                None,
-                self.grid,
-                self.dx_um,
-            )
-        start, advance = _diffusion_model(
+        self.runs += 1
+        return model_at_points(
             self.scheme,
+            self.diffusivity,
             self.conditions,
             self.orientation,
             initial,
             self.grid,
-            self.diffusivity,
             self.model_x,
             self.dx_um,
-            substeps=substeps,
+            self.W,
         )
-        self.runs += 1
-        return advance(start, self.grid.timesteps) @ self.W.T
 
     def fit_noise(self, initial: InitialCondition) -> NoiseModel:
         """Noise model at ``initial``'s white-noise best fit; it is used from then on."""
@@ -226,11 +284,6 @@ class ICLikelihood:
         m = self.at_points(initial)
         z = sla.solve_triangular(self.chol, (m - self.y).T, lower=True)
         return -0.5 * len(self.y) * np.log(np.sum(z**2, axis=0))
-
-    def log_marginal(self, theta: np.ndarray) -> float:
-        """Log likelihood with time marginalised (flat prior over the run's time steps)."""
-        rows = self.log_like_rows(theta)
-        return -math.inf if rows is None else float(special.logsumexp(rows) - math.log(self.rows))
 
 
 @dataclass(frozen=True)
@@ -274,7 +327,7 @@ class ICPosterior:
         return self.low_days, self.high_days
 
 
-def _optimise(like: ICLikelihood, z0: np.ndarray, max_evals: int) -> tuple[np.ndarray, float]:
+def _optimise(like: PriorLikelihood, z0: np.ndarray, max_evals: int) -> tuple[np.ndarray, float]:
     """Nelder-Mead on minus the log posterior, in prior spreads from the nominal values."""
 
     def objective(z: np.ndarray) -> float:
@@ -296,9 +349,37 @@ def _optimise(like: ICLikelihood, z0: np.ndarray, max_evals: int) -> tuple[np.nd
     return np.asarray(result.x), float(result.fun)
 
 
-def _laplace_covariance(like: ICLikelihood, z0: np.ndarray, f0: float) -> np.ndarray:
+def _fd_hessian(
+    f: Callable[[np.ndarray], float], z0: np.ndarray, f0: float, steps: np.ndarray, h: float
+) -> np.ndarray:
+    """Finite-difference Hessian of ``f`` at ``z0`` along the step vectors ``steps[i]``
+    (each of length ``h`` in the coordinates the Hessian is wanted in)."""
+    d = len(steps)
+    H = np.zeros((d, d))
+    for i in range(d):
+        H[i, i] = (f(z0 + steps[i]) - 2 * f0 + f(z0 - steps[i])) / h**2
+        for j in range(i + 1, d):
+            H[i, j] = H[j, i] = (
+                f(z0 + steps[i] + steps[j])
+                - f(z0 + steps[i] - steps[j])
+                - f(z0 - steps[i] + steps[j])
+                + f(z0 - steps[i] - steps[j])
+            ) / (4 * h**2)
+    return H
+
+
+def _laplace_covariance(
+    like: PriorLikelihood, z0: np.ndarray, f0: float, whiten: bool = False
+) -> np.ndarray:
     """Inverse finite-difference Hessian of minus the log posterior at ``z0`` (prior
-    spreads); the diagonal alone, or the prior, where that is not positive definite."""
+    spreads); the diagonal alone, or the prior, where that is not positive definite.
+
+    ``whiten``: a second pass along the first covariance's Cholesky directions, so every
+    step is `HESSIAN_STEP` posterior sd rather than prior sd. A parameter the data pin
+    far inside its prior is then probed within the quadratic part of the posterior; on a
+    crystal's joint fit, where each profile's Fo offset and the shared segment Fo are
+    degenerate but for their priors, the first pass made that direction 2.5x too narrow
+    and the importance samples' ESS fell from 340 to 64 of 1024 (forster.joint)."""
 
     def f(z: np.ndarray) -> float:
         theta = like.nominal + z * like.spread
@@ -307,23 +388,23 @@ def _laplace_covariance(like: ICLikelihood, z0: np.ndarray, f0: float) -> np.nda
         return -(lp + lm) if math.isfinite(lm) else f0 + 50.0
 
     d, h = len(z0), HESSIAN_STEP
-    eye = np.eye(d) * h
-    H = np.zeros((d, d))
-    for i in range(d):
-        H[i, i] = (f(z0 + eye[i]) - 2 * f0 + f(z0 - eye[i])) / h**2
-        for j in range(i + 1, d):
-            H[i, j] = H[j, i] = (
-                f(z0 + eye[i] + eye[j])
-                - f(z0 + eye[i] - eye[j])
-                - f(z0 - eye[i] + eye[j])
-                + f(z0 - eye[i] - eye[j])
-            ) / (4 * h**2)
+    H = _fd_hessian(f, z0, f0, np.eye(d) * h, h)
     try:
         cov = np.linalg.inv(H)
         np.linalg.cholesky(cov)
-        return cov
     except np.linalg.LinAlgError:
         return np.diag(1 / np.clip(np.diag(H), 1.0, None))
+    if not whiten:
+        return cov
+    L = np.linalg.cholesky(cov)
+    L_inv = np.linalg.inv(L)
+    H_white = _fd_hessian(f, z0, f0, h * L.T, h)  # the Hessian in w, z = z0 + L w
+    try:
+        refined = np.linalg.inv(L_inv.T @ H_white @ L_inv)
+        np.linalg.cholesky(refined)
+        return refined
+    except np.linalg.LinAlgError:
+        return cov
 
 
 @dataclass
@@ -348,8 +429,11 @@ def _log_t_density(z: np.ndarray, loc: np.ndarray, chol: np.ndarray, df: float) 
     )
 
 
-def _importance(like: ICLikelihood, z0: np.ndarray, n: int, seed: int) -> tuple[_Samples, float]:
-    cov = _laplace_covariance(like, z0, -_log_post(like, z0)) * PROPOSAL_INFLATION**2
+def _importance(
+    like: PriorLikelihood, z0: np.ndarray, n: int, seed: int, whiten: bool = False
+) -> tuple[_Samples, float]:
+    f0 = -_log_post(like, z0)
+    cov = _laplace_covariance(like, z0, f0, whiten) * PROPOSAL_INFLATION**2
     d = len(z0)
     u = stats.qmc.Sobol(d + 1, scramble=True, seed=seed).random(n)
     u = np.clip(u, 1e-12, 1 - 1e-12)
@@ -374,13 +458,13 @@ def _importance(like: ICLikelihood, z0: np.ndarray, n: int, seed: int) -> tuple[
     return s, float(w.sum() ** 2 / (w**2).sum())
 
 
-def _log_post(like: ICLikelihood, z: np.ndarray) -> float:
+def _log_post(like: PriorLikelihood, z: np.ndarray) -> float:
     theta = like.nominal + z * like.spread
     lp = like.log_prior(theta)
     return lp + like.log_marginal(theta) if math.isfinite(lp) else -math.inf
 
 
-def _nested(like: ICLikelihood, nlive: int, seed: int) -> tuple[_Samples, float]:
+def _nested(like: PriorLikelihood, nlive: int, seed: int) -> tuple[_Samples, float]:
     import dynesty  # imported here: only the fallback needs it
 
     d = len(like.names)
@@ -415,7 +499,7 @@ def _nested(like: ICLikelihood, nlive: int, seed: int) -> tuple[_Samples, float]
     return s, float(result.logz[-1])
 
 
-def _summarise(like: ICLikelihood, s: _Samples) -> dict:
+def _summarise(like: PriorLikelihood, s: _Samples) -> dict:
     """Time posterior, parameter posterior, variance split and sensitivities."""
     days_per_row = like.grid.dt_s / SECONDS_PER_DAY
     joint = s.log_w[:, None] + s.rows
@@ -478,6 +562,82 @@ def _noise_changed(a: NoiseModel, b: NoiseModel) -> bool:
         abs(total_a - total_b) > NOISE_TOLERANCE * total_a
         or abs(a.correlated_sigma - b.correlated_sigma) > NOISE_TOLERANCE * total_a
     )
+
+
+def at_prior_edge(like: PriorLikelihood, z: np.ndarray) -> list[str]:
+    """The parameters whose value ``z`` (in prior spreads) is at the edge of the prior."""
+    return [
+        n
+        for n, zi, k in zip(like.names, z, like.normal, strict=True)
+        if abs(zi) >= (NORMAL_SPAN if k else 1.0) - 1e-3
+    ]
+
+
+@functools.cache
+def ideal_ess_fraction(d: int, n: int = 100_000) -> float:
+    """ESS per sample of the importance proposal (multivariate t, `PROPOSAL_DF` degrees of
+    freedom, scale inflated `PROPOSAL_INFLATION` x) when the posterior is exactly the
+    Gaussian it was built from, in ``d`` dimensions: the best the sampler can do
+    (seeded Monte Carlo of ``n`` draws; 0.78 at 1, 0.48 at 4, 0.34 at 8)."""
+    rng = np.random.default_rng(0)
+    x = rng.standard_normal((n, d)) / np.sqrt(rng.chisquare(PROPOSAL_DF, n) / PROPOSAL_DF)[:, None]
+    m = np.sum(x**2, axis=1)  # squared distance in the proposal's scale
+    x *= PROPOSAL_INFLATION
+    log_q = -d * math.log(PROPOSAL_INFLATION) - (PROPOSAL_DF + d) / 2 * np.log1p(m / PROPOSAL_DF)
+    log_w = -0.5 * np.sum(x**2, axis=1) - log_q  # up to a constant
+    w = np.exp(log_w - log_w.max())
+    return float(w.sum() ** 2 / (w**2).sum() / n)
+
+
+def sample_posterior(
+    like: PriorLikelihood,
+    z: np.ndarray,
+    method: str,
+    n_samples: int,
+    nlive: int,
+    seed: int,
+    ess_fallback: float,
+    say: Callable[[str], None],
+    whiten: bool = False,
+    scaled: bool = False,
+) -> tuple[_Samples, str, float, float]:
+    """Samples of the posterior around the best fit ``z`` (prior spreads), the method
+    used ("laplace" or "nested"), the importance samples' effective sample size and the
+    log evidence: importance sampling from the Laplace proposal, nested sampling for
+    "nested" or when "auto" finds the effective sample size below ``ess_fallback`` x
+    ``n_samples``. ``whiten``: refine the Laplace covariance (`_laplace_covariance`).
+
+    ``scaled`` (for many parameters): the fallback threshold per sample is
+    ``ess_fallback`` x ideal(d) / ideal(`ESS_REFERENCE_DIMENSION`) (`ideal_ess_fraction`),
+    and while the samples pass it but their ESS is below ``ess_fallback`` x
+    ``n_samples`` (the single-profile fit's standard), their number is doubled, up to
+    `MAX_SAMPLE_FACTOR` x ``n_samples``."""
+    used, ess, log_z = method, math.nan, math.nan
+    samples = None
+    if method in ("auto", "laplace"):
+        say("importance sampling")
+        n, fraction = n_samples, ess_fallback
+        if scaled:
+            d = len(z)
+            fraction *= ideal_ess_fraction(d) / ideal_ess_fraction(ESS_REFERENCE_DIMENSION)
+        samples, ess = _importance(like, z, n, seed, whiten)
+        while (
+            scaled
+            and fraction * n <= ess < ess_fallback * n_samples
+            and n < MAX_SAMPLE_FACTOR * n_samples
+        ):
+            n *= 2
+            samples, ess = _importance(like, z, n, seed, whiten)
+        joint = samples.log_w + special.logsumexp(samples.rows, axis=1) - math.log(like.rows)
+        log_z = float(special.logsumexp(joint) - math.log(n))
+        used = "laplace"
+        if method == "auto" and ess < fraction * n:
+            samples = None
+    if samples is None:
+        say("nested sampling")
+        samples, log_z = _nested(like, nlive, seed)
+        used = "nested"
+    return samples, used, ess, log_z
 
 
 def _best_fit(
@@ -553,11 +713,7 @@ def fit_initial_condition(
     best = like.candidate(best_theta) or best
     best_rows = like.log_like_rows(best_theta)
     best_row = int(np.argmax(best_rows)) if best_rows is not None else 0
-    at_edge = [
-        n
-        for n, zi, k in zip(like.names, z, like.normal, strict=True)
-        if abs(zi) >= (NORMAL_SPAN if k else 1.0) - 1e-3
-    ]
+    at_edge = at_prior_edge(like, z)
     if at_edge:
         notes.warn(
             f"the best {', '.join(at_edge)} is at the edge of its prior; the data favour "
@@ -567,20 +723,9 @@ def fit_initial_condition(
     offsets = {n: float(zi) for n, zi in zip(like.names, z, strict=True)}
     kinds = {n: "normal" if k else "uniform" for n, k in zip(like.names, like.normal, strict=True)}
     warn_prior_conflict(offsets, kinds)
-    used, ess, log_z = method, math.nan, math.nan
-    samples = None
-    if method in ("auto", "laplace"):
-        say("importance sampling")
-        samples, ess = _importance(like, z, n_samples, seed)
-        joint = samples.log_w + special.logsumexp(samples.rows, axis=1) - math.log(like.rows)
-        log_z = float(special.logsumexp(joint) - math.log(n_samples))
-        used = "laplace"
-        if method == "auto" and ess < ess_fallback * n_samples:
-            samples = None
-    if samples is None:
-        say("nested sampling")
-        samples, log_z = _nested(like, nlive, seed)
-        used = "nested"
+    samples, used, ess, log_z = sample_posterior(
+        like, z, method, n_samples, nlive, seed, ess_fallback, say
+    )
     summary = _summarise(like, samples)
     best_days = best_row * grid.dt_s / SECONDS_PER_DAY
     near = near_step_at_best_initial(

@@ -25,6 +25,7 @@ from forster.io import (
     scan_table,
     summary_row,
 )
+from forster.joint import CrystalFit, fit_crystal
 from forster.model import (
     SCHEMES,
     UNCERTAINTY_METHODS,
@@ -57,6 +58,7 @@ __all__ = [
     "BoundaryHistory",
     "ConditionUncertainty",
     "Conditions",
+    "CrystalFit",
     "Diffusivity",
     "ElementInitial",
     "ElementProfile",
@@ -82,6 +84,7 @@ __all__ = [
     "diffusivity",
     "dipra",
     "elements",
+    "fit_crystal",
     "fit_element",
     "fit_initial_condition",
     "fit_joint",

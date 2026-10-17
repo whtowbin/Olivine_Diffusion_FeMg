@@ -39,6 +39,8 @@ Full decisions (Henry, 2026-10-16): `docs/plans/2026-10-16-geometry-naming.md`.
   entries fixed; a segment takes one of the two).
 
 ## Not built yet
-`origin` (zero at the centre), `edge2_fo` and growth stages at edge 2, edge offsets, and
-the joint-fit columns (`crystal` and `sample` are carried as metadata only); see
-`docs/plans/2026-10-16-joint-fits.md`.
+`origin` (zero at the centre), `edge2_fo` and growth stages at edge 2, and the joint-fit
+columns (`crystal` and `sample` are carried as metadata only); see
+`docs/plans/2026-10-16-joint-fits.md`. The joint fit itself exists from Python
+(`forster.fit_crystal`): parameters `<run>:step1_um`, shared `<label>_fo`,
+`<run>:<label>_fo` for `own_segments`, `<run>:fo_offset`, `<run>:edge1_offset_um`.

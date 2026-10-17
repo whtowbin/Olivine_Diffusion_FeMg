@@ -1,7 +1,9 @@
 # Joint fits of one crystal's profiles, and priors from the crystal population
 
 Status (2026-10-16): **plan checked by Henry; his answers are in "Henry's answers" below,
-and they change Parts 1 and 2 where marked.** Nothing built yet. The names are settled in
+and they change Parts 1 and 2 where marked.** Part 1 built from Python (2026-10-16):
+`forster.fit_crystal` in `src/forster/joint.py`, tests in `tests/test_joint.py` (see the
+CHANGELOG entry); tables, CLI, app and growth stages not yet, Part 2 not started. The names are settled in
 [2026-10-16-geometry-naming.md](2026-10-16-geometry-naming.md); the evidence for
 population priors is in [2026-10-16-population-priors/](2026-10-16-population-priors/README.md).
 
