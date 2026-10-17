@@ -28,3 +28,4 @@ analyses/**/*_files/
 docs/plans/2026-10-15-whitening-validity/trials.csv
 docs/plans/2026-10-15-whitening-validity/followups/null_trials.csv
 docs/plans/2026-10-15-whitening-validity/followups/power_trials.csv
+.claude/worktrees/
