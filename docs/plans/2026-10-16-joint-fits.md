@@ -1,6 +1,7 @@
 # Joint fits of one crystal's profiles, and priors from the crystal population
 
-Status (2026-10-16): **plan for Henry to check.** Nothing built. The names are settled in
+Status (2026-10-16): **plan checked by Henry; his answers are in "Henry's answers" below,
+and they change Parts 1 and 2 where marked.** Nothing built yet. The names are settled in
 [2026-10-16-geometry-naming.md](2026-10-16-geometry-naming.md); the evidence for
 population priors is in [2026-10-16-population-priors/](2026-10-16-population-priors/README.md).
 
@@ -85,7 +86,37 @@ crystal's own value, and an "apply population prior" check box per segment.
    (`forster fit` adds the crystal rows); then the app's crystal view.
 3. Population table and per-segment priors from Python; then CLI and app.
 
-## Questions for Henry
+## Henry's answers (2026-10-16)
+
+1. **Edge values are not simply shared.** Ideally one rim value per crystal, but three
+   things break it: (a) measurement drift between sessions can offset a profile's Fo,
+   all its segments alike (a problem across crystals too); (b) along a slowly diffusing
+   axis with few points on the slope, the data may not appear to reach the edge value;
+   (c) the first point's position may be a few µm off the true rim.
+   **Changes Part 1:** each profile gets (a) an Fo offset applied to all its segments (the
+   drift), with a prior of about the inter-session accuracy (~0.1 mol%, to confirm), (c)
+   an edge position offset (`edge1_offset_um`) with a prior of a few µm, and the edge
+   value shared by default but easy to free per profile (`own_segments`). (b) is handled
+   by the joint fit itself: the faster axis pins the shared edge value.
+2. **Conditions:** identical T, P and fO2 on a crystal's rows, as proposed; a mismatch is
+   an error.
+3. **Growth stages:** a crystal's profiles share the number of stages and each stage's
+   zone Fo; each profile has its own stage rims (growth rates differ by axis). Built after
+   the stage-free joint fit works.
+4. **Population labels and priors.** Renaming segments to zone names is acceptable, but:
+   crystals did not all grow at the same times, so their segments can genuinely differ;
+   drift can offset profiles measured at different times; and a crystal can have several
+   mantle zones (labels such as mantle1, mantle2; never assume one).
+   **Changes Part 2:** the population histograms **inform the user while choosing the
+   starting profile** (shown beside the segment table, with the crystal's own value);
+   they must not overly restrict the posterior. If applied, the prior is broad: the
+   population spread plus the drift, never tighter than the crystal's own data allow, and
+   still subject to the conflict check. No default application.
+5. **Dropped plateau points:** keep them as a test of how longer plateaus change the
+   results (done: `docs/plans/2026-10-16-dropped-plateau/`); the paper tables stay as
+   published.
+
+## Questions for Henry (answered above)
 
 1. **Edge values in a joint fit:** shared like the segment Fo (one rim value per crystal),
    or per profile? (Proposed: shared, with `own_segments` able to free them.)
