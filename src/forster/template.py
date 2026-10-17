@@ -323,7 +323,8 @@ PARAMETER_COLUMNS = (
         "optional",
         "Name of the crystal this profile was measured on: runs with the same crystal will "
         "be fitted jointly (shared time and compositions, own steps). Carried through for "
-        "now; joint fits are planned (docs/plans/2026-10-16-joint-fits.md).",
+        "now; the joint fit exists from Python (forster.fit_crystal), tables and CLI are "
+        "planned (docs/plans/2026-10-16-joint-fits.md).",
     ),
     Column(
         "sample",

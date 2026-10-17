@@ -57,3 +57,13 @@ rescales. Sources and confirmations: `docs/references/diffusivity-literature.md`
 Only times after the last stage are fitted. Need the implicit scheme for exact stage
 times; the starting-profile fit and `centre_um` do not model stages yet. Plan:
 `docs/plans/2026-10-13-growth-stages.md`.
+
+## Tolerance and joint fits
+- Accuracy targets for samplers and numerical checks: about 5% on p16/50/84 is enough
+  (Henry): the diffusivity laws are uncertain by ~0.1 log in D (~25% in time). Aim for
+  the best fit and basic parameter uncertainty; estimate whole-job time before long runs.
+- Joint fits of one crystal: `forster.fit_crystal` (`src/forster/joint.py`;
+  `docs/plans/2026-10-16-joint-fits.md`). Their sampler uses a sample-count step, not an
+  ESS threshold: the ESS did not predict the error on real crystals
+  (`docs/plans/2026-10-16-joint-calibration/`). With many parameters, do not trust an
+  ESS rule tuned on single profiles.

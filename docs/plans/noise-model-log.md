@@ -143,6 +143,24 @@ model, the ranges or the starting-profile fit change, or a new test is run.
 - **Decided:** fix the noise start (iterate the noise refit and the search until stable)
   before offering informative priors.
 
+## 2026-10-16 to 10-17: the joint fit of one crystal, and its sampler
+- **Built:** `forster.fit_crystal` (Python): profiles of one crystal share the time, the
+  conditions and the segment Fo by label; each keeps its steps, orientation and noise
+  model; per-profile Fo drift offsets (one profile the reference) and optional edge
+  offsets (Henry's answers in `docs/plans/2026-10-16-joint-fits.md`). The Laplace
+  proposal is refined by a second Hessian pass, now also in single-profile fits (template
+  range moved < 0.1%).
+- **Calibration** (`docs/plans/2026-10-16-joint-calibration/`): on the paper's two
+  two-profile crystals against nested references, the ESS did not predict the error and
+  seeds flipped the method; nested sampling at the default nlive was no more accurate.
+  Henry set the tolerance at about 5%, next to the ~0.1 log uncertainty of the
+  diffusivity laws.
+- **Decided:** joint fits use a sample-count step (1024, else 4096, nested only below ESS
+  20): all 80 decisions within 5%, no seed flips, 12 s per fit. The starting-profile fit's
+  model time is capped at 10x the fitted time (it had used the table's 200 days).
+- **Not covered:** crystals where the Laplace approximation is plainly wrong (two modes,
+  a value at a prior's edge); the round robin has no multi-transect crystals.
+
 ## Open
 - Make the near-step model part of the fit? (whitening study, follow-ups 1-6).
 - Henry to check the fitted starting profiles of WHT06_ol43 (step 1 moved to 6.7 µm, with

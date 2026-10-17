@@ -165,6 +165,26 @@ print(result.time_days, joint.time_days, joint.consistency_p, joint.species_days
 
 Python only for now (explicit schemes); `docs/plans/2026-10-13-minor-elements.md`.
 
+#### Several profiles of one crystal
+
+`forster.fit_crystal` fits one time to profiles measured along different directions of
+one crystal: they share the time, the conditions (which must be identical) and the Fo
+of each segment, matched by segment label; each keeps its own steps, orientation (so its
+own D) and noise model. Each profile but one (the one with the most points) also gets an
+Fo offset for measurement drift between sessions (prior 0.1 mol%); an edge position
+offset can be switched on (`edge_offset_sd_um=2.0`) when the steps are well constrained.
+The individual fits are made first and compared: profiles that disagree give a warning.
+
+```python
+from forster import fit_crystal
+
+crystal = fit_crystal([run_a, run_b], profiles)   # runs with starting-profile priors
+print(crystal.best_days, crystal.range_days, crystal.segment_fo, crystal.fo_offset)
+```
+
+Python only for now; `docs/plans/2026-10-16-joint-fits.md`. The sampler's settings were
+calibrated on two real crystals (`docs/plans/2026-10-16-joint-calibration/`).
+
 #### Growth stages
 
 A zone that grew partway through can be given as a stage: at its start the rim moves
@@ -339,7 +359,7 @@ One row per model run. Fo is a fraction throughout.
 | `mc_between_study` |  | optional | Monte Carlo: yes to add the spread between laboratories (for an absolute time); default no. |
 | `mc_samples` |  | optional | Monte Carlo draws (default 4000; 200 refits for runs with growth stages). |
 | `mc_seed` |  | optional | Monte Carlo seed (default 0). |
-| `crystal` |  | optional | Name of the crystal this profile was measured on: runs with the same crystal will be fitted jointly (shared time and compositions, own steps). Carried through for now; joint fits are planned (docs/plans/2026-10-16-joint-fits.md). |
+| `crystal` |  | optional | Name of the crystal this profile was measured on: runs with the same crystal will be fitted jointly (shared time and compositions, own steps). Carried through for now; the joint fit exists from Python (forster.fit_crystal), tables and CLI are planned (docs/plans/2026-10-16-joint-fits.md). |
 | `sample` |  | optional | Name of the sample (rock) the crystal comes from: crystals of one sample form the population for priors on segment Fo. Carried through for now. |
 | `notes` |  | optional | Free text for your own records. |
 
