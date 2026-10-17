@@ -215,7 +215,10 @@ def test_the_offsets_widen_the_shared_fo_but_keep_the_time(plain, with_offsets):
     assert with_offsets.median_days == pytest.approx(plain.median_days, rel=0.02)
     for label in "ab":
         assert with_offsets.segment_fo_sd[label] > plain.segment_fo_sd[label]
-    assert {n for n in with_offsets.names if n.endswith("offset")} == {"A:fo_offset", "B:fo_offset"}
+    # Defaults: one profile is the drift reference (the one with most points, here the
+    # first of two equal ones), and edge offsets are off.
+    offsets = {n for n in with_offsets.names if n.endswith("offset") or n.endswith("offset_um")}
+    assert offsets == {"B:fo_offset"} and with_offsets.fo_offset["A"] == 0.0
 
 
 def test_a_drift_is_fitted_by_the_fo_offset(template, crystal):
@@ -250,7 +253,7 @@ def test_a_shifted_profile_is_fitted_by_the_edge_offset(template):
     change), leaving the offset to its prior."""
     priors = {"a_fo": Uncertainty(0.002), "b_fo": Uncertainty(0.002)}
     runs, profiles = _crystal(template, shift_um=2.0, priors=priors)
-    joint = _quiet_fit(runs, profiles)
+    joint = _quiet_fit(runs, profiles, edge_offset_sd_um=J.DEFAULT_EDGE_OFFSET_SD_UM)
     b, a = joint.edge1_offset_um["B"], joint.edge1_offset_um["A"]
     assert abs(b - 2.0) < 1.5 * joint.sd["B:edge1_offset_um"]
     assert abs(a) < 1.5 * joint.sd["A:edge1_offset_um"]
@@ -343,3 +346,15 @@ def test_a_label_for_different_zones_warns(crystal):
     fixed_a = replace(a, uncertainties={})
     with pytest.warns(UserWarning, match="segment 'b' is shared by profiles that use it for"):
         J._check_shared([fixed_a, three], {})
+
+
+def test_every_fo_offset_free_without_a_reference(crystal):
+    """``fo_reference=None`` keeps both profiles' Fo offsets (only their difference is
+    fixed by the data); a named reference picks that run."""
+    runs, profiles, fits = crystal
+    free = _quiet_fit(runs, profiles, fits=fits, fo_reference=None, method="laplace")
+    assert {n for n in free.names if n.endswith("fo_offset")} == {"A:fo_offset", "B:fo_offset"}
+    named = _quiet_fit(runs, profiles, fits=fits, fo_reference="B", method="laplace")
+    assert {n for n in named.names if n.endswith("fo_offset")} == {"A:fo_offset"}
+    with pytest.raises(ValueError, match="fo_reference: no run 'C'"):
+        fit_crystal(runs, profiles, fits=fits, fo_reference="C")

@@ -115,6 +115,9 @@ from forster.uncertainty import (
 # Inter-session accuracy of Fo (0.1 mol%; to confirm, Henry 2026-10-16) and how far the
 # first point may lie from the true edge (a few um).
 DEFAULT_FO_OFFSET_SD = 0.001
+# The edge position offset is off by default: with free steps it is barely identifiable
+# (moving a step and the edge together hardly changes the fit) and it pushes the fit to
+# nested sampling. Turn it on per crystal (e.g. this value) when the steps are well pinned.
 DEFAULT_EDGE_OFFSET_SD_UM = 2.0
 FO_TOLERANCE = 1e-9  # shared segments' nominal Fo must agree to this
 
@@ -348,7 +351,7 @@ def _per_run(
     value: float | Mapping[str, float], runs: Sequence[Run], what: str
 ) -> dict[str, float]:
     """One offset prior sd per run, from one value or a mapping (missing runs: default)."""
-    default = DEFAULT_FO_OFFSET_SD if what == "fo_offset_sd" else DEFAULT_EDGE_OFFSET_SD_UM
+    default = DEFAULT_FO_OFFSET_SD if what == "fo_offset_sd" else 0.0
     names = [r.name for r in runs]
     if isinstance(value, Mapping):
         unknown = sorted(set(value) - set(names))
@@ -715,13 +718,31 @@ def _time_ranges(density: np.ndarray, chi2: np.ndarray, n_points: int, dt_days: 
     }
 
 
+def _with_reference(
+    fo_sd: dict[str, float],
+    runs: Sequence[Run],
+    profiles: Mapping[str, Profile],
+    reference: str | None,
+) -> dict[str, float]:
+    """``fo_sd`` with the reference profile's Fo offset off: "auto" picks the run whose
+    profile has the most points, a run name that run, None none."""
+    if reference is None or len(runs) < 2 or not any(fo_sd.values()):
+        return fo_sd
+    if reference == "auto":
+        reference = max(runs, key=lambda r: len(profiles[r.profile_name].distance_um)).name
+    if reference not in fo_sd:
+        raise ValueError(f"fo_reference: no run {reference!r} in this crystal ({list(fo_sd)})")
+    return {**fo_sd, reference: 0.0}
+
+
 def fit_crystal(
     runs: Sequence[Run],
     profiles: Mapping[str, Profile],
     *,
     own_segments: Mapping[str, Sequence[str]] | None = None,
     fo_offset_sd: float | Mapping[str, float] = DEFAULT_FO_OFFSET_SD,
-    edge_offset_sd_um: float | Mapping[str, float] = DEFAULT_EDGE_OFFSET_SD_UM,
+    edge_offset_sd_um: float | Mapping[str, float] = 0.0,
+    fo_reference: str | None = "auto",
     fits: Mapping[str, FitResult] | None = None,
     grid: Grid | None = None,
     method: str = "auto",
@@ -739,7 +760,12 @@ def fit_crystal(
     measured profiles by name. ``own_segments`` maps a run to the segment labels it fits
     on its own instead of sharing. ``fo_offset_sd`` (Fo fraction) and
     ``edge_offset_sd_um``: the Gaussian prior sd of each profile's Fo offset and edge
-    offset, one value for all or one per run (0 leaves it out). ``fits``: the individual
+    offset, one value for all or one per run (0 leaves it out); the edge offset is off
+    by default (`DEFAULT_EDGE_OFFSET_SD_UM` is a value to turn it on with). With every
+    profile carrying an Fo offset the data fix only their differences, so one profile is
+    the reference with no offset: ``fo_reference`` "auto" (default) picks the profile with
+    the most points, a run name picks that one, None keeps every offset free; a mapping
+    given for ``fo_offset_sd`` is used as given. ``fits``: the individual
     fits where already done (each missing one is fitted with `fit_run`). ``grid``: one
     grid for every profile; by default each profile's scan grid (`forster.io.scan_run`)
     with the smallest time step and longest run among them. ``method``, ``n_samples``,
@@ -753,6 +779,8 @@ def fit_crystal(
     own = _own_segments(runs, own_segments)
     _check_shared(runs, own)
     fo_sd = _per_run(fo_offset_sd, runs, "fo_offset_sd")
+    if not isinstance(fo_offset_sd, Mapping):
+        fo_sd = _with_reference(fo_sd, runs, profiles, fo_reference)
     edge_sd = _per_run(edge_offset_sd_um, runs, "edge_offset_sd_um")
     say = progress or (lambda stage: None)
     say("individual fits")

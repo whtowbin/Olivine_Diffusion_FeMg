@@ -724,7 +724,7 @@ def fit_initial_condition(
     kinds = {n: "normal" if k else "uniform" for n, k in zip(like.names, like.normal, strict=True)}
     warn_prior_conflict(offsets, kinds)
     samples, used, ess, log_z = sample_posterior(
-        like, z, method, n_samples, nlive, seed, ess_fallback, say
+        like, z, method, n_samples, nlive, seed, ess_fallback, say, whiten=True
     )
     summary = _summarise(like, samples)
     best_days = best_row * grid.dt_s / SECONDS_PER_DAY
