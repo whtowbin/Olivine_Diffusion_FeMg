@@ -351,3 +351,26 @@ def test_the_near_step_check_at_a_best_fit_initial_condition_warns(tmp_path):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert not near_step_at_best_initial(x, white, model, *args).warn
+
+
+def test_near_step_reports_the_misfit_at_the_step_and_the_points_near_it():
+    """Besides the AIC change: the near-step model's misfit sd at the step (about 1 mol%
+    on Xenocryst_ol6, where the warning fires) and the points within 2 diffusion lengths;
+    and a note when the diffusion length is shorter than the point spacing (Xenocryst_ol23:
+    2 um against about 2.5 um, only 3 points near the step)."""
+    from conftest import PAPER_DATA, PAPER_PARAMS
+
+    from forster.io import summary_row
+
+    runs = {r.name: r for r in read_runs(PAPER_PARAMS)}
+    profiles = read_profiles(PAPER_DATA, sheet="Olivine")
+    warned = fit_run(runs["Xenocryst_ol6_prof_1"], profiles)
+    assert warned.near_step_misfit_sd == pytest.approx(0.0103, abs=0.002)
+    assert warned.near_step_points == 6
+    row = summary_row(warned)
+    assert row["near_step_points"] == 6 and row["near_step_misfit_sigma_fo"] > 0
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        sparse = fit_run(runs["Xenocryst_ol23_prof_1"], profiles)
+    assert any("shorter than the point spacing" in str(w.message) for w in caught)
+    assert sparse.near_step_points is not None and sparse.near_step_points < 13

@@ -994,8 +994,14 @@ def summary_row(result: FitResult) -> dict[str, Any]:
         "core_end_diffusion_lengths": (
             result.core_end_lengths if result.core_end_lengths is not None else math.nan
         ),
+        "near_step_misfit_sigma_fo": _or_nan(result.near_step_misfit_sd),
+        "near_step_points": result.near_step_points if result.near_step_points is not None else -1,
         "points_outside_domain": _points_outside(result.data_x_um, initial.domain_um),
     }
+
+
+def _or_nan(value: float | None) -> float:
+    return math.nan if value is None else value
 
 
 def _points_outside(x_um: np.ndarray, domain_um: tuple[float, float]) -> int:

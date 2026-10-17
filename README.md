@@ -361,6 +361,8 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `correlated_sigma_fo` | fraction | Fitted smooth misfit between model and data. Large next to white_sigma_fo: the model misses the shape of the profile; check the initial condition. |
 | `correlation_length_um` | µm | Length scale of that misfit; near half the profile length, the misfit is profile-wide. |
 | `near_step_daic` |  | AIC change when the misfit may be larger near the steps (correlated method, no growth stages); below -6 a warning says the misfit is concentrated near the step and the 1-sigma range is probably too narrow (docs/references/noise-models-guide.md). |
+| `near_step_misfit_sigma_fo` | fraction | The near-step model's misfit sd at the step: how large the misfit there is (0.001 = 0.1 mol% Fo). |
+| `near_step_points` |  | Measured points within 2 diffusion lengths of a step (-1: check not run). With fewer than about 13 the check often misses near-step misfit, so a silent check is weak evidence; quote the 2-sigma range. |
 | `core_end_diffusion_lengths` |  | Distance from the last step to the model's core end (the last measured point), in diffusion lengths at the best fit. The core Fo is held there; below 3 a warning says the data probably stop at or before the plateau, which moves the fit (docs/guide/practical-advice.md). |
 | `points_outside_domain` |  | Measured points before domain_start_um or past domain_end_um, which are not fitted. Often deliberate (an earlier stage left out); if they continue a flat plateau, extending the domain to include them makes the near-step check more reliable. |
 | `warnings` |  | Warnings from the fit, such as a range that reaches the last time step. |

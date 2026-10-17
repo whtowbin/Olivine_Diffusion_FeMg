@@ -393,6 +393,9 @@ class FitResult:
     # (legacy method, growth stages, or ``check_near_step=False``).
     near_step_delta_aic: float | None = None
     near_step_h: float | None = None
+    # its misfit sd at the step (Fo fraction) and the points within 2 diffusion lengths
+    near_step_misfit_sd: float | None = None
+    near_step_points: int | None = None
     # Distance from the last step to the model's core end (the last measured point, or the
     # domain's end if nearer), in diffusion lengths at the best fit; below
     # SHORT_PLATEAU_LENGTHS a warning says the core boundary is close enough to move the fit.
@@ -1275,6 +1278,8 @@ def fit_profile(
         n_rows=n_rows,
         near_step_delta_aic=None if near_step is None else near_step.delta_aic,
         near_step_h=None if near_step is None else near_step.h,
+        near_step_misfit_sd=None if near_step is None else near_step.misfit_sd,
+        near_step_points=None if near_step is None else near_step.n_near,
         core_end_lengths=core_end,
     )
 
@@ -1352,7 +1357,28 @@ def _near_step(stream, fit, initial, conditions, orientation, diffusivity, grid)
             "(docs/references/noise-models-guide.md)",
             stacklevel=3,
         )
+    _warn_unresolved_front(fit.x_um, initial, days, diffusivity, conditions, orientation)
     return check
+
+
+def _warn_unresolved_front(x_um, initial, days, diffusivity, conditions, orientation) -> None:
+    """Warn when the diffusion length at the best fit is shorter than the point spacing:
+    few points resolve the diffusion front, and the near-step check (sized by that length)
+    sees almost none of them. On dense profiles with strong near-step misfit the best fit
+    sometimes collapses to a few percent of the true time this way, with the check silent
+    (docs/plans/2026-10-15-whitening-validity/followups)."""
+    from forster.grid import diffusion_length_um, fo_range
+
+    spacing = float(np.median(np.diff(np.sort(x_um))))
+    length = diffusion_length_um(days, [(diffusivity, fo_range(initial))], conditions, orientation)
+    if length < spacing:
+        notes.warn(
+            f"the diffusion length at the best fit ({length:.2g} um) is shorter than the "
+            f"point spacing ({spacing:.2g} um): few points resolve the diffusion front and the "
+            "near-step check sees almost none of them. Check the fit against the profile "
+            "(a fit that collapses onto the step), and treat the range with care",
+            stacklevel=4,
+        )
 
 
 def _core_end_lengths(

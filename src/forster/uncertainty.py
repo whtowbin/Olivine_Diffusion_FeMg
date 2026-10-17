@@ -301,7 +301,10 @@ def fit_correlated_points(
 # misfit's amplitude may grow within about one diffusion length of a step,
 # C = s^2 (I + rho^2 S K S), S = diag(sqrt(1 + h e)), e the largest of
 # exp(-(x - step)^2 / 2 l^2) over the steps. h = 0 is the default noise model.
-NEAR_STEP_H_GRID = (0.0, 1.0, 3.0, 10.0, 30.0, 100.0)
+# h up to 10000: on the warned profiles the likelihood keeps rising past 100 (a flat
+# ridge once the far misfit is negligible); the grid to 10000 matches a continuous fit of
+# h (docs/plans/2026-10-15-whitening-validity/followups).
+NEAR_STEP_H_GRID = (0.0, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0, 1000.0, 3000.0, 10000.0)
 # Warn when the near-step term improves AIC by more than this (one extra parameter). In
 # the validation it fired in at most 0.2% of well-specified synthetic fits and caught
 # 76-94% of strong near-step misfits on 29- and 298-point profiles.
@@ -310,11 +313,16 @@ NEAR_STEP_AIC = -6.0
 
 @dataclass(frozen=True)
 class NearStepCheck:
-    """AIC change when the correlated misfit may grow near the steps (< 0 favours it), and
-    the fitted growth h (0: the default noise model was best)."""
+    """AIC change when the correlated misfit may grow near the steps (< 0 favours it), the
+    fitted growth h (0: the default noise model was best), the near-step model's misfit sd
+    at the step (Fo fraction; better determined than h, whose upper bound is often open),
+    and the number of points within 2 diffusion lengths of a step (with fewer than about
+    13 a silent check is weak evidence)."""
 
     delta_aic: float
     h: float
+    misfit_sd: float = float("nan")
+    n_near: int = 0
 
     @property
     def warn(self) -> bool:
@@ -338,6 +346,7 @@ def near_step_check(
     e = np.exp(-0.5 * ((x_um[:, None] - np.asarray(steps_um)[None, :]) / ell) ** 2).max(axis=1)
     white = 0.5 * n * np.log(max(float(residuals @ residuals) / n, 1e-30))
     nll = {h: white for h in NEAR_STEP_H_GRID}  # rho = 0 is the same for every h
+    sd_at_step = dict.fromkeys(NEAR_STEP_H_GRID, 0.0)  # the misfit sd at the step per h
     for L in lengths:
         K = np.exp(-0.5 * d2 / L**2)
         for h in NEAR_STEP_H_GRID:
@@ -346,10 +355,18 @@ def near_step_check(
             for rho in RHO_GRID[1:]:
                 chol = np.linalg.cholesky(np.eye(n) + rho**2 * M)
                 z = sla.solve_triangular(chol, residuals, lower=True)
-                value = 0.5 * n * np.log(max(float(z @ z) / n, 1e-30)) + np.log(np.diag(chol)).sum()
-                nll[h] = min(nll[h], float(value))
+                s2 = max(float(z @ z) / n, 1e-30)
+                value = 0.5 * n * np.log(s2) + np.log(np.diag(chol)).sum()
+                if value < nll[h]:
+                    nll[h] = float(value)
+                    sd_at_step[h] = float(np.sqrt(s2 * (1.0 + h)) * rho)
     best_h = min(nll, key=lambda h: nll[h])
-    return NearStepCheck(float(2 * (nll[best_h] - nll[0.0]) + 2), float(best_h))
+    near = int(
+        np.sum(np.min(np.abs(x_um[:, None] - np.asarray(steps_um)[None, :]), axis=1) <= 2 * ell)
+    )
+    return NearStepCheck(
+        float(2 * (nll[best_h] - nll[0.0]) + 2), float(best_h), sd_at_step[best_h], near
+    )
 
 
 def white_rss(at_points: np.ndarray, y: np.ndarray) -> np.ndarray:

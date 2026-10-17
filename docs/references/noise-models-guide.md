@@ -46,6 +46,8 @@ profiles is collected in [practical-advice.md](../guide/practical-advice.md).
 | `near_step_daic` | AIC change when the misfit is allowed to be larger near the steps | Below −6: FORSTER warns that the misfit is concentrated near the step (section 3.5). Around +2: no sign of it (+2 is the cost of the unused parameter). |
 | `time_days`, `low_days`, `high_days` | best fit and 1σ range | |
 | `low2_days`, `high2_days` | 2σ range | Quote this when a warning fires. |
+| `near_step_misfit_sigma_fo` | the near-step model's misfit sd at the step | How large the misfit near the step is (1.0, 0.4 and 0.16 mol% on the three warned paper profiles). |
+| `near_step_points` | points within 2 diffusion lengths of a step | Below about 13 the check often misses near-step misfit (it caught 10-60% of it with 7-12 such points, 87-97% with 13 or more), so a silent check is weak evidence: quote the 2σ range. |
 | `core_end_diffusion_lengths` | distance from the last step to the model's core end (the last measured point), in diffusion lengths | Below 3: FORSTER warns that the core boundary, where the core Fo is held, is close enough to move the fit. Measure further into the core. |
 | `scan_near_step_daic` | `near_step_daic` at the best-fit starting profile (when the starting profile is fitted) | Fitting the starting profile usually clears a near-step warning. Still below −6: quote the 2σ range. |
 

@@ -415,6 +415,21 @@ SUMMARY_COLUMNS = (
         "and the 1-sigma range is probably too narrow (docs/references/noise-models-guide.md).",
     ),
     Column(
+        "near_step_misfit_sigma_fo",
+        "fraction",
+        "",
+        "The near-step model's misfit sd at the step: how large the misfit there is "
+        "(0.001 = 0.1 mol% Fo).",
+    ),
+    Column(
+        "near_step_points",
+        "",
+        "",
+        "Measured points within 2 diffusion lengths of a step (-1: check not run). With "
+        "fewer than about 13 the check often misses near-step misfit, so a silent check is "
+        "weak evidence; quote the 2-sigma range.",
+    ),
+    Column(
         "core_end_diffusion_lengths",
         "",
         "",
