@@ -59,7 +59,7 @@ def _measured(run, initial, orientation, x, seed, shift_um=0.0, drift=0.0):
     return x + shift_um, fo
 
 
-def _crystal(template, shift_um=0.0, drift=0.0, priors=PRIORS):
+def _crystal(template, shift_um=0.0, drift=0.0, priors=PRIORS, seed=0):
     """Runs A and B of one synthetic crystal and their profiles. A lies along the template
     profile's direction (near [001]), B near [100] (D 3.8x smaller), with its own step;
     the segments are shared. ``shift_um`` and ``drift`` apply to B."""
@@ -73,7 +73,7 @@ def _crystal(template, shift_um=0.0, drift=0.0, priors=PRIORS):
     profiles, runs = {}, []
     for k, name in enumerate("AB"):
         shift, dfo = (shift_um, drift) if name == "B" else (0.0, 0.0)
-        x, fo = _measured(run, initial[name], orient[name], xs[name], k + 1, shift, dfo)
+        x, fo = _measured(run, initial[name], orient[name], xs[name], seed + k + 1, shift, dfo)
         profiles[name] = Profile(x, fo, name=name)
         runs.append(
             replace(
@@ -173,14 +173,17 @@ def _width(r):
 
 
 def test_two_profiles_recover_the_time_and_the_shared_fo(crystal, plain):
-    """The joint range is no wider than the narrower individual starting-profile fit, and
-    covers the true time; the shared segments come back."""
+    """The joint 2-sigma range covers the true time and the shared segments come back. On
+    one noise draw the joint range need not be narrower than the narrower individual one
+    (in a toy model it was wider in 2 of 12 draws, when the slow profile alone gave a
+    falsely narrow range): the narrowing is tested as a median over draws below; here only
+    a loose bound guards against a broken joint range."""
     runs, profiles, fits = crystal
     single = {r.name: _alone(r, profiles, fits[r.name].time_days) for r in runs}
     assert plain.agree and plain.crystal == "X1" and plain.method == "laplace"
     assert plain.low2_days < TRUE_DAYS < plain.high2_days
     narrowest = min(_width(s.range_days) for s in single.values())
-    assert _width(plain.range_days) <= narrowest
+    assert _width(plain.range_days) <= 1.5 * narrowest
     for label, truth in zip("ab", TRUE_FO, strict=True):
         assert abs(plain.segment_fo[label] - truth) < 3 * plain.segment_fo_sd[label]
     assert set(plain.steps_um) == {"A", "B"} and plain.fo_offset == {"A": 0.0, "B": 0.0}
@@ -190,15 +193,22 @@ def test_two_profiles_recover_the_time_and_the_shared_fo(crystal, plain):
     )
 
 
-def test_fixed_joint_range_is_no_wider_than_either_profiles_fit(crystal):
-    """With fixed starting profiles (the individual `fit_run` fits' setting), the joint
-    range by the same rule is no wider than the narrower individual range."""
-    runs, profiles, fits = crystal
-    fixed = [replace(r, uncertainties={}) for r in runs]
-    joint = fit_crystal(fixed, profiles, fits=fits, fo_offset_sd=0.0, edge_offset_sd_um=0.0)
-    assert joint.method == "fixed"
-    narrowest = min(_width(f.time_range_days()) for f in fits.values())
-    assert _width(joint.threshold_range_days) <= narrowest
+def test_fixed_joint_range_is_narrower_than_either_profiles_fit_over_draws(template):
+    """With fixed starting profiles (the individual `fit_run` fits' setting), over 8 noise
+    draws the joint range by the same rule is narrower than the narrower individual range
+    in the median (a property of the method, not of every draw)."""
+    ratios = []
+    for seed in range(0, 80, 10):
+        runs, profiles = _crystal(template, priors={}, seed=seed)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            fits = {r.name: fit_run(r, profiles) for r in runs}
+            joint = fit_crystal(runs, profiles, fits=fits, fo_offset_sd=0.0, edge_offset_sd_um=0.0)
+        assert joint.method == "fixed"
+        narrowest = min(_width(f.time_range_days()) for f in fits.values())
+        ratios.append(_width(joint.threshold_range_days) / narrowest)
+    print("joint / narrowest individual width:", np.round(ratios, 2))
+    assert np.median(ratios) < 1.0
 
 
 def test_the_offsets_widen_the_shared_fo_but_keep_the_time(plain, with_offsets):
