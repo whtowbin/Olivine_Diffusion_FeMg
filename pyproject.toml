@@ -6,6 +6,19 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Henry Towbin" }]
+keywords = ["olivine", "diffusion", "chronometry", "geochemistry", "petrology", "timescales"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+]
 dependencies = [
     "dynesty>=3.1.0",
     "matplotlib>=3.10.6",
@@ -15,6 +28,13 @@ dependencies = [
     "pykrige>=1.7.2",
     "scipy>=1.16.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/whtowbin/Olivine_Diffusion_FeMg"
+Documentation = "https://forster.readthedocs.io"
+Source = "https://github.com/whtowbin/Olivine_Diffusion_FeMg"
+Changelog = "https://github.com/whtowbin/Olivine_Diffusion_FeMg/blob/master/CHANGELOG.md"
+Issues = "https://github.com/whtowbin/Olivine_Diffusion_FeMg/issues"
 
 [project.scripts]
 forster = "forster.cli:main"
@@ -48,6 +68,10 @@ analysis = [
     "seaborn>=0.13.2",
     "selenium>=4.41.0",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+]
 
 [tool.uv]
 default-groups = ["dev", "analysis"]
@@ -58,6 +82,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/forster"]
+
+# The source distribution holds the package only: the docs, analyses and plans (tens of
+# MB, some with round robin results) stay in the repository.
+[tool.hatch.build.targets.sdist]
+only-include = ["src/forster", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
