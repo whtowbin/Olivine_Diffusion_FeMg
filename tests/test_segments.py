@@ -177,6 +177,7 @@ def test_points_past_the_domain_end_are_not_fitted_when_mirrored(example):
     fit = fit_profile(
         profile, run.conditions, run.orientation, initial, grid, None, run.diffusivity
     )
+    assert fit.fit_x_um is not None and fit.fit_fo is not None
     assert fit.fit_x_um.max() <= hi - 20
     assert Profile(fit.fit_x_um, fit.fit_fo).distance_um.size < profile.distance_um.size
 
