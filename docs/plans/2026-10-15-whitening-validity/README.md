@@ -647,3 +647,19 @@ WHT01_Ol_63, _181 or _192. The near-step **term** is not part of the fit. Still 
     more on the slope. A warning covers it now (`core_end_diffusion_lengths` < 3); consider
     extending the model to the domain's end instead (a behaviour change, needs a
     differential replay).
+
+
+12. **Done 2026-10-16 (items 1 and 3; `followups/README.md`).** A continuous h moves dAIC by
+    at most 0.7 and changes no profile's warning; h's interval is open-ended (the misfit sd
+    at the step, 0.15-1.8 mol%, is the well-determined number). Extending the grid to
+    h = 10000 matches the continuous fit; false alarms stay at or below 0.1-0.6%.
+    Detection depends on the points within 2 l of the step: weak with 7-9, 87-97% with 13
+    or more (misfit 0.8 mol% or above); the default 1σ coverage stays low at every N, and
+    the near-step model restores it. **To build:** extend `NEAR_STEP_H_GRID` to
+    (0, 1, 3, 10, 30, 100, 300, 1000, 3000, 10000); report the misfit sd at the step and
+    the number of points within 2 l next to `near_step_daic`; say in the guide that a
+    silent check with fewer than about 13 such points is weak evidence.
+13. **Blind spot on dense profiles:** in 5-7% of strong near-step draws at 50-100 points
+    the best fit collapses to 3-5% of the true time, the near-step zone (sized by l at that
+    fit) shrinks, and the check stays silent while coverage is 0-1%. Candidates: a floor on
+    the zone width, or a warning when the best-fit l is shorter than the point spacing.

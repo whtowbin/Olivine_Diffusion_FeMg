@@ -26,3 +26,5 @@ analyses/**/*_files/
 
 # Raw trials of the whitening-validity study (32 MB; coverage.csv is rebuilt from it)
 docs/plans/2026-10-15-whitening-validity/trials.csv
+docs/plans/2026-10-15-whitening-validity/followups/null_trials.csv
+docs/plans/2026-10-15-whitening-validity/followups/power_trials.csv
