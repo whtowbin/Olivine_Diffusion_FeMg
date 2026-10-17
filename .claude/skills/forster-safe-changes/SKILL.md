@@ -20,8 +20,10 @@ description: Use before committing any change to FORSTER's src/forster that shou
 `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run ty check`,
 `uv run complexipy src/forster --max-complexity-allowed 25`, `uv run pytest -n 4`.
 Run them once over the finished change. A new summary or parameter column needs its
-`forster.template` entry, and the README column tables must be regenerated (replace the
-old `column_table(...)` text; `tests/test_template.py` checks it).
+`forster.template` entry, and the documentation's column page must be regenerated
+(`uv run python docs/gen_columns.py`; `tests/test_docs.py` checks it). The README no
+longer holds the column tables; the user guide is the MkDocs site in `docs/site/`
+(`uv run --group docs mkdocs build --strict`).
 
 ## Memory: one heavy job at a time
 The machine has 48 GB and a nearly full disk; it has frozen in swap.

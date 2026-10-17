@@ -71,6 +71,7 @@ analysis = [
 docs = [
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.26",
+    "ruff>=0.14",
 ]
 
 [tool.uv]

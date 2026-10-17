@@ -687,6 +687,7 @@ dev = [
 docs = [
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -726,6 +727,7 @@ dev = [
 docs = [
     { name = "mkdocs-material", specifier = ">=9.5" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.26" },
+    { name = "ruff", specifier = ">=0.14" },
 ]
 
 [[package]]

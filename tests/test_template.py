@@ -158,11 +158,14 @@ def test_summary_with_a_stage_and_edge1_fo_reads_back_and_refits(tmp_path, examp
     assert (again.time_s, again.indices) == (result.time_s, result.indices)
 
 
-def test_readme_documents_every_template_column():
-    readme = (REPO_ROOT / "README.md").read_text()
-    assert column_table(PROFILE_COLUMNS) in readme
-    assert column_table(PARAMETER_COLUMNS) in readme
-    assert column_table(SUMMARY_COLUMNS) in readme
+def test_the_column_guide_documents_every_template_column():
+    """The column tables live in the documentation site (docs/site/columns.md, generated
+    by docs/gen_columns.py; tests/test_docs.py checks it is current), no longer in the
+    README, which links to them."""
+    page = (REPO_ROOT / "docs" / "site" / "columns.md").read_text(encoding="utf-8")
+    assert column_table(PROFILE_COLUMNS) in page
+    assert column_table(PARAMETER_COLUMNS) in page
+    assert column_table(SUMMARY_COLUMNS) in page
 
 
 def test_write_template_refuses_to_overwrite(tmp_path):

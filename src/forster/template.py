@@ -667,7 +667,8 @@ def column_table(columns: tuple[Column, ...]) -> str:
 
 
 def column_guide() -> str:
-    """Markdown description of every template column (also in README.md)."""
+    """Markdown description of every template column (also in the documentation site,
+    docs/site/columns.md)."""
     return "\n\n".join(
         [
             "# Columns of the FORSTER templates",

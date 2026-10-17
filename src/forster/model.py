@@ -1044,9 +1044,12 @@ def fit_profile(
 ) -> FitResult:
     """Fit Fe-Mg diffusion from a step-function start to a measured Fo profile.
 
-    The profile is interpolated by kriging onto an even grid from 0 to its largest
-    distance, the model runs forward from ``initial`` for ``grid.max_time_days``,
-    and the time step with the smallest chi-squared is the best fit.
+    The model runs forward from ``initial`` (up to ``grid.max_time_days``, stopping early
+    once the fit is well behind it) and every time step is compared with the measured
+    points: the best fit is the step with the smallest chi-squared, and the ranges come
+    from the correlated noise model (``uncertainty="correlated"``, the default). The
+    legacy method (``uncertainty="legacy"``) instead kriges the profile onto the model
+    grid and fits that, as the round robin scripts did.
 
     ``scheme`` picks the finite-difference scheme: "implicit" (the default since
     2026-10-13; "central" with the legacy uncertainty method), "central" (the engine's,
