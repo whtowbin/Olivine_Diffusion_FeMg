@@ -20,8 +20,9 @@ from PySide6.QtWidgets import QApplication
 
 from forster.gui.app import MainWindow
 from forster.gui.dialogs import ImportDialog
-from forster.gui.importing import guess_mapping, read_columns
+from forster.gui.importing import read_columns
 from forster.gui.state import RESULT_COLUMNS, RunEditor
+from forster.imports import guess
 
 EXAMPLE = "AZ18 WHT01_Ol_63_prof_1"
 
@@ -142,17 +143,40 @@ def test_open_fit_edit_refit_save_reopen(app, tmp_path):
         again.close()
 
 
-def lab_csv(path):
-    """Two profiles in a lab layout: Fo in mol%, distances starting at 10 um."""
+MGO, FEO = 40.3044, 71.8444  # g/mol
+
+
+def lab_fo():
     x = np.arange(10, 70, 2.0)
-    fo = 90 - 2.5 * np.exp(-(x - 10) / 8)
-    pd.DataFrame(
-        {
-            "Sample": ["A"] * len(x) + ["B"] * len(x),
-            "Distance (um)": [*x, *x],
-            "Fo#": [*fo, *(fo - 1)],
-        }
-    ).to_csv(path, index=False)
+    return x, 0.90 - 0.025 * np.exp(-(x - 10) / 8)
+
+
+def lab_csv(path, **extra):
+    """Two profiles of microprobe analyses: MgO, FeO and SiO2 in wt% (Fo of A as
+    `lab_fo`, B 1 mol% lower), distances from 10 um, a Total column with one low total
+    (A at 24 um), and ``extra`` columns."""
+    x, fo = lab_fo()
+    rows = []
+    for name, f in (("A", fo), ("B", fo - 0.01)):
+        mgo = np.full(len(x), 48.0)
+        feo = mgo / MGO * (1 - f) / f * FEO  # Fo = (MgO/40.3)/(MgO/40.3 + FeO/71.8)
+        total = np.full(len(x), 100.1)
+        if name == "A":
+            total[7] = 97.0
+        rows.append(
+            pd.DataFrame(
+                {
+                    "Sample": name,
+                    "Distance (um)": x,
+                    "SiO2": total - mgo - feo,
+                    "MgO": mgo,
+                    "FeO": feo,
+                    "Total": total,
+                    **extra,
+                }
+            )
+        )
+    pd.concat(rows).to_csv(path, index=False)
     return path
 
 
@@ -170,20 +194,61 @@ def test_import_mask_monte_carlo_views_export_and_reopen(app, tmp_path):
         assert project is not None
         wait(app, lambda: project.result(EXAMPLE) is not None and settled(window), "first fit")
 
-        # Import a CSV with a column mapping (the dialog's guess), the rim moved to 0.
+        # Import microprobe analyses through the dialog: the mapping is
+        # forster.imports.guess (oxides with their units, the Total column), Fo comes
+        # from MgO and FeO, and the low total is flagged and kept; the rim moved to 0.
         path = lab_csv(tmp_path / "lab.csv")
         table = read_columns(path)
         dialog = ImportDialog(path, table, window)
-        assert dialog.mapping() == guess_mapping(table)
-        assert "Would add 2 profile(s)" in dialog.summary.text()
+        ok = dialog.buttons.button(dialog.buttons.StandardButton.Ok)
+        template = dialog.template()
+        assert template.columns == guess(table).columns and template.problems() == []
+        holds = {c.column: (c.role, c.quantity, c.unit) for c in template.columns}
+        assert holds["FeO"] == ("oxide", "FeO", "wt%") and holds["Total"][0] == "total"
+        assert dialog.rows["FeO"].role.toolTip() == "FeO: oxide header"
+        assert "Would add 2 profile(s)" in dialog.summary.text() and ok.isEnabled()
         dialog.offset.setText("10")
         dialog.update_summary()
         assert "0-58 µm" in dialog.summary.text()
+        flagged = dialog.flagged.text()
+        assert "outside 98.5-101.5 wt%" in flagged and "A: 14 µm" in flagged
+        assert "total 97.00 wt%" in flagged and dialog.flagged.isVisibleTo(dialog)
+        # The window is typed in the dialog; a mapping with no Fo source disables OK.
+        dialog.total_low.setText("99")
+        dialog.update_summary()
+        assert ok.isEnabled() and dialog.template().total_window == (99.0, 101.5)
+        dialog.total_low.setText("98.5")
+        mgo = dialog.rows["MgO"]
+        mgo.role.setCurrentIndex(mgo.role.findData("ignore"))
+        assert not ok.isEnabled() and "no Fo" in dialog.error.text()
+        mgo.role.setCurrentIndex(mgo.role.findData("oxide"))
+        assert not ok.isEnabled() and "name the oxide" in dialog.error.text()
+        mgo.quantity.setCurrentIndex(mgo.quantity.findData("MgO"))
+        assert ok.isEnabled()
+        # Save the mapping as an import template and load it back.
+        saved = tmp_path / "lab.import.json"
+        assert dialog.save_template(saved) and saved.exists()
+        assert dialog.load_template(saved)
+        assert "Loaded the import template lab.import.json" in dialog.notes.text()
+        assert dialog.template().columns == template.columns and ok.isEnabled()
         _, flip, offset = dialog.options()
+        chosen = dialog.template()
         dialog.close()
-        assert window.import_table(table, dialog.mapping(), flip=flip, offset_um=offset)
+        # A file with an extra column: the template is refused with the mismatch message.
+        other = lab_csv(tmp_path / "other.csv", **{"Beam current": 20.0})
+        refused = ImportDialog(other, read_columns(other), window)
+        assert not refused.load_template(saved)
+        assert "does not know: ['Beam current']" in refused.notes.text()
+        assert refused.template_name == ""  # the guess is still shown
+        refused.close()
+
+        assert window.import_table(table, chosen, flip=flip, offset_um=offset)
         assert window.current == "A" and project.run_names[-2:] == ["A", "B"]
-        assert project.profiles["A"].distance_um[0] == 0.0
+        a = project.profiles["A"]
+        assert a.distance_um[0] == 0.0 and len(a.fo) == 30  # the flagged point kept
+        np.testing.assert_allclose(a.fo, lab_fo()[1], rtol=1e-12)  # Fo from MgO and FeO
+        assert window.last_import is not None and len(window.last_import.flagged) == 1
+        assert "kept and flagged" in window.statusBar().currentMessage()
         wait(app, lambda: project.result("A") is not None and settled(window), "fit of A")
         first = project.result("A")
         assert first is not None
@@ -196,8 +261,9 @@ def test_import_mask_monte_carlo_views_export_and_reopen(app, tmp_path):
         wait(app, lambda: project.result("A") is not None and settled(window), "refit")
         refit = project.result("A")
         assert refit is not None and len(refit.data_fo) == len(first.data_fo) - 1
-        legend = window.canvas.ax.get_legend()
+        legend = window.canvas.legend  # under the panels, so it covers no data
         assert legend is not None and "Masked (left out)" in [t.get_text() for t in legend.texts]
+        assert window.canvas.ax.get_legend() is None
         check = window.panel.profile.table.item(6, 2)
         assert check is not None
         check.setCheckState(Qt.CheckState.Unchecked)

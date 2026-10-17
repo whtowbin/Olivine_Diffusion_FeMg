@@ -19,6 +19,7 @@ import numpy as np
 from matplotlib.backend_bases import MouseEvent
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
 from matplotlib.text import Text
 from matplotlib.transforms import blended_transform_factory
@@ -66,6 +67,7 @@ class ProfileCanvas(FigureCanvasQTAgg):
         self.toolbar = None  # set by the window: pan and zoom modes suppress dragging
         self.run_name: str | None = None
         self.auto_limits: tuple[tuple[float, float], tuple[float, float]] | None = None
+        self.legend: Legend | None = None  # under both panels (`_draw_legend`)
         self.mpl_connect("button_press_event", self._press)
         self.mpl_connect("motion_notify_event", self._motion)
         self.mpl_connect("button_release_event", self._release)
@@ -78,6 +80,7 @@ class ProfileCanvas(FigureCanvasQTAgg):
             ax.clear()
             ax.set_axis_off()
         self.handles, self.labels, self.rows = {}, [], []
+        self._remove_legend()
         self.run_name = self.auto_limits = None
         self.ax.text(
             0.5,
@@ -144,8 +147,8 @@ class ProfileCanvas(FigureCanvasQTAgg):
         ax.set_ylabel("Fo (mol%)")
         ax.set_title(title_of(name, result, note), fontsize="medium", pad=18)
         ax.tick_params(labelbottom=False)
-        ax.legend(loc="best", fontsize="small", frameon=False)
         self._draw_residuals(result)
+        self._draw_legend()
         self._set_limits(x, fo)
         self.run_name = name
         self.auto_limits = (ax.get_xlim(), ax.get_ylim())
@@ -153,6 +156,30 @@ class ProfileCanvas(FigureCanvasQTAgg):
             self.set_user_limits(*zoom)
         style_axes(self.figure, [ax, rax], p)
         self.draw_idle()
+
+    def _remove_legend(self) -> None:
+        if self.legend is not None:
+            self.legend.remove()
+            self.legend = None
+
+    def _draw_legend(self) -> None:
+        """The profile panel's legend under both panels, in rows, outside the axes: it
+        never covers points or curves, and costs the plot a little height instead of the
+        width the distances need."""
+        self._remove_legend()
+        handles, labels = self.ax.get_legend_handles_labels()
+        if not handles:
+            return
+        self.legend = self.figure.legend(
+            handles,
+            labels,
+            loc="outside lower center",
+            ncols=min(3, len(handles)),
+            fontsize="small",
+            frameon=False,
+        )
+        for text in self.legend.get_texts():
+            text.set_color(self.palette.foreground)
 
     def user_limits(self) -> tuple[tuple[float, float], tuple[float, float]] | None:
         """The axes limits if the user zoomed or panned away from the drawn ones."""

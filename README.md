@@ -229,13 +229,19 @@ exactly what the command line does, and a refused value is explained next to its
   resolved it; growth stages as a table). Every field's tooltip gives its unit and the
   table column it is saved in.
 
-**Importing profiles:** choose a CSV or Excel file, then say which column holds the
-profile name (none: the whole file is one profile), the distance (µm, mm or nm) and Fo
-(mol% or a fraction; guessed from the values). The dialog guesses from the headers and
-shows what it would import; it can flip and shift the distances so the rim is at 0
-and add a run on each new profile. Masked points are saved in `profiles.csv` with
-`Marked_bad` = `bad`, which the table reader skips, so `forster fit` leaves them out
-too.
+**Importing profiles:** choose a CSV or Excel file, then say what each column holds,
+with the same mapping as `forster import` below: the profile name (none: the whole file
+is one profile), the distance (µm or mm), Fo (a fraction or percent), oxides and
+elements (wt% or ppm), the analytical total, stage coordinates, exclusion columns, or
+nothing. The dialog proposes a mapping from the headers and values (hover over a column
+for the reason) and keeps OK disabled until it is complete; without an Fo column, Fo
+comes from MgO and FeO in moles. Points whose total lies outside the window (98.5-101.5
+wt% by default, editable) are kept and listed as flagged; rows marked in an exclusion
+column come in as masked points. The dialog can flip and shift the distances so the rim
+is at 0, add a run on each new profile, and save the mapping as an import template or
+load one (a file with other columns is refused with a message). Masked points are saved
+in `profiles.csv` with `Marked_bad` = `bad`, which the table reader skips, so `forster
+fit` leaves them out too.
 
 Fits, starting-profile fits and Monte Carlos are cached in the folder
 (`.forster/cache`), so a reopened project shows its results at once; each run's view
@@ -274,8 +280,9 @@ analytical total lies outside 98.5-101.5 wt% (`--total-window`) are flagged in t
 `total_ok` column and listed, not dropped. Rows marked in a `Marked_bad` or `Ignore`
 column are left out. The confirmed `.import.json` is an import template: files with the
 same columns import with it directly, and a file with columns it does not know, or
-without ones it needs, stops with a message. From Python: `forster.imports.guess`,
-`ImportTemplate`, `apply`.
+without ones it needs, stops with a message. The desktop app's import dialog uses the
+same mapping and reads and writes the same templates. From Python:
+`forster.imports.guess`, `ImportTemplate`, `apply`.
 
 ### parameters.csv
 

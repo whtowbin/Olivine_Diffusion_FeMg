@@ -9,11 +9,9 @@ import pytest
 from forster.boundary import Stage
 from forster.grid import GridRequest
 from forster.gui.importing import (
-    Column,
     add_imported,
-    fo_unit,
-    guess_mapping,
-    profiles_from_table,
+    import_table,
+    position_um,
     read_columns,
     rim_offset,
 )
@@ -29,6 +27,7 @@ from forster.gui.state import (
     summary_table,
     time_view,
 )
+from forster.imports import ColumnMap, ImportTemplate, guess
 from forster.model import Grid
 from forster.project import Project
 from forster.rescale import ConditionUncertainty
@@ -67,30 +66,31 @@ def lab_table(path, *, rim_far=False):
     return path
 
 
-def test_the_mapping_is_guessed_and_fo_in_percent_detected(tmp_path):
+def test_the_mapping_is_the_core_guess_and_fo_in_percent_detected(tmp_path):
     df = read_columns(lab_table(tmp_path / "lab.csv"))
-    mapping = guess_mapping(df)
-    assert mapping["Sample"] == Column("profile")
-    assert mapping["Distance (um)"] == Column("distance", "um")
-    assert mapping["Fo#"] == Column("fo", "mol%")
-    assert mapping["Comment"] == Column() and mapping["Marked_bad"] == Column()
-    assert fo_unit(pd.Series([0.9, 0.91])) == "fraction"
+    roles = {c.column: (c.role, c.unit) for c in guess(df).columns}
+    assert roles["Sample"] == ("profile", None)
+    assert roles["Distance (um)"] == ("position", "um")
+    assert roles["Fo#"] == ("fo", "percent")
+    assert roles["Marked_bad"] == ("exclude", None) and roles["Comment"] == ("ignore", None)
+    np.testing.assert_array_equal(position_um(df, guess(df))[:2], [10.0, 15.0])
 
 
-def test_import_with_a_mapping_flips_and_offsets(tmp_path, project):
+def test_import_flips_offsets_and_masks_the_excluded_points(tmp_path, project):
     df = read_columns(lab_table(tmp_path / "lab.csv", rim_far=True))
-    mapping = guess_mapping(df)
-    offset = rim_offset(pd.to_numeric(df["Distance (um)"]).to_numpy()[:20], flip=True)
+    template = guess(df)
+    offset = rim_offset(position_um(df, template)[:20], flip=True)
     assert offset == 55.0
-    imported = profiles_from_table(df, mapping, flip=True, offset_um=offset)
+    imported = import_table(df, template, flip=True, offset_um=offset)
     assert set(imported.profiles) == {"A", "B"}  # C has too few points
     a = imported.profiles["A"]
     assert a.distance_um[0] == 0.0 and np.all(np.diff(a.distance_um) > 0)
     assert a.fo[0] == pytest.approx(0.88)  # the rim, now at 0
-    assert len(a.fo) == 8  # 10 points: one flagged (masked), one with no Fo
+    assert len(a.fo) == 8  # 10 points: one excluded (masked), one with no Fo
     assert imported.masked["A"][0].tolist() == [30.0]  # x = 25 flipped about 55
-    assert any("no distance or Fo" in n for n in imported.notes)
+    assert any("left out 1 row(s)" in n for n in imported.notes)
     assert any("fewer than 3" in n for n in imported.notes)
+    assert any("1 point(s) marked in an exclusion column" in n for n in imported.notes)
     names = add_imported(project, imported)
     assert names == ["A", "B"] and project.points("A").masked.sum() == 1
     project.save()
@@ -100,27 +100,56 @@ def test_import_with_a_mapping_flips_and_offsets(tmp_path, project):
         add_imported(again, imported)
 
 
-def test_import_of_one_profile_without_a_name_column(tmp_path):
+def test_import_of_one_profile_without_a_name_column():
     df = pd.DataFrame({"x": [0.001, 0.002, 0.003, 0.004], "Fo": [0.9, 0.89, 0.88, 0.88]})
-    mapping = {"x": Column("distance", "mm"), "Fo": Column("fo", "fraction")}
-    imported = profiles_from_table(df, mapping, name="single")
-    np.testing.assert_allclose(imported.profiles["single"].distance_um, [1, 2, 3, 4])
-    with pytest.raises(ValueError, match="choose a column for Fo"):
-        profiles_from_table(df, {"x": Column("distance", "um")})
-    with pytest.raises(ValueError, match="both"):
-        profiles_from_table(df, {"x": Column("distance", "um"), "Fo": Column("distance", "um")})
-    with pytest.raises(ValueError, match="check its unit"):
-        profiles_from_table(
-            df.assign(Fo=[90, 89, 88, 88]),
-            {"x": Column("distance", "um"), "Fo": Column("fo", "fraction")},
+    template = ImportTemplate(
+        (ColumnMap("x", "position", unit="mm"), ColumnMap("Fo", "fo", unit="fraction"))
+    )
+    imported = import_table(df, template, name="single.1")
+    np.testing.assert_allclose(imported.profiles["single.1"].distance_um, [1, 2, 3, 4])
+    with pytest.raises(ValueError, match="no Fo"):
+        import_table(df, ImportTemplate((ColumnMap("x", "position", unit="um"),)))
+    with pytest.raises(ValueError, match="more than one position"):
+        import_table(
+            df,
+            ImportTemplate(
+                (ColumnMap("x", "position", unit="um"), ColumnMap("Fo", "position", unit="um"))
+            ),
         )
+    with pytest.raises(ValueError, match="Fo must be a fraction"):
+        import_table(df.assign(Fo=[90, 89, 88, 88]), template)
+    with pytest.raises(ValueError, match="no profile with enough points"):
+        import_table(df.head(2), template)
+
+
+def test_fo_from_oxides_and_flagged_totals_kept_with_moved_distances():
+    """MgO and FeO in wt% with a Total column: Fo in moles (all iron as FeO); the point
+    with a low total stays in the profile and is listed with its moved distance."""
+    mgo, feo = np.array([48.0, 47.0, 46.0, 45.0]), np.array([9.0, 10.0, 11.0, 12.0])
+    df = pd.DataFrame(
+        {
+            "Distance (mm)": [0.010, 0.012, 0.014, 0.016],
+            "MgO": mgo,
+            "FeO": feo,
+            "Total (wt%)": [100.0, 96.0, 100.2, 99.9],
+            "Marked_bad": ["", "", "", "bad"],
+        }
+    )
+    template = guess(df)
+    assert template.problems() == []
+    imported = import_table(df, template, name="ox", offset_um=10.0)
+    p = imported.profiles["ox"]
+    mg, fe = mgo / 40.3044, feo / 71.8444
+    np.testing.assert_allclose(p.fo, (mg / (mg + fe))[:3], rtol=1e-12)
+    np.testing.assert_allclose(p.distance_um, [0.0, 2.0, 4.0])
+    assert imported.flagged["distance_um"].tolist() == [2.0]
+    assert imported.flagged["total_wt%"].tolist() == [96.0]
+    assert imported.masked["ox"][0].tolist() == [6.0]
 
 
 def test_a_run_on_an_imported_profile_fits(tmp_path, project):
-    imported = profiles_from_table(
-        read_columns(lab_table(tmp_path / "lab.csv")),
-        guess_mapping(read_columns(tmp_path / "lab.csv")),
-    )
+    df = read_columns(lab_table(tmp_path / "lab.csv"))
+    imported = import_table(df, guess(df))
     add_imported(project, imported)
     run = project.add_run(new_run(project, "A run", "A", like=EXAMPLE))
     assert run.initial.domain_um == (10.0, 55.0)
@@ -297,3 +326,41 @@ def test_the_editor_masks_points_and_moves_its_profile(editor, project):
     assert editor.rows[0].start_um == 5.0  # the side table follows
     assert editor.move_profile(True, editor.rim_offset_text(True))
     assert abs(editor.points().distance_um.iloc[0]) < 1e-9
+
+
+def test_the_views_figures_are_recoloured_for_the_dark_theme():
+    """`restyle_figure` turns the command line's figure colours (near-black data, white
+    marker faces, the model blue, a light grid) into the dark palette's, backgrounds
+    last; the light palette leaves them as drawn."""
+    from matplotlib.colors import to_hex
+    from matplotlib.figure import Figure
+
+    from forster.gui.style import DARK, LIGHT, restyle_figure
+    from forster.plotting import DATA_COLOR, MODEL_COLOR
+
+    def drawn():
+        figure = Figure()
+        top, _ = figure.subfigures(2, 1)
+        ax = top.subplots()
+        ax.plot([0, 1], [0, 1], "o", color=DATA_COLOR, markerfacecolor="white", label="data")
+        ax.plot([0, 1], [1, 0], color=MODEL_COLOR, label="model")
+        ax.grid(color="0.9")
+        ax.legend()
+        ax.set_title("title")
+        return figure, ax
+
+    figure, ax = drawn()
+    restyle_figure(figure, DARK)
+    data, model = ax.get_lines()
+    assert to_hex(data.get_color()) == DARK.foreground
+    assert to_hex(data.get_markerfacecolor()) == DARK.background
+    assert to_hex(model.get_color()) == to_hex(DARK.model)
+    assert to_hex(ax.xaxis.get_gridlines()[0].get_color()) == DARK.grid
+    assert to_hex(ax.get_facecolor()) == DARK.background
+    assert to_hex(figure.get_facecolor()) == DARK.background
+    assert to_hex(figure.subfigs[0].get_facecolor()) == DARK.background
+    assert to_hex(ax.title.get_color()) == DARK.foreground
+    assert {to_hex(t.get_color()) for t in ax.get_legend().get_texts()} == {DARK.foreground}
+    figure, ax = drawn()
+    restyle_figure(figure, LIGHT)
+    assert to_hex(ax.get_lines()[0].get_color()) == to_hex(DATA_COLOR)

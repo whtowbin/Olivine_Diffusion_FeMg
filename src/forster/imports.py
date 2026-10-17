@@ -353,12 +353,15 @@ def check_columns(columns, template: ImportTemplate) -> None:
 class ImportResult:
     """Profiles keyed by name, the points as a tidy table (profile, distance_um, fo, and
     every mapped concentration, total and stage coordinate, with ``total_ok``), the
-    template used, and notes for the user (flagged totals, skipped profiles)."""
+    template used, and notes for the user (flagged totals, skipped profiles).
+    ``excluded`` holds the points left out by an exclusion column, in the same layout
+    (the app keeps them as masked points)."""
 
     profiles: dict[str, Profile]
     points: pd.DataFrame
     template: ImportTemplate
     notes: tuple[str, ...]
+    excluded: pd.DataFrame = field(default_factory=pd.DataFrame)
 
     @property
     def flagged(self) -> pd.DataFrame:
@@ -412,8 +415,11 @@ def _excluded(df: pd.DataFrame, template: ImportTemplate) -> pd.Series:
     return out
 
 
-def _points(df: pd.DataFrame, template: ImportTemplate, default_name: str) -> pd.DataFrame:
-    """The tidy table of every usable point."""
+def _points(
+    df: pd.DataFrame, template: ImportTemplate, default_name: str
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The tidy table of every usable point, and of the points an exclusion column
+    leaves out."""
     position = template.by_role("position")[0]
     profile = template.by_role("profile")
     out = pd.DataFrame(index=df.index)
@@ -431,26 +437,31 @@ def _points(df: pd.DataFrame, template: ImportTemplate, default_name: str) -> pd
             out[role] = df[cmap.column]
     if profile:
         out = out[df[profile[0].column].notna()]
-    keep = out["distance_um"].notna() & out["fo"].notna() & ~_excluded(df, template).loc[out.index]
-    return out[keep]
+    usable = out["distance_um"].notna() & out["fo"].notna()
+    excluded = _excluded(df, template).loc[out.index]
+    return out[usable & ~excluded], out[usable & excluded]
 
 
-def apply(df: pd.DataFrame, template: ImportTemplate, *, source: str = "") -> ImportResult:
-    """Import ``df`` with ``template`` (checked first; see `check_columns`)."""
+def apply(
+    df: pd.DataFrame, template: ImportTemplate, *, source: str = "", name: str = ""
+) -> ImportResult:
+    """Import ``df`` with ``template`` (checked first; see `check_columns`). Without a
+    profile column every row belongs to one profile, called ``name`` (default: the
+    stem of ``source``, else "profile")."""
     template.check()
     check_columns(df.columns, template)
-    default_name = Path(source).stem if source else "profile"
-    points = _points(df, template, default_name)
+    default_name = name or (Path(source).stem if source else "profile")
+    points, excluded = _points(df, template, default_name)
     notes: list[str] = []
     profiles: dict[str, Profile] = {}
     short = []
-    for name, rows in points.groupby("profile", sort=False):
+    for key, rows in points.groupby("profile", sort=False):
         rows = rows.sort_values("distance_um")
         if len(rows) < MIN_PROFILE_POINTS:
-            short.append(str(name))
+            short.append(str(key))
             continue
-        profiles[str(name)] = Profile(
-            rows["distance_um"].to_numpy(float), rows["fo"].to_numpy(float), name=str(name)
+        profiles[str(key)] = Profile(
+            rows["distance_um"].to_numpy(float), rows["fo"].to_numpy(float), name=str(key)
         )
     if short:
         notes.append(
@@ -467,7 +478,13 @@ def apply(df: pd.DataFrame, template: ImportTemplate, *, source: str = "") -> Im
         )
     used = template.name or "the confirmed mapping"
     notes.insert(0, f"imported with {used}: {len(profiles)} profile(s), {len(points)} point(s)")
-    return ImportResult(profiles, points.reset_index(drop=True), template, tuple(notes))
+    return ImportResult(
+        profiles,
+        points.reset_index(drop=True),
+        template,
+        tuple(notes),
+        excluded.reset_index(drop=True),
+    )
 
 
 def read_with_template(

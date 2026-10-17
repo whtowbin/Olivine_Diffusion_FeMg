@@ -1,13 +1,15 @@
 """The centre's extra views: the distributions of time (`plot_time_distributions`) and
 the law comparison (`plot_law_comparison` above `plot_law_times`), drawn with FORSTER's
-own figure functions, so they match what ``forster fit`` writes. These are the command
-line's figures, so they keep its white background in a dark theme too.
+own figure functions, so they match what ``forster fit`` writes, recoloured for the
+dark theme like the profile plot (`forster.gui.style.restyle_figure`).
 
 The window computes what they show (the law fits run in a worker thread) and hands it
 to `TimePage.draw` and `LawPage.draw`.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -23,6 +25,7 @@ from forster.plotting import (
 )
 
 from .state import TIME_VIEWS, TimeView
+from .style import LIGHT, Palette, restyle_figure
 
 
 class FigurePage(QWidget):
@@ -41,13 +44,27 @@ class FigurePage(QWidget):
         self.status.setWordWrap(True)
         self.layout_.addWidget(self.status)
         self.drawn = False  # False while it shows a message, not a figure
+        self.theme: Palette = LIGHT
+        self.redraw: Callable[[], None] | None = None  # draws the figure shown again
+
+    def set_palette(self, palette: Palette) -> None:
+        """Follow the theme: what is shown is drawn again in the palette's colours."""
+        if palette == self.theme:
+            return
+        self.theme = palette
+        if self.redraw is not None:
+            self.redraw()
+
+    def _finish(self) -> None:
+        restyle_figure(self.figure, self.theme)
+        self.canvas.draw_idle()
 
     def show_message(self, text: str) -> None:
         self.figure.clear()
-        self.figure.set_facecolor("white")
         self.figure.text(0.5, 0.5, text, ha="center", va="center", wrap=True)
         self.drawn = False
-        self.canvas.draw_idle()
+        self.redraw = lambda: self.show_message(text)
+        self._finish()
 
 
 class TimePage(FigurePage):
@@ -86,10 +103,10 @@ class TimePage(FigurePage):
             return
         result, posterior, mc = view
         self.figure.clear()
-        self.figure.set_facecolor("white")
         plot_time_distributions(result, posterior, mc, self.figure.subplots())
         self.drawn = True
-        self.canvas.draw_idle()
+        self.redraw = lambda: self.draw(view)
+        self._finish()
 
 
 class LawPage(FigurePage):
@@ -107,10 +124,10 @@ class LawPage(FigurePage):
 
     def draw(self, results: list[FitResult], key: tuple[str, ...]) -> None:
         self.figure.clear()
-        self.figure.set_facecolor("white")
         # Subfigures, so the times panel's long labels do not narrow the profile panel.
         top, bottom = self.figure.subfigures(2, 1, height_ratios=(2.2, 1))
         plot_law_comparison(results, top.subplots())
         plot_law_times(results, bottom.subplots())
         self.key, self.drawn = key, True
-        self.canvas.draw_idle()
+        self.redraw = lambda: self.draw(results, key)
+        self._finish()

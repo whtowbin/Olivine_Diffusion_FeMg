@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -46,12 +46,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from forster.imports import ImportTemplate
 from forster.model import FitResult
 from forster.plotting import SIGMA, plot_fit
 from forster.project import FitOutcome, FitTask, McRecord, McTask, Project, ScanRecord, ScanTask
 
 from .dialogs import CopySettingsDialog, ImportDialog
-from .importing import Column, add_imported, profiles_from_table, read_columns
+from .importing import Imported, add_imported, import_table, read_columns
 from .panels import ERROR_COLOR, SidePanel
 from .plot import ProfileCanvas
 from .state import (
@@ -128,6 +129,7 @@ class MainWindow(QMainWindow):
         self.fit_errors: dict[str, str] = {}  # the last failed fit's message, per run
         self.fits_started = 0
         self.last_error = ""
+        self.last_import: Imported | None = None  # with its flagged points and notes
         self._build()
         self.apply_theme()
         self._show_project()
@@ -276,6 +278,8 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         dark = isinstance(app, QApplication) and is_dark(app)
         self.canvas.set_palette(palette(dark))
+        self.time_page.set_palette(palette(dark))
+        self.law_page.set_palette(palette(dark))
         self._redraw()
 
     def changeEvent(self, event: QEvent) -> None:
@@ -677,7 +681,7 @@ class MainWindow(QMainWindow):
         name, flip, offset = dialog.options()
         self.import_table(
             table,
-            dialog.mapping(),
+            dialog.template(),
             name=name,
             flip=flip,
             offset_um=offset,
@@ -687,25 +691,25 @@ class MainWindow(QMainWindow):
     def import_table(
         self,
         table: pd.DataFrame,
-        mapping: Mapping[str, Column],
+        template: ImportTemplate,
         *,
         name: str = "profile",
         flip: bool = False,
         offset_um: float = 0.0,
         add_runs: bool = True,
     ) -> bool:
-        """Add the profiles a table and a column mapping give (`profiles_from_table`)
-        and, with ``add_runs``, a run on each (named after it, with the selected run's
-        settings); the first new run is selected."""
+        """Add the profiles a table and an import template give
+        (`forster.gui.importing.import_table`: flagged totals kept, points in exclusion
+        columns masked) and, with ``add_runs``, a run on each (named after it, with the
+        selected run's settings); the first new run is selected."""
         if self.project is None:
             return False
         try:
-            imported = profiles_from_table(
-                table, mapping, name=name, flip=flip, offset_um=offset_um
-            )
+            imported = import_table(table, template, name=name, flip=flip, offset_um=offset_um)
             names = add_imported(self.project, imported)
         except ValueError as exc:
             return self._refuse("Cannot import", exc)
+        self.last_import = imported
         added = []
         for profile in names if add_runs else ():
             run_name = profile
