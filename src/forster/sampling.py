@@ -10,8 +10,11 @@ its model runs where the posterior is instead
 1. **Best fit.** Nelder-Mead over the uncertain parameters (in units of their prior
    spread) on minus the log posterior with time marginalised: one model run per
    evaluation gives chi-squared at every time step, so time is never sampled. The
-   noise model (`forster.uncertainty.fit_noise_model`) is fitted at the nominal
-   initial condition, refitted at the optimum, and the optimum refined once.
+   first search scores with white noise; the noise model
+   (`forster.uncertainty.fit_noise_model`) is then fitted at that data-driven optimum,
+   and refitted at each new optimum until it is stable (`NOISE_REFITS`). Fitted at the
+   prior's centre instead, a prior centred away from the data inflated the correlated
+   term 4-18x and left the time unconstrained.
 2. **Laplace proposal and importance sampling.** A multivariate t (5 degrees of
    freedom, the Laplace covariance from a finite-difference Hessian at the optimum,
    inflated 1.5x) proposes ``n_samples`` initial conditions from a scrambled Sobol
@@ -457,6 +460,51 @@ def _summarise(like: ICLikelihood, s: _Samples) -> dict:
     }
 
 
+# The noise model is refitted at each new best fit until it stops changing (relative
+# change in its standard deviations below NOISE_TOLERANCE), at most NOISE_REFITS times.
+NOISE_REFITS = 4
+NOISE_TOLERANCE = 0.05
+
+
+def _noise_changed(a: NoiseModel, b: NoiseModel) -> bool:
+    """Whether two noise models differ by more than `NOISE_TOLERANCE` in their total sd at
+    zero lag or in the correlated part."""
+    total_a = math.hypot(a.white_sigma, a.correlated_sigma)
+    total_b = math.hypot(b.white_sigma, b.correlated_sigma)
+    return (
+        abs(total_a - total_b) > NOISE_TOLERANCE * total_a
+        or abs(a.correlated_sigma - b.correlated_sigma) > NOISE_TOLERANCE * total_a
+    )
+
+
+def _best_fit(
+    like: ICLikelihood, initial: InitialCondition, d: int
+) -> tuple[np.ndarray, InitialCondition, NoiseModel]:
+    """The best-fit parameters (in prior units), that initial condition, and the noise
+    model fitted at it.
+
+    The first search scores with white noise, so the first noise model is fitted at a
+    data-driven best fit, not at the prior's centre: fitted at an initial condition the data
+    reject, the correlated term absorbs that misfit (4-18x larger on the paper profiles,
+    docs/plans/2026-10-16-population-priors) and leaves the time unconstrained. The noise
+    model is then refitted at each new best fit until it is stable."""
+    white = like.fit_noise(initial)
+    like.use_noise(NoiseModel(white.white_sigma, 0.0, 1.0))
+    z, _ = _optimise(like, np.zeros(d), 200 * d)
+    noise, best = white, initial
+    for _ in range(NOISE_REFITS):
+        best = like.candidate(like.nominal + z * like.spread)
+        if best is None:  # the optimiser keeps to valid values; guard against the impossible
+            raise ValueError("the best-fit initial condition is invalid")
+        refit = like.fit_noise(best)
+        z, _ = _optimise(like, z, 100 * d)
+        stable = not _noise_changed(noise, refit)
+        noise = refit
+        if stable:
+            break
+    return z, best, noise
+
+
 def fit_initial_condition(
     profile: Profile,
     conditions: Conditions,
@@ -497,13 +545,7 @@ def fit_initial_condition(
     say = progress or (lambda stage: None)
     d = len(like.names)
     say("best fit")
-    like.fit_noise(initial)
-    z, _ = _optimise(like, np.zeros(d), 200 * d)
-    best = like.candidate(like.nominal + z * like.spread)
-    if best is None:  # the optimiser keeps to valid values; guard against the impossible
-        raise ValueError("the best-fit initial condition is invalid")
-    noise = like.fit_noise(best)
-    z, _ = _optimise(like, z, 100 * d)
+    z, best, noise = _best_fit(like, initial, d)
     best_theta = like.nominal + z * like.spread
     best = like.candidate(best_theta) or best
     best_rows = like.log_like_rows(best_theta)

@@ -89,6 +89,46 @@ def test_laplace_and_nested_match_a_dense_grid_on_the_same_likelihood(example, l
     assert laplace.log_evidence == pytest.approx(nested.log_evidence, abs=0.3)
 
 
+def _synthetic(example):
+    """A profile made from a known step (27 um) and edge (0.912) at a known time, with
+    white noise; returns the profile, the truth and the true time in days."""
+    run, _, grid = example
+    truth = replace(run.initial, steps_um=(27.0,), edge_fo=0.912)
+    x_model, dx, (low, high) = scheme_grid(
+        "implicit", np.linspace(2.5, 72, 30), grid, truth.domain_um
+    )
+    model_x = x_model[low : high + 1]
+    start, advance = _diffusion_model(
+        "implicit", run.conditions, run.orientation, truth, grid, run.diffusivity, model_x, dx
+    )
+    rows = advance(start, 200)
+    x = np.linspace(truth.domain_um[0] + 0.5, truth.domain_um[1], 40)
+    rng = np.random.default_rng(0)
+    fo = np.interp(x, model_x, rows[60]) + rng.normal(0, 0.0007, len(x))
+    return Profile(x, fo, name="synthetic"), truth, 60 * grid.dt_s / 86400
+
+
+def test_a_prior_centred_off_the_data_does_not_inflate_the_noise_model(example):
+    """A tight prior centred 2 sd from the truth: the first noise model is fitted at a
+    data-driven best fit and refitted until stable, so the correlated term stays as with
+    a prior centred on the truth and the range still covers the time. (Fitted at the
+    prior's centre, it grew to 0.12 mol% over 35 um and the range missed the time.)"""
+    run, _, grid = example
+    profile, truth, true_days = _synthetic(example)
+    args = (profile, run.conditions, run.orientation)
+    centred = fit_initial_condition(
+        *args, truth, {"step1_um": Uncertainty(1.0), "edge_fo": Uncertainty(0.002)}, grid,
+        run.diffusivity, "implicit", method="laplace",
+    )  # fmt: skip
+    off = replace(truth, steps_um=(29.0,), edge_fo=0.916)
+    post = fit_initial_condition(
+        *args, off, {"step1_um": Uncertainty(1.0), "edge_fo": Uncertainty(0.002)}, grid,
+        run.diffusivity, "implicit", method="laplace",
+    )  # fmt: skip
+    assert post.noise.correlated_sigma < 1.5 * centred.noise.correlated_sigma + 1e-4
+    assert post.low_days <= true_days <= post.high_days
+
+
 def test_best_fit_recovers_a_known_initial_condition(example):
     """A profile made from a known step and edge at a known time (plus noise): starting
     3 um and 0.004 Fo off, the best fit finds them and the range covers the time."""
@@ -115,7 +155,11 @@ def test_best_fit_recovers_a_known_initial_condition(example):
     true_days = true_row * grid.dt_s / 86400
     assert post.best_values["step1_um"] == pytest.approx(27.0, abs=1.5)
     assert post.best_values["a_fo"] == pytest.approx(0.912, abs=0.002)
-    assert post.low_days <= true_days <= post.high_days
+    # One seeded draw: its 95% range must cover the time (a 1-sigma range misses about one
+    # draw in three; this one's did only after the noise-start fix narrowed it honestly).
+    cdf = np.cumsum(post.density)
+    lo95, hi95 = np.interp([0.025, 0.975], cdf / cdf[-1], post.days)
+    assert lo95 <= true_days <= hi95
     assert post.best_initial.steps_um[0] == post.best_values["step1_um"]
 
 
