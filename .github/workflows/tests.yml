@@ -5,6 +5,10 @@ on:
     branches: [master]
   pull_request:
 
+# Read-only token; actions pinned to commit SHAs (the tag in a comment).
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,7 +27,9 @@ jobs:
     env:
       FORSTER_NO_NUMBA: ${{ matrix.numba == 'off' && '1' || '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       # The round robin data (other labs' samples) is a private submodule, read with a
       # read-only deploy key. Without the secret (pull requests from forks) its tests skip.
@@ -42,8 +48,10 @@ jobs:
           git -c core.sshCommand="ssh -i ~/.ssh/round_robin -o IdentitiesOnly=yes" \
               -c url."git@github.com:".insteadOf="https://github.com/" \
               submodule update --init "Diffusion Round Robin"
+          # Later steps install and run third-party packages; none of them needs the key.
+          rm -f ~/.ssh/round_robin
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           python-version: ${{ matrix.python }}
 

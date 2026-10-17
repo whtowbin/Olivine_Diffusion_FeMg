@@ -12,7 +12,15 @@ Every upload is confirmed with Henry first.
 2. **TestPyPI** (test.pypi.org; a separate account): the same, with environment
    `testpypi`.
 3. **GitHub** (repository Settings → Environments): create `pypi` and `testpypi`.
-   Optionally require a reviewer on `pypi`, so a tag cannot publish without approval.
+   - On `pypi`: add Henry as a **required reviewer**, and limit deployments to tags `v*`.
+     The publish token exists only inside this environment, so nothing can publish
+     without Henry's click. That covers a pushed tag from an agent session or a leaked
+     GitHub credential.
+   - On `testpypi`: limit deployments to `master`.
+   - Settings → Rules → Rulesets: a tag ruleset on `v*` that blocks updates and
+     deletions, so a released tag cannot be moved to other code.
+   - After any workflow change, run `uvx zizmor .github/workflows/`: it should report no
+     findings.
 4. **Read the Docs** (readthedocs.org): import the repository; it builds from
    `.readthedocs.yaml`. The project slug `forster` gives https://forster.readthedocs.io
    (the URL in pyproject.toml's `Documentation`).
