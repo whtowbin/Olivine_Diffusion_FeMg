@@ -26,7 +26,7 @@ moved between runs by up to about 15%.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 
 import numpy as np
@@ -34,7 +34,7 @@ import numpy as np
 from forster import notes
 from forster.diffusivity import ArrheniusDiffusivity, Diffusivity
 from forster.model import SECONDS_PER_DAY, Conditions, FitResult, Profile, fit_profile
-from forster.sampling import ICPosterior
+from forster.sampling import Cancelled, ICPosterior
 
 DEFAULT_DRAWS = 4000
 DEFAULT_REFITS = 200
@@ -65,6 +65,17 @@ class ConditionUncertainty:
             value = getattr(self, name)
             if not (math.isfinite(value) and value >= 0):
                 raise ValueError(f"{name} must be zero or more, got {value}")
+
+
+@dataclass(frozen=True)
+class PosteriorOfTime:
+    """A marginal posterior of time alone: days and density per day. It is all that
+    `monte_carlo` and `forster.plotting.plot_time_distributions` use of an
+    `ICPosterior`, so a posterior read back from a cache (`forster.project.ScanRecord`)
+    can stand in for one."""
+
+    days: np.ndarray
+    density: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -102,7 +113,10 @@ def fit_time_density(result: FitResult) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _fit_time_draws(
-    result: FitResult, posterior: ICPosterior | None, n: int, rng: np.random.Generator
+    result: FitResult,
+    posterior: ICPosterior | PosteriorOfTime | None,
+    n: int,
+    rng: np.random.Generator,
 ) -> np.ndarray:
     """t_fit in days from the initial-condition posterior, else the fit's own."""
     if posterior is not None:
@@ -190,16 +204,20 @@ def monte_carlo(
     result: FitResult,
     uncertainty: ConditionUncertainty,
     *,
-    posterior: ICPosterior | None = None,
+    posterior: ICPosterior | PosteriorOfTime | None = None,
     n: int | None = None,
     seed: int = 0,
+    progress: Callable[[int, int], None] | None = None,
+    cancel: Callable[[], bool] | None = None,
 ) -> TimeDistribution:
     """Times over the fit's posterior, the conditions and the law (module docstring).
 
     ``result`` is a fit made with the correlated method; ``posterior`` an
     initial-condition posterior of the same run (its time draws then replace the fit's).
     ``n``: draws (default `DEFAULT_DRAWS` rescaled, `DEFAULT_REFITS` refitted). The same
-    ``seed`` gives the same draws.
+    ``seed`` gives the same draws. When every draw is refitted, ``progress(done, n)`` is
+    called after each one and ``cancel()`` before it (True raises
+    `forster.sampling.Cancelled`); rescaling makes no model runs, so it calls neither.
     """
     inputs = result.inputs
     stages, rim = inputs["stages"], inputs["rim_fo"]
@@ -216,7 +234,7 @@ def monte_carlo(
     shifts, studies = _law_draws(law, uncertainty, n, rng)
     laws = [_perturbed(law, s) if s else law for s in shifts]
     if refit:
-        return _refit(result, t_fit, drawn, laws, studies, seed)
+        return _refit(result, t_fit, drawn, laws, studies, seed, progress, cancel)
     initial = inputs["initial"]
     x_fo = initial.edge_fo + (initial.core_fo - initial.edge_fo) / 3
     ref = _log10_d(law, conditions, orientation, x_fo)
@@ -257,13 +275,17 @@ def _sd_by_condition(conditions, uncertainty, orientation, law, x_fo, ref, n, se
     return out
 
 
-def _refit(result, t_fit, drawn, laws, studies, seed) -> TimeDistribution:
+def _refit(
+    result, t_fit, drawn, laws, studies, seed, progress=None, cancel=None
+) -> TimeDistribution:
     """Refit every draw (growth stages, changing rim), scaling each by the fit's own
     relative scatter (t_fit / best) and the between-study offset."""
     inputs = result.inputs
     profile = Profile(result.data_x_um, result.data_fo, name=result.name)
     days = []
     for t, c, lw, b in zip(t_fit, drawn, laws, studies, strict=True):
+        if cancel is not None and cancel():
+            raise Cancelled
         with notes.quiet():  # the fit itself has already warned
             fit = fit_profile(
                 profile,
@@ -280,5 +302,7 @@ def _refit(result, t_fit, drawn, laws, studies, seed) -> TimeDistribution:
                 check_near_step=False,
             )
         days.append(fit.time_days * (t / result.time_days) * 10 ** (-b))
+        if progress is not None:
+            progress(len(days), len(t_fit))
     days = np.array(days)
     return TimeDistribution("refit", days, _percentiles(days), {}, seed)

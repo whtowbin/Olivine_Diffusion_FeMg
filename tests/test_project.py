@@ -15,6 +15,7 @@ from forster import Conditions, InitialCondition, Uncertainty, read_runs
 from forster.boundary import Stage
 from forster.diffusivity import resolve
 from forster.io import run_row
+from forster.model import Grid
 from forster.project import WORK, Project, profile_table
 from forster.rescale import ConditionUncertainty
 
@@ -350,3 +351,117 @@ def test_the_starting_profile_fit_is_cached_under_its_settings(project):
     assert again.state["scans"]["renamed"] == task.key
     again.remove_run("renamed")
     assert "renamed" not in again.state["scans"]
+
+
+def test_masked_points_stay_in_the_project_and_out_of_the_fits(project, tmp_path):
+    points = project.points(EXAMPLE)
+    assert not points.masked.any() and len(points) == len(project.profiles[EXAMPLE].fo)
+    project.save()
+    assert "Marked_bad" not in (project.folder / "profiles.csv").read_text()  # unchanged
+    key = project.result_key(EXAMPLE)
+    flags = np.zeros(len(points), bool)
+    flags[[3, 7]] = True
+    project.set_masked(EXAMPLE, flags)
+    assert len(project.profiles[EXAMPLE].fo) == len(points) - 2
+    assert project.result_key(EXAMPLE) != key  # masking refits
+    assert project.points(EXAMPLE).masked.tolist() == flags.tolist()
+    project.save()
+    # The command line's reader drops the masked rows; the project keeps them.
+    from forster.io import read_profiles
+
+    assert len(read_profiles(project.folder / "profiles.csv")[EXAMPLE].fo) == len(points) - 2
+    again = Project.open(project.folder)
+    assert again.points(EXAMPLE).masked.tolist() == flags.tolist()
+    np.testing.assert_array_equal(again.points(EXAMPLE).fo, points.fo)
+    again.set_masked(EXAMPLE, np.zeros(len(points), bool))
+    assert again.result_key(EXAMPLE) == key and not again.masked
+    with pytest.raises(ValueError, match="at least 3"):
+        again.set_masked(EXAMPLE, np.arange(len(points)) > 1)
+    with pytest.raises(ValueError, match="flags"):
+        again.set_masked(EXAMPLE, [True])
+
+
+def test_moving_a_profile_moves_its_runs_and_a_flip_needs_none(project):
+    x = project.profiles[EXAMPLE].distance_um.copy()
+    flags = np.zeros(len(x), bool)
+    flags[0] = True
+    project.set_masked(EXAMPLE, flags)
+    project.update_run(EXAMPLE, stages=(Stage(86400.0, 1.0, zone_value=0.9),))
+    before = project.run(EXAMPLE)
+    project.move_profile(EXAMPLE, offset_um=2.5)
+    np.testing.assert_allclose(project.points(EXAMPLE).distance_um, x - 2.5)
+    run = project.run(EXAMPLE)
+    assert run.initial.domain_um == (before.initial.domain_um[0] - 2.5, 69.5)
+    assert run.initial.steps_um == (21.5,) and run.stages[0].rim_um == -1.5
+    with pytest.raises(ValueError, match="flip it before adding runs"):
+        project.move_profile(EXAMPLE, flip=True, offset_um=70.0)
+    project.remove_run(EXAMPLE)
+    project.move_profile(EXAMPLE, flip=True, offset_um=x.max() - 2.5)
+    moved = project.points(EXAMPLE)
+    assert moved.distance_um.iloc[0] == 0.0 and moved.distance_um.is_monotonic_increasing
+    assert moved.masked.iloc[-1]  # the masked first point is now the last
+
+
+def test_the_monte_carlo_is_cached_and_matches_the_command_line(project):
+    from forster.io import mc_run
+
+    with pytest.raises(ValueError, match="Monte Carlo"):
+        project.mc_task(EXAMPLE)
+    mc = ConditionUncertainty(T_sd_C=10.0, fO2_sd_log=0.2)
+    project.update_run(EXAMPLE, mc=mc, mc_samples=400, mc_seed=2)
+    # Blank mc_fO2_buffer on a buffer-relative run reads back as its own buffer.
+    assert project.run(EXAMPLE).mc == replace(mc, fO2_buffer="QFM")
+    with pytest.raises(ValueError, match="fit the run first"):
+        project.mc_task(EXAMPLE)
+    result = project.fit(EXAMPLE)
+    task = project.mc_task(EXAMPLE)
+    assert task.posterior is None
+    record = task()
+    expected = mc_run(project.run(EXAMPLE), result)
+    np.testing.assert_array_equal(record.days, expected.days)
+    assert record.summary["mc_draws"] == 400
+    assert project.mc(EXAMPLE) is None
+    assert project.store_mc(task, record)
+    project.save()
+    again = Project.open(project.folder)
+    cached = again.mc(EXAMPLE)
+    assert cached is not None and cached.summary == record.summary
+    np.testing.assert_array_equal(cached.distribution.days, expected.days)
+    again.update_run(EXAMPLE, mc_seed=5)
+    assert again.mc(EXAMPLE) is None
+    again.rename_run(EXAMPLE, "renamed")
+    again.remove_run("renamed")
+    assert "renamed" not in again.state["mcs"]
+
+
+def test_a_refitted_monte_carlo_reports_progress_and_cancels(project):
+    from forster.sampling import Cancelled
+
+    project.update_run(
+        EXAMPLE,
+        stages=(Stage(86400.0, 1.0, zone_value=0.9),),
+        grid=Grid(0.5, 2000.0, 20.0),
+        mc=ConditionUncertainty(T_sd_C=5.0),
+        mc_samples=3,
+    )
+    project.fit(EXAMPLE)
+    task = project.mc_task(EXAMPLE)
+    with pytest.raises(Cancelled):
+        task(cancel=lambda: True)
+    seen = []
+    record = task(progress=lambda done, n: seen.append((done, n)))
+    assert record.method == "refit" and seen == [(1, 3), (2, 3), (3, 3)]
+
+
+def test_a_variant_fit_is_keyed_by_its_own_settings(project):
+    other = resolve("refit")
+    task = project.variant_task(EXAMPLE, diffusivity=other)
+    assert task.run.diffusivity == other and project.run(EXAMPLE).diffusivity != other
+    assert task.key != project.result_key(EXAMPLE)
+    assert project.variant_task(EXAMPLE).key == project.result_key(EXAMPLE)
+    assert project.cached(task) is None
+    outcome = task.run_collecting()
+    assert not project.store(task, outcome.result)  # not the run's own settings
+    cached = project.cached(task)
+    assert cached is not None and cached.time_s == outcome.result.time_s
+    assert project.result(EXAMPLE) is None

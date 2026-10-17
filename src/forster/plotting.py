@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
     from forster.model import FitResult
-    from forster.rescale import TimeDistribution
+    from forster.rescale import PosteriorOfTime, TimeDistribution
     from forster.sampling import ICPosterior
 
 # Okabe-Ito blue for the model, black for data, grey for context.
@@ -256,14 +256,15 @@ def _per_log10_day(days, density):
 
 def plot_time_distributions(
     result: FitResult,
-    posterior: ICPosterior | None = None,
+    posterior: ICPosterior | PosteriorOfTime | None = None,
     mc: TimeDistribution | None = None,
     ax: Axes | None = None,
 ) -> Axes:
     """The distributions of time a run has, on a log time axis, each scaled to a peak of
     1: the fit at the nominal initial condition (its own posterior), with the
     initial-condition uncertainty (`forster.sampling`), and with the conditions and the
-    law as well (`forster.rescale`). Each legend entry gives the median and central 68%."""
+    law as well (`forster.rescale`). Each legend entry gives the median and central 68%.
+    ``posterior`` may be a `forster.rescale.PosteriorOfTime` (only its time is used)."""
     import numpy as np
 
     from forster.rescale import fit_time_density

@@ -3,7 +3,9 @@
 The folder holds the command line's own tables, so ``forster fit profiles.csv
 parameters.csv`` runs a saved project unchanged:
 
-- ``profiles.csv``: every profile (template layout: profile, distance_um, fo);
+- ``profiles.csv``: every profile (template layout: profile, distance_um, fo), with a
+  ``Marked_bad`` column ("bad") on the points masked out of the fits when there are any:
+  the table reader drops those rows, so ``forster fit`` leaves them out too;
 - ``parameters.csv``: one row per run (`forster.io.run_row`);
 - ``diffusivities.csv``: the project's own diffusion equations, if any;
 - ``project.json``: what only an interactive session needs: the format version, the
@@ -14,8 +16,9 @@ that determines the fit (the run's table row, the profile's numbers, the equatio
 the FORSTER version), so a reopened project shows its results at once, and a run whose
 settings changed has no result rather than a stale one (`Project.result`). The fit's
 warnings are cached with it (`Project.fit_warnings`), and the starting-profile fit
-(`forster.io.scan_run`) is cached the same way under its own key (`Project.scan_task`,
-`Project.store_scan`, `Project.scan`).
+(`forster.io.scan_run`) and the Monte Carlo (`forster.rescale.monte_carlo`) are cached
+the same way under their own keys (`Project.scan_task`, `Project.store_scan`,
+`Project.scan`; `Project.mc_task`, `Project.store_mc`, `Project.mc`).
 
 Fits for a worker thread are captured as tasks (`FitTask`, `ScanTask`): they collect
 FORSTER's warnings as data (`forster.notes`), never through ``warnings.catch_warnings``,
@@ -46,10 +49,15 @@ import pandas as pd
 from forster import notes
 from forster.diffusivity import ArrheniusDiffusivity, diffusivity_table
 from forster.io import (
+    LAB_PROFILE_LAYOUT,
     METADATA_COLUMNS,
+    MIN_PROFILE_POINTS,
+    TEMPLATE_PROFILE_LAYOUT,
     UNCERTAINTY_COLUMNS,
     Run,
+    _usable_rows,
     fit_run,
+    mc_summary,
     read_diffusivities,
     read_profiles,
     read_runs,
@@ -58,8 +66,10 @@ from forster.io import (
     scan_run,
     scan_summary,
     summary_row,
+    uncertainty_columns,
 )
 from forster.model import Conditions, FitResult, Grid, InitialCondition, Orientation, Profile
+from forster.rescale import PosteriorOfTime, TimeDistribution, monte_carlo
 from forster.sampling import ICPosterior
 from forster.scan import ScanResult, is_valid
 from forster.template import write_template
@@ -74,6 +84,8 @@ PROFILES, PARAMETERS, DIFFUSIVITIES, STATE = (
 )
 WORK = ".forster"  # cache and autosave, inside the project folder
 _KEY = re.compile(r"[0-9a-f]{24}")  # a cache key (`Project.result_key`)
+RECORDS = ("results", "scans", "mcs")  # project.json's cache indexes, run -> key
+MASK_COLUMN = "Marked_bad"  # profiles.csv: "bad" on a masked point (`read_profiles`)
 # Table columns that do not change the nominal fit (the run's name, notes, and the
 # initial-condition scan and Monte Carlo settings), left out of the cache key.
 _NOT_IN_FIT = {"run", *METADATA_COLUMNS} | {
@@ -184,15 +196,128 @@ class ScanTask:
         return ScanRecord.of(scan, notes.messages(caught))
 
 
-def profile_table(profiles: Mapping[str, Profile]) -> pd.DataFrame:
-    """Every profile as the template profile table (Fo as a fraction)."""
-    frames = [
-        pd.DataFrame({"profile": name, "distance_um": p.distance_um, "fo": p.fo})
-        for name, p in profiles.items()
-    ]
+@dataclass(frozen=True)
+class McRecord:
+    """A Monte Carlo over the conditions and the law (`forster.rescale.monte_carlo`) as
+    cached: its summary.csv columns (`forster.io.mc_summary`), the drawn times and what
+    `TimeDistribution` holds besides, and its warnings."""
+
+    summary: dict[str, Any]
+    days: np.ndarray
+    method: str
+    percentiles_days: dict[int, float]
+    sd_log10_by_source: dict[str, float]
+    seed: int
+    warnings: tuple[str, ...] = ()
+
+    @classmethod
+    def of(cls, dist: TimeDistribution, warnings: tuple[str, ...] = ()) -> McRecord:
+        return cls(
+            mc_summary(dist),
+            np.asarray(dist.days, dtype=float),
+            dist.method,
+            dict(dist.percentiles_days),
+            dict(dist.sd_log10_by_source),
+            dist.seed,
+            warnings,
+        )
+
+    @property
+    def distribution(self) -> TimeDistribution:
+        """As `forster.rescale.TimeDistribution` (for `plot_time_distributions`)."""
+        return TimeDistribution(
+            self.method, self.days, self.percentiles_days, self.sd_log10_by_source, self.seed
+        )
+
+
+@dataclass(frozen=True)
+class McTask:
+    """One run's Monte Carlo, captured like `FitTask` with the fit it draws around and,
+    when the run has a current starting-profile fit, that fit's posterior of time (as
+    ``forster fit`` uses it): call it in a worker thread, then hand the record to
+    `Project.store_mc`."""
+
+    name: str
+    key: str
+    run: Run
+    result: FitResult
+    posterior: PosteriorOfTime | None
+
+    def __call__(
+        self,
+        *,
+        progress: Callable[[int, int], None] | None = None,
+        cancel: Callable[[], bool] | None = None,
+    ) -> McRecord:
+        if self.run.mc is None:
+            raise ValueError(f"run {self.name!r} has no Monte Carlo settings")
+        with notes.collect() as caught:
+            dist = monte_carlo(
+                self.result,
+                self.run.mc,
+                posterior=self.posterior,
+                n=self.run.mc_samples,
+                seed=self.run.mc_seed,
+                progress=progress,
+                cancel=cancel,
+            )
+        return McRecord.of(dist, notes.messages(caught))
+
+
+def profile_table(
+    profiles: Mapping[str, Profile],
+    masked: Mapping[str, tuple[np.ndarray, np.ndarray]] | None = None,
+) -> pd.DataFrame:
+    """Every profile as the template profile table (Fo as a fraction). With masked points
+    (per profile: their distances and Fo), they are added in distance order with
+    ``Marked_bad`` "bad", which the table reader drops."""
+    masked = {k: v for k, v in (masked or {}).items() if k in profiles and len(v[0])}
+    frames = []
+    for name, p in profiles.items():
+        frame = pd.DataFrame({"profile": name, "distance_um": p.distance_um, "fo": p.fo})
+        if masked:
+            x, fo = masked.get(name, (np.empty(0), np.empty(0)))
+            frame[MASK_COLUMN] = ""
+            bad = pd.DataFrame({"profile": name, "distance_um": x, "fo": fo, MASK_COLUMN: "bad"})
+            frame = pd.concat([frame, bad], ignore_index=True)
+            frame = frame.sort_values("distance_um", kind="stable")
+        frames.append(frame)
     if not frames:
         return pd.DataFrame({"profile": [], "distance_um": [], "fo": []})
     return pd.concat(frames, ignore_index=True)
+
+
+def _masked_points(path: Path, names: Iterable[str]) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """The points of a profiles table left out of the fits (``Marked_bad`` "bad" or
+    ``Ignore`` "yes", as `read_profiles` drops them), per profile in ``names``, Fo as a
+    fraction; in the table's layout (template or lab)."""
+    df = read_table(path)
+    layout = (
+        TEMPLATE_PROFILE_LAYOUT
+        if set(TEMPLATE_PROFILE_LAYOUT[:3]) <= set(df.columns)
+        else LAB_PROFILE_LAYOUT
+    )
+    flagged = df[~_usable_rows(df)]
+    out = {}
+    for name in names:
+        rows = flagged[flagged[layout.name_column].astype(str) == name]
+        rows = rows.dropna(subset=[layout.distance_column, layout.fo_column])
+        if rows.empty:
+            continue
+        rows = rows.sort_values(layout.distance_column, kind="stable")
+        fo = rows[layout.fo_column].to_numpy(dtype=float)
+        out[name] = (
+            rows[layout.distance_column].to_numpy(dtype=float),
+            fo / 100 if layout.fo_in_percent else fo,
+        )
+    return out
+
+
+def moved_x(x: np.ndarray | float, flip: bool, offset_um: float) -> np.ndarray:
+    """Distances flipped (x -> offset - x) or shifted (x -> x - offset), so the point at
+    ``offset_um`` goes to 0."""
+    x = np.asarray(x, dtype=float)
+    return offset_um - x if flip else x - offset_um
 
 
 def _no_links(*paths: Path) -> None:
@@ -230,6 +355,9 @@ class Project:
     diffusivities: dict[str, ArrheniusDiffusivity] = field(default_factory=dict)
     state: dict[str, Any] = field(default_factory=dict)
     dirty: bool = False  # edited since the last save
+    # Points masked out of the fits, per profile (distances, Fo as a fraction): kept in
+    # the project and in profiles.csv, never in ``profiles``, which is what is fitted.
+    masked: dict[str, tuple[np.ndarray, np.ndarray]] = field(default_factory=dict)
 
     # -- opening and saving ---------------------------------------------------------
 
@@ -247,7 +375,10 @@ class Project:
                 for name, d in read_diffusivities(folder / DIFFUSIVITIES).items()
                 if isinstance(d, ArrheniusDiffusivity)
             }
-        profiles = read_profiles(folder / PROFILES) if (folder / PROFILES).exists() else {}
+        profiles, masked = {}, {}
+        if (folder / PROFILES).exists():
+            profiles = read_profiles(folder / PROFILES)
+            masked = _masked_points(folder / PROFILES, profiles)
         runs = read_runs(folder / PARAMETERS, diffusivities=custom)
         state = {}
         if (folder / STATE).exists():
@@ -256,7 +387,7 @@ class Project:
                 raise ValueError(f"{folder / STATE}: not a FORSTER project file")
             # project.json comes from whoever sent the folder: keep only well-formed cache
             # keys, which are used to build paths (and to delete stale entries).
-            for kind in ("results", "scans"):
+            for kind in RECORDS:
                 records = state.get(kind, {})
                 state[kind] = {
                     str(k): v
@@ -268,7 +399,7 @@ class Project:
                     f"{folder / STATE} was written by a newer FORSTER (format "
                     f"{state['format']}); update FORSTER to open it"
                 )
-        return cls(folder, profiles, runs, custom, state)
+        return cls(folder, profiles, runs, custom, state, masked=masked)
 
     @classmethod
     def new(cls, folder: str | Path, *, example: bool = True) -> Project:
@@ -289,7 +420,7 @@ class Project:
     def _write(self, folder: Path) -> None:
         _no_links(folder)
         folder.mkdir(parents=True, exist_ok=True)
-        _write_csv(profile_table(self.profiles), folder / PROFILES)
+        _write_csv(profile_table(self.profiles, self.masked), folder / PROFILES)
         _write_csv(pd.DataFrame([run_row(r) for r in self.runs]), folder / PARAMETERS)
         if self.diffusivities:
             _write_csv(diffusivity_table(self.diffusivities.values()), folder / DIFFUSIVITIES)
@@ -381,7 +512,7 @@ class Project:
 
     def remove_run(self, name: str) -> None:
         del self.runs[self._index(name)]
-        for key in ("views", "results", "scans"):
+        for key in ("views", *RECORDS):
             self.state.get(key, {}).pop(name, None)
         self.dirty = True
 
@@ -389,7 +520,7 @@ class Project:
         self._check_new_name(new_name)
         i = self._index(name)
         self.runs[i] = replace(self.runs[i], name=new_name)
-        for key in ("views", "results", "scans"):
+        for key in ("views", *RECORDS):
             if name in self.state.get(key, {}):
                 self.state[key][new_name] = self.state[key].pop(name)
         if self.state.get("selected_run") == name:
@@ -474,7 +605,11 @@ class Project:
         if fo_in_percent is None and fo_column is not None:
             raw = pd.to_numeric(read_table(path, sheet)[fo_column], errors="coerce")
             fo_in_percent = bool(np.nanmax(raw) > 1.5)
-        new = read(fo_in_percent)
+        return self.add_profiles(read(fo_in_percent))
+
+    def add_profiles(self, new: Mapping[str, Profile]) -> list[str]:
+        """Add profiles (a name already in the project is an error, and then none is
+        added); their names."""
         clash = sorted(set(new) & set(self.profiles))
         if clash:
             raise ValueError(f"profiles already in the project: {clash}; rename them first")
@@ -487,6 +622,69 @@ class Project:
         if users:
             raise ValueError(f"profile {name!r} is used by runs {users}; remove them first")
         del self.profiles[name]
+        self.masked.pop(name, None)
+        self.dirty = True
+
+    def points(self, name: str) -> pd.DataFrame:
+        """Every point of a profile, masked ones too, in distance order: ``distance_um``,
+        ``fo`` (a fraction) and ``masked``. `set_masked` takes a mask in this order."""
+        p = self.profiles[name]
+        x, fo = self.masked.get(name, (np.empty(0), np.empty(0)))
+        table = pd.DataFrame(
+            {
+                "distance_um": np.concatenate([p.distance_um, x]),
+                "fo": np.concatenate([p.fo, fo]),
+                "masked": np.r_[np.zeros(len(p.fo), bool), np.ones(len(fo), bool)],
+            }
+        )
+        return table.sort_values("distance_um", kind="stable").reset_index(drop=True)
+
+    def set_masked(self, name: str, masked: Iterable[bool]) -> None:
+        """Mask points out of the fits (True) or back in, one flag per row of
+        `points`. Masked points stay in the project (and in profiles.csv, flagged); at
+        least `forster.io.MIN_PROFILE_POINTS` points must stay in."""
+        table = self.points(name)
+        flags = np.asarray(list(masked), dtype=bool)
+        if flags.shape != (len(table),):
+            raise ValueError(f"profile {name!r} has {len(table)} points; got {len(flags)} flags")
+        kept, out = table[~flags], table[flags]
+        if len(kept) < MIN_PROFILE_POINTS:
+            raise ValueError(
+                f"profile {name!r}: keep at least {MIN_PROFILE_POINTS} points in the fit"
+            )
+        self.profiles[name] = Profile(kept.distance_um.to_numpy(), kept.fo.to_numpy(), name=name)
+        if len(out):
+            self.masked[name] = (out.distance_um.to_numpy(), out.fo.to_numpy())
+        else:
+            self.masked.pop(name, None)
+        self.dirty = True
+
+    def move_profile(self, name: str, *, flip: bool = False, offset_um: float = 0.0) -> None:
+        """Flip a profile's distances (x -> offset - x) or shift them (x -> x - offset),
+        so the rim is at 0 (`moved_x`); masked points move too. The runs on the profile
+        move with a shift (domain, steps, crystal centre, growth-stage rims); a flip
+        would turn their starting profiles around, so it is refused while runs use the
+        profile."""
+        users = [r for r in self.runs if r.profile_name == name]
+        if flip and users:
+            raise ValueError(
+                f"profile {name!r} is used by runs {[r.name for r in users]}: flip it before "
+                "adding runs, or remove them first"
+            )
+        moved = {r.name: _shifted(r, offset_um) for r in users}
+        for run in moved.values():
+            self.validate(run)
+        p = self.profiles[name]
+        x = moved_x(p.distance_um, flip, offset_um)
+        order = np.argsort(x, kind="stable")
+        self.profiles[name] = Profile(x[order], p.fo[order], name=name)
+        if name in self.masked:
+            mx, mfo = self.masked[name]
+            mx = moved_x(mx, flip, offset_um)
+            order = np.argsort(mx, kind="stable")
+            self.masked[name] = (mx[order], mfo[order])
+        for run_name, run in moved.items():
+            self.runs[self._index(run_name)] = run
         self.dirty = True
 
     # -- results --------------------------------------------------------------------
@@ -524,6 +722,22 @@ class Project:
         """The run's fit as a task for a worker thread (`FitTask`)."""
         return FitTask(name, self.result_key(name), self.run(name), dict(self.profiles))
 
+    def variant_task(self, name: str, **changes: Any) -> FitTask:
+        """The fit of the run with ``changes`` (Run fields; another diffusion equation,
+        say) as a task keyed by those settings; the run itself is not changed. Its result
+        can be read back with `cached` once stored with `store` (which files it under
+        the run only if the changes made no difference)."""
+        variant = _reconcile(self.run(name), changes)
+        return FitTask(name, self._key(variant, _fit_row(variant)), variant, dict(self.profiles))
+
+    def cached(self, task: FitTask) -> FitResult | None:
+        """The cached result of a task's settings (`variant_task`), or None."""
+        folder = self._cache(task.key)
+        if not (folder / "fit.json").exists():
+            return None
+        _no_links(folder.parents[1], folder.parent, folder, folder / "fit.json", folder / "fit.npz")
+        return _load_fit(folder, task.run)
+
     def store(self, task: FitTask, result: FitResult, warnings: Iterable[str] = ()) -> bool:
         """Cache a task's result (and its warnings, `FitOutcome`) under the settings it
         was made with. Returns whether they are still the run's settings (if not, the
@@ -542,7 +756,7 @@ class Project:
         records = self.state.setdefault(kind, {})
         old = records.get(name)
         records[name] = key
-        in_use = {*self.state.get("results", {}).values(), *self.state.get("scans", {}).values()}
+        in_use = {k for kind in RECORDS for k in self.state.get(kind, {}).values()}
         if isinstance(old, str) and _KEY.fullmatch(old) and old not in in_use:
             stale = self._cache(old)
             if (
@@ -593,6 +807,55 @@ class Project:
             return None
         _no_links(folder.parents[1], folder.parent, folder, folder / "scan.json")
         return _load_scan(folder)
+
+    # -- the Monte Carlo ----------------------------------------------------------------
+
+    def _posterior(self, name: str) -> tuple[PosteriorOfTime | None, str | None]:
+        """The run's current starting-profile fit's posterior of time and that fit's key
+        (None, None without one, or for a grid scan, which has none)."""
+        if not self.run(name).uncertainties:
+            return None, None
+        record = self.scan(name)
+        if record is None or record.days is None or record.density is None:
+            return None, None
+        return PosteriorOfTime(record.days, record.density), self.scan_task(name).key
+
+    def mc_key(self, name: str) -> str:
+        """Hash of everything that determines the run's Monte Carlo: the fit's settings,
+        the mc_ columns and the starting-profile fit whose posterior it draws from."""
+        run = self.run(name)
+        mc = {k: v for k, v in uncertainty_columns(run).items() if k.startswith("mc_")}
+        return self._key(run, {**_fit_row(run), **mc, "_scan": self._posterior(name)[1]})
+
+    def mc_task(self, name: str) -> McTask:
+        """The run's Monte Carlo as a task for a worker thread (`McTask`). It needs the
+        run's Monte Carlo settings (``Run.mc``) and its cached fit."""
+        run = self.run(name)
+        if run.mc is None:
+            raise ValueError(f"run {name!r}: give the Monte Carlo's uncertainties first")
+        result = self.result(name)
+        if result is None:
+            raise ValueError(f"run {name!r}: fit the run first")
+        return McTask(name, self.mc_key(name), run, result, self._posterior(name)[0])
+
+    def store_mc(self, task: McTask, record: McRecord) -> bool:
+        """Cache a Monte Carlo under the settings it was made with; whether they are
+        still the run's (as `store`)."""
+        _store_mc(record, self._cache(task.key))
+        current = task.name in self.run_names and self.mc_key(task.name) == task.key
+        if current:
+            self._record("mcs", task.name, task.key)
+        return current
+
+    def mc(self, name: str) -> McRecord | None:
+        """The cached Monte Carlo for the run's current settings, or None."""
+        if self.run(name).mc is None:
+            return None
+        folder = self._cache(self.mc_key(name))
+        if not (folder / "mc.json").exists():
+            return None
+        _no_links(folder.parents[1], folder.parent, folder, folder / "mc.json", folder / "mc.npz")
+        return _load_mc(folder)
 
     def fit(self, name: str) -> FitResult:
         """Fit the run (`forster.io.fit_run`), or return the cached fit of the same
@@ -666,7 +929,27 @@ def _reconcile(run: Run, changes: Mapping[str, Any]) -> Run:
         out = replace(out, conditions=Conditions.from_buffer(c.T_C, c.P_Pa, delta, buffer))
     if out.euler_form is not None:
         out = replace(out, orientation=Orientation.from_euler(*out.euler_form))
+    if out.mc is not None and out.mc.fO2_buffer is None and out.fO2_form is not None:
+        # The table reader holds a buffer-relative fO2 to its own buffer when
+        # mc_fO2_buffer is blank: say so here, so the run reads back as itself.
+        out = replace(out, mc=replace(out.mc, fO2_buffer=out.fO2_form[0]))
     return out
+
+
+def _shifted(run: Run, offset_um: float) -> Run:
+    """The run's geometry moved by -offset (`Project.move_profile`)."""
+    if not offset_um:
+        return run
+    ic = run.initial
+    low, high = ic.domain_um
+    initial = replace(
+        ic,
+        domain_um=(low - offset_um, high - offset_um),
+        steps_um=tuple(s - offset_um for s in ic.steps_um),
+        centre_um=None if ic.centre_um is None else ic.centre_um - offset_um,
+    )
+    stages = tuple(replace(s, rim_um=s.rim_um - offset_um) for s in run.stages)
+    return replace(run, initial=initial, stages=stages)
 
 
 # The fit cache holds no pickles (a shared project folder must not run code when
@@ -784,4 +1067,37 @@ def _load_scan(folder: Path) -> ScanRecord:
         _text_tuple(data.get("warnings")),
         days,
         density,
+    )
+
+
+def _store_mc(record: McRecord, folder: Path) -> None:
+    """A Monte Carlo as mc.json and mc.npz (the drawn times), no pickles."""
+    _no_links(folder.parents[1], folder.parent, folder, folder / "mc.npz")
+    folder.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=folder, suffix=".npz", delete=False) as tmp:
+        np.savez(tmp, days=record.days)
+    Path(tmp.name).replace(folder / "mc.npz")
+    data = {
+        "summary": record.summary,
+        "method": record.method,
+        "percentiles_days": {str(k): v for k, v in record.percentiles_days.items()},
+        "sd_log10_by_source": record.sd_log10_by_source,
+        "seed": record.seed,
+        "warnings": list(record.warnings),
+    }
+    _write_text(json.dumps(data, default=float), folder / "mc.json")  # last: marks complete
+
+
+def _load_mc(folder: Path) -> McRecord:
+    data = json.loads((folder / "mc.json").read_text())
+    with np.load(folder / "mc.npz", allow_pickle=False) as npz:
+        days = npz["days"]
+    return McRecord(
+        dict(data["summary"]),
+        days,
+        str(data["method"]),
+        {int(k): float(v) for k, v in data["percentiles_days"].items()},
+        {str(k): float(v) for k, v in data["sd_log10_by_source"].items()},
+        int(data["seed"]),
+        _text_tuple(data.get("warnings")),
     )
