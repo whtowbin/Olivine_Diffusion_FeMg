@@ -881,14 +881,20 @@ def law_tasks(project: Project, name: str) -> list[FitTask]:
 def new_run(project: Project, name: str, profile_name: str, like: str | None = None) -> Run:
     """A run on ``profile_name`` with the settings of run ``like`` (or defaults: 1200
     deg C, 100 MPa, QFM, the default equation), its starting profile spanning the
-    measured points with one step in the middle and the end points' Fo."""
+    measured points with one step in the middle and the end points' Fo. On another
+    profile than ``like``'s, a longest model time left to be chosen is chosen afresh
+    (another profile, another time), unless ``like`` fixes the whole grid."""
     initial = default_initial(project.profiles[profile_name])
     if like is not None:
         base = project.run(like)
+        grid = base.grid
+        if isinstance(grid, GridRequest) and base.profile_name != profile_name:
+            grid = replace(grid, max_time_days=None)
         return replace(
             base,
             name=name,
             profile_name=profile_name,
+            grid=grid,
             initial=initial,
             uncertainties={},
             stages=(),

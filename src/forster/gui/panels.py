@@ -1,4 +1,4 @@
-"""The right-hand tabs: Segments (Henry's side table), Profile data (points, masking,
+"""The right-hand tabs: Segments (Henry's side table), Data (the profile's points, masking,
 moving the distances, import), Conditions, Orientation, Diffusion equation,
 Uncertainties (the starting-profile fit and the Monte Carlo) and Advanced (scheme, grid,
 growth stages). Each shows the selected run's `RunEditor` and forwards edits to it;
@@ -474,7 +474,8 @@ class UncertaintiesTab(Tab):
         self.steps.setToolTip(
             "Each step's uncertainty, µm (steps_sd_um or steps_range_um); blank: fixed"
         )
-        self.steps.setMinimumHeight(90)
+        self.steps.setMinimumHeight(70)
+        self.steps.setMaximumHeight(130)
         self.steps.itemChanged.connect(self._step_changed)
         layout.addWidget(self.steps)
         form = QFormLayout()
@@ -859,7 +860,7 @@ class SidePanel(QTabWidget):
         self.advanced = AdvancedTab()
         self.titles = {
             "Segments": self.segments,
-            "Profile data": self.profile,
+            "Data": self.profile,
             "Conditions": self.conditions,
             "Orientation": self.orientation,
             "Equation": self.diffusion,
@@ -873,6 +874,7 @@ class SidePanel(QTabWidget):
             scroll.setWidget(tab)
             self.addTab(scroll, title)
             tab.edited.connect(self._edited)
+        self.setTabToolTip(1, "The profile's points: masking, moving, importing")
         self.setTabToolTip(4, "The Fe-Mg diffusion equation")
         self.load(None)
 

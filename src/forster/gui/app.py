@@ -150,7 +150,7 @@ class MainWindow(QMainWindow):
         tab.mc_cancel.clicked.connect(self.cancel_mc)
         self.panel.profile.import_requested.connect(self._choose_import)
         splitter.addWidget(self.panel)
-        splitter.setSizes([210, 770, 580])
+        splitter.setSizes([190, 720, 650])
         splitter.setStretchFactor(1, 1)
         self.setCentralWidget(splitter)
         self.statusBar().showMessage("Ready")

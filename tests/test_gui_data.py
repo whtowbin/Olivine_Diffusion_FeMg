@@ -124,6 +124,10 @@ def test_a_run_on_an_imported_profile_fits(tmp_path, project):
     add_imported(project, imported)
     run = project.add_run(new_run(project, "A run", "A", like=EXAMPLE))
     assert run.initial.domain_um == (10.0, 55.0)
+    # The example's longest time (40 days) is for its own profile: chosen afresh here.
+    assert project.run(EXAMPLE).grid.max_time_days == 40.0
+    assert run.grid == GridRequest() and run.scheme == project.run(EXAMPLE).scheme
+    assert new_run(project, "same", EXAMPLE, like=EXAMPLE).grid.max_time_days == 40.0
     assert project.fit("A run").time_days > 0
 
 
