@@ -6,6 +6,11 @@ Handles, as ``(kind, index)``: ``("step", i)`` the i-th step position, ``("fo", 
 the i-th segment's Fo, ``("start", 0)`` and ``("end", 0)`` the model domain's ends.
 The canvas emits ``moved(kind, index, value)`` while a handle is dragged and
 ``released(kind, index, value)`` when it is let go: um for positions, mol% for Fo.
+A shift-click emits ``mask_clicked(x_um, fo_pct, px_per_um, px_per_pct)`` (the window
+masks or unmasks the nearest point); masked points are drawn as grey crosses.
+
+A zoom or pan the user makes is kept while the same run is redrawn (after every refit);
+`user_limits` reads it for the run's saved view and `set_user_limits` restores it.
 """
 
 from __future__ import annotations
@@ -44,6 +49,7 @@ def title_of(name: str, result: FitResult | None, note: str = "") -> str:
 class ProfileCanvas(FigureCanvasQTAgg):
     moved = Signal(str, int, float)
     released = Signal(str, int, float)
+    mask_clicked = Signal(float, float, float, float)
 
     def __init__(self) -> None:
         self.figure = Figure(figsize=(7.5, 5.0), layout="constrained")
@@ -58,6 +64,8 @@ class ProfileCanvas(FigureCanvasQTAgg):
         self.dragging: Handle | None = None
         self.last_value: float | None = None
         self.toolbar = None  # set by the window: pan and zoom modes suppress dragging
+        self.run_name: str | None = None
+        self.auto_limits: tuple[tuple[float, float], tuple[float, float]] | None = None
         self.mpl_connect("button_press_event", self._press)
         self.mpl_connect("motion_notify_event", self._motion)
         self.mpl_connect("button_release_event", self._release)
@@ -70,6 +78,7 @@ class ProfileCanvas(FigureCanvasQTAgg):
             ax.clear()
             ax.set_axis_off()
         self.handles, self.labels, self.rows = {}, [], []
+        self.run_name = self.auto_limits = None
         self.ax.text(
             0.5,
             0.5,
@@ -89,10 +98,13 @@ class ProfileCanvas(FigureCanvasQTAgg):
         rows: list[SegmentRow],
         result: FitResult | None,
         note: str = "",
+        masked: tuple[np.ndarray, np.ndarray] | None = None,
     ) -> None:
-        """Redraw everything for one run."""
+        """Redraw everything for one run (``masked``: the profile's masked points,
+        distances and Fo as a fraction), keeping the user's zoom on the same run."""
         p = self.palette
         ax, rax = self.ax, self.rax
+        zoom = self.user_limits() if name == self.run_name else None
         for a in (ax, rax):
             a.clear()
             a.set_axis_on()
@@ -116,6 +128,17 @@ class ProfileCanvas(FigureCanvasQTAgg):
                     label=text,
                     zorder=4,
                 )
+        if masked is not None and len(masked[0]):
+            ax.plot(
+                masked[0],
+                np.asarray(masked[1]) * 100,
+                linestyle="none",
+                marker="x",
+                markersize=5,
+                color=p.muted,
+                label="Masked (left out)",
+                zorder=4,
+            )
         self.rows = list(rows)
         self._draw_handles()
         ax.set_ylabel("Fo (mol%)")
@@ -124,7 +147,24 @@ class ProfileCanvas(FigureCanvasQTAgg):
         ax.legend(loc="best", fontsize="small", frameon=False)
         self._draw_residuals(result)
         self._set_limits(x, fo)
+        self.run_name = name
+        self.auto_limits = (ax.get_xlim(), ax.get_ylim())
+        if zoom is not None:
+            self.set_user_limits(*zoom)
         style_axes(self.figure, [ax, rax], p)
+        self.draw_idle()
+
+    def user_limits(self) -> tuple[tuple[float, float], tuple[float, float]] | None:
+        """The axes limits if the user zoomed or panned away from the drawn ones."""
+        if self.auto_limits is None:
+            return None
+        (x0, x1), (y0, y1) = self.ax.get_xlim(), self.ax.get_ylim()
+        now = ((float(x0), float(x1)), (float(y0), float(y1)))
+        return None if np.allclose(now, self.auto_limits) else now
+
+    def set_user_limits(self, xlim: tuple[float, float], ylim: tuple[float, float]) -> None:
+        self.ax.set_xlim(*xlim)
+        self.ax.set_ylim(*ylim)
         self.draw_idle()
 
     def _draw_fit(self, result: FitResult) -> None:
@@ -257,7 +297,16 @@ class ProfileCanvas(FigureCanvasQTAgg):
             return
         if self.toolbar is not None and self.toolbar.mode:  # panning or zooming
             return
+        if "shift" in (getattr(event, "modifiers", None) or ()):
+            self._mask_click(event)
+            return
         self.dragging = self.handle_at(event)
+
+    def _mask_click(self, event) -> None:
+        """Shift-click: the place and the plot's scale, for the window to find the
+        nearest point."""
+        (x0, y0), (x1, y1) = self.ax.transData.transform([(0, 0), (1, 1)])
+        self.mask_clicked.emit(float(event.xdata), float(event.ydata), abs(x1 - x0), abs(y1 - y0))
 
     def _motion(self, event) -> None:
         if self.dragging is None or event.xdata is None or event.ydata is None:

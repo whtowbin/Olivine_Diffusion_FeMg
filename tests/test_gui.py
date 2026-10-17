@@ -5,7 +5,10 @@ PySide6 (the ``gui`` extra)."""
 
 import os
 import time
+import zipfile
 
+import numpy as np
+import pandas as pd
 import pytest
 
 pytest.importorskip("PySide6")
@@ -16,7 +19,9 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from forster.gui.app import MainWindow
-from forster.gui.state import RunEditor
+from forster.gui.dialogs import ImportDialog
+from forster.gui.importing import guess_mapping, read_columns
+from forster.gui.state import RESULT_COLUMNS, RunEditor
 
 EXAMPLE = "AZ18 WHT01_Ol_63_prof_1"
 
@@ -133,5 +138,143 @@ def test_open_fit_edit_refit_save_reopen(app, tmp_path):
         shown = again.panel.segments.table.item(1, 3)
         assert shown is not None and shown.text() == "89.9"
         assert again.scan_record is not None  # the starting-profile fit, cached too
+    finally:
+        again.close()
+
+
+def lab_csv(path):
+    """Two profiles in a lab layout: Fo in mol%, distances starting at 10 um."""
+    x = np.arange(10, 70, 2.0)
+    fo = 90 - 2.5 * np.exp(-(x - 10) / 8)
+    pd.DataFrame(
+        {
+            "Sample": ["A"] * len(x) + ["B"] * len(x),
+            "Distance (um)": [*x, *x],
+            "Fo#": [*fo, *(fo - 1)],
+        }
+    ).to_csv(path, index=False)
+    return path
+
+
+def click(canvas, x, y, modifier):
+    QTest.mouseClick(canvas, Qt.MouseButton.LeftButton, modifier, point(canvas, x, y))
+
+
+def test_import_mask_monte_carlo_views_export_and_reopen(app, tmp_path):
+    window = MainWindow(ask=False)
+    window.show()
+    folder = tmp_path / "example"
+    try:
+        assert window.new_project(folder)
+        project = window.project
+        assert project is not None
+        wait(app, lambda: project.result(EXAMPLE) is not None and settled(window), "first fit")
+
+        # Import a CSV with a column mapping (the dialog's guess), the rim moved to 0.
+        path = lab_csv(tmp_path / "lab.csv")
+        table = read_columns(path)
+        dialog = ImportDialog(path, table, window)
+        assert dialog.mapping() == guess_mapping(table)
+        assert "Would add 2 profile(s)" in dialog.summary.text()
+        dialog.offset.setText("10")
+        dialog.update_summary()
+        assert "0-58 µm" in dialog.summary.text()
+        _, flip, offset = dialog.options()
+        dialog.close()
+        assert window.import_table(table, dialog.mapping(), flip=flip, offset_um=offset)
+        assert window.current == "A" and project.run_names[-2:] == ["A", "B"]
+        assert project.profiles["A"].distance_um[0] == 0.0
+        wait(app, lambda: project.result("A") is not None and settled(window), "fit of A")
+        first = project.result("A")
+        assert first is not None
+
+        # Mask a point by shift-clicking it on the plot, then another in the table.
+        x, fo = project.profiles["A"].distance_um[5], project.profiles["A"].fo[5] * 100
+        app.processEvents()
+        click(window.canvas, x, fo, Qt.KeyboardModifier.ShiftModifier)
+        assert project.points("A").masked.sum() == 1
+        wait(app, lambda: project.result("A") is not None and settled(window), "refit")
+        refit = project.result("A")
+        assert refit is not None and len(refit.data_fo) == len(first.data_fo) - 1
+        legend = window.canvas.ax.get_legend()
+        assert legend is not None and "Masked (left out)" in [t.get_text() for t in legend.texts]
+        check = window.panel.profile.table.item(6, 2)
+        assert check is not None
+        check.setCheckState(Qt.CheckState.Unchecked)
+        assert project.points("A").masked.sum() == 2
+        wait(app, lambda: project.result("A") is not None and settled(window), "refit 2")
+
+        # A short Monte Carlo (200 draws) from the Uncertainties tab.
+        u = window.panel.uncertainties
+        u.mc_on.setChecked(True)
+        assert project.run("A").mc is not None
+        for key, text in (("T_sd_C", "15"), ("samples", "200")):
+            u.mc_fields[key].setText(text)
+            u.mc_fields[key].editingFinished.emit()
+        mc = project.run("A").mc
+        assert mc is not None and mc.T_sd_C == 15.0 and project.run("A").mc_samples == 200
+        assert window.start_mc()
+        wait(app, lambda: window.mc_job is None, "Monte Carlo")
+        assert "Median" in u.mc_result.text() and "200 draws" in u.mc_result.text()
+        record = project.mc("A")
+        assert record is not None
+        window.show_centre("Results")
+        cell = window.results.item(
+            project.run_names.index("A"), list(RESULT_COLUMNS).index("mc_median")
+        )
+        assert cell is not None
+        assert float(cell.text()) == pytest.approx(record.summary["mc_median_days"], rel=1e-3)
+
+        # Each view: the time distribution (with the Monte Carlo) and the law comparison.
+        window.time_page.set_mode("all")
+        window.show_centre("Time distribution")
+        assert window.time_page.drawn
+        legend = window.time_page.figure.axes[0].get_legend()
+        assert legend is not None
+        assert any("conditions and law" in t.get_text() for t in legend.texts)
+        window.show_centre("Law comparison")
+        wait(app, lambda: window.law_job is None and window.law_page.drawn, "law fits")
+        assert len(window.law_page.figure.subfigs) == 2
+
+        # Export the view and the plot (PNG, PDF), the CLI's fit figure and the zip.
+        assert window.export_plot(tmp_path / "laws.png")
+        window.show_centre("Profile")
+        assert window.export_plot(tmp_path / "profile.pdf")
+        assert window.export_fit_figure(tmp_path / "fit.png")
+        assert not window.export_plot(tmp_path / "plot.txt")
+        assert window.export_zip(tmp_path / "shared.zip")
+        for name in ("laws.png", "profile.pdf", "fit.png"):
+            assert (tmp_path / name).stat().st_size > 10_000
+        assert (tmp_path / "profile.pdf").read_bytes().startswith(b"%PDF")
+        with zipfile.ZipFile(tmp_path / "shared.zip") as shared:
+            profiles = shared.read("example/profiles.csv").decode()
+        assert "Marked_bad" in profiles and profiles.count(",bad") == 2
+
+        # Copy the Monte Carlo settings to the example run.
+        assert window.copy_settings_to(["mc"], [EXAMPLE])
+        assert project.run(EXAMPLE).mc == project.run("A").mc
+
+        # The view to come back to: zoomed in, on the time-distribution tab.
+        window.canvas.set_user_limits((0.0, 20.0), (86.0, 90.0))
+        window.panel.show_title("Advanced")
+        window.show_centre("Time distribution")
+        assert window.save()
+    finally:
+        window.close()
+
+    again = MainWindow(ask=False)
+    again.show()
+    try:
+        assert again.open_project(folder)
+        app.processEvents()
+        reopened = again.project
+        assert reopened is not None and again.current == "A"
+        assert reopened.points("A").masked.sum() == 2
+        assert again.fits_started == 0 and again.mc_record is not None
+        assert again.centre_title == "Time distribution" and again.time_page.drawn
+        assert again.panel.current_title == "Advanced"
+        assert again.time_page.current == "all"
+        limits = again.canvas.user_limits()
+        assert limits is not None and limits[0] == pytest.approx((0.0, 20.0))
     finally:
         again.close()
