@@ -26,6 +26,8 @@ from forster import (
     fit_profile,
 )
 from forster.boundary import Stage
+from forster.model import near_step_at
+from forster.uncertainty import NEAR_STEP_AIC
 
 DAY = 86400.0
 DX_UM = 1.0
@@ -118,6 +120,32 @@ def main(out_path):
     )
     single = fit_profile(profile, CONDITIONS, ALONG_001, SINGLE, fit_grid, stop_early=False)
 
+    # 4. Can the misfit tell the two histories apart? FORSTER's near-step check runs on the
+    # single-stage fit; it is skipped for staged runs, so run it here on the staged
+    # residuals at the same step (40 um), sized by the time since that step formed.
+    def at_points(res):
+        return np.interp(points, res.model_x_um, res.curve(res.indices[0]))
+
+    law = DIFFUSIVITY_PRESETS["dohmen_chakraborty2007"]
+    staged_check = near_step_at(
+        points,
+        fo_meas,
+        at_points(staged),
+        SINGLE,
+        staged.time_since_last_stage_days,
+        law,
+        CONDITIONS,
+        ALONG_001,
+    )
+    near_step = {
+        "warn_below": NEAR_STEP_AIC,
+        "single_delta_aic": single.near_step_delta_aic,
+        "staged_delta_aic": staged_check.delta_aic,
+        "single_rms": float(np.sqrt(np.mean((fo_meas - at_points(single)) ** 2))),
+        "staged_rms": float(np.sqrt(np.mean((fo_meas - at_points(staged)) ** 2))),
+        "noise_sd": 0.001,
+    }
+
     def misfit(res):
         t = np.arange(len(res.sum_chi2)) * res.dt_s / DAY
         step = max(1, len(t) // 400)
@@ -157,9 +185,11 @@ def main(out_path):
         "measured": {"x_um": clean(points), "fo": clean(fo_meas)},
         "staged_fit": {**summary(staged), "misfit": misfit(staged)},
         "single_fit": {**summary(single), "misfit": misfit(single)},
+        "near_step": near_step,
     }
     with open(out_path, "w") as f:
         json.dump(out, f)
+    print("near_step", near_step)
     for k in ("staged_fit", "single_fit"):
         s = out[k]
         print(

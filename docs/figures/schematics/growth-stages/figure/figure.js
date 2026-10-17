@@ -204,7 +204,10 @@ export default async function draw(F, L) {
   L.circle(d, tx(ts), yMinG, 1.5, { fill: '#fff', stroke: GREY, width: 0.6 });
   L.circle(d, tx(tb), yMinS, 1.5, { fill: BLUE, stroke: '#fff', width: 0.4 });
   L.callout(d, [tx(tb), yMinS], [tx(10.75), my(420)], 'best fit', { size: 6, anchor: 'start', textColor: BLUE, color: BLUE, dot: false });
-  L.text(d, tx(ts), yMinG - m(1.4), '6.7 d', { size: 6, anchor: 'middle', valign: 'bottom', color: '#666', halo: true });
+  // The single-stage fit reaches as low a misfit, but FORSTER's near-step check flags it.
+  const warned = D.near_step.single_delta_aic < D.near_step.warn_below && D.near_step.staged_delta_aic >= D.near_step.warn_below;
+  L.text(d, tx(ts), yMinG - m(1.4), `${ts.toFixed(1)} d`, { size: 6, anchor: 'middle', valign: 'bottom', color: '#666', halo: true });
+  if (warned) L.callout(d, [tx(ts), yMinG], [tx(5.0), m(MY1 - 2.4)], 'near-step warning', { size: 6, anchor: 'end', textColor: '#666', color: GREY, dot: false });
   L.text(d, tx(13.6), my(420), 'staged model', { size: 6, anchor: 'end', valign: 'middle', color: BLUE });
   L.text(d, tx(15.9), my(86), 'both zones from t = 0', { size: 6, anchor: 'end', valign: 'top', color: '#666' });
   // the two reported times

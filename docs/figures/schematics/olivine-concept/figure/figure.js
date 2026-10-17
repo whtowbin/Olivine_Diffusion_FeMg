@@ -6,8 +6,8 @@ const COL = {
   a: '#0072B2',        // a [100] direction key (Wong blue)
   c: '#D55E00',        // c [001] direction key (Wong vermillion)
   b: '#6b6b6b',        // b [010]: neutral
-  rimZone: '#8a9a4c',  // lower-Fo (Fe-richer) rim zone: browner olive
-  core: '#a9c97a',     // higher-Fo core: paler green
+  rimZone: '#EDC874',  // lower-Fo (Fe-richer) rim zone: light amber, bright as in BSE images
+  core: '#6E8B3D',     // higher-Fo core: olive (the Fo scale shared by all the schematics)
   melt: '#ece6dc',
   ink: '#2b2b2b',
   mid: '#7a7a7a',
@@ -89,7 +89,7 @@ export default async function draw(F, L) {
   L.text(a, m(tC.e[0]), m(tC.e[1] + 2.4), 'along c [001]', { color: COL.c, anchor: 'middle', valign: 'middle', halo: true, size: 6 });
 
   // labels on the section
-  L.text(a, m(cx - 4), m(cy + 13), 'core', { color: L.shade(COL.core, -0.55), anchor: 'middle', valign: 'middle' });
+  L.text(a, m(cx - 4), m(cy + 13), 'core', { color: L.shade(COL.core, 0.75), anchor: 'middle', valign: 'middle' });
   const rimPt = [m(innerMM[6][0] + (outerMM[6][0] - innerMM[6][0]) * 0.5 + 4), m((innerMM[6][1] + outerMM[6][1]) / 2 + 0.2)];
   L.callout(a, rimPt, [m(3), m(64)], 'rim zone', { anchor: 'start' });
   L.callout(a, [m(tC.s[0]), m(tC.s[1] + 0.4)], [m(41), m(9.6)], 'microprobe spots', { anchor: 'start' });

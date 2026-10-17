@@ -41,10 +41,13 @@ Read its SKILL.md before a new figure; for a change to an existing one, this fil
 4. **Measure a figure's claim before drawing it.** The joint-fit takeaway "fitting
    together pins the time better" held only modestly in a toy model (joint range a median
    14% narrower than the better single profile, wider in 2 of 12 seeds), so its caption
-   says less. **Open:** growth-stages says "the fit alone cannot tell the two histories
-   apart", but rerunning `compute_curves.py` shows FORSTER's near-step check flags the
-   both-zones-from-time-zero fit (AIC improves by 22). Revise the caption or panel d
-   before publication.
+   says less. Growth-stages first claimed "the fit alone cannot tell the two histories
+   apart" because both whitened χ² minima are equally low; each fit's noise model absorbs
+   its own misfit. The residuals do tell: the single-stage fit leaves 4x the analytical
+   noise at the zone boundary and FORSTER's near-step check flags it (AIC -22; the staged
+   fit gives +1.3). `compute_curves.py` now computes this (`near_step` in curves.json) and
+   panel d labels it. Equal χ² across models with different noise fits is not evidence
+   they fit equally well.
 5. **Physics checks that caught real errors:** a right-handed axis frame (a × b = c); a
    traverse on a section must lie in its plane; a rim highlight read as an extra zone;
    the same zoning sense in every panel; D along c about 6 × D along a; the D of a
@@ -61,10 +64,10 @@ Read its SKILL.md before a new figure; for a change to an existing one, this fil
 8. **Keep the set consistent.** All four use 183 mm width, 5.5-6 pt Arial labels and no
    numbers on schematic axes. Colour roles: in the workflow figure orange is the starting
    profile, blue the model and fit, green the conditions and law; in the joint-fit figure
-   black is shared, blue and vermillion are per profile. **Inconsistent, fix before
-   publication:** the Fo colour ramp runs dark olive = high Fo to amber = low Fo in
-   growth-stages, but dark olive = low Fo to pale = high Fo in joint-fit and
-   olivine-concept. Pick one ramp for all.
+   black is shared, blue and vermillion are per profile. **One Fo colour scale for all:**
+   light amber `#F5D27F` = low Fo, `#B9B24F`, olive `#56782B` = high Fo, so Fe-rich olivine
+   is the bright one, as in backscattered-electron images (unified 2026-10-16;
+   growth-stages `FO_STOPS`, joint-fit `RAMP` in make_crystal.py, olivine-concept `COL`).
 9. **Cost:** a new figure at the skill's `depth=standard` took 15-30 minutes and about
    200,000-270,000 tokens in a subagent; `full` depth was not needed (the skill's own
    benchmark found its extra drafts and critic did not raise the score). A change to an

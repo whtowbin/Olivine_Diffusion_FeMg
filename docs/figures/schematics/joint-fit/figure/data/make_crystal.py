@@ -37,7 +37,9 @@ BEYOND = 6.0  # spots continue this far past the crossing
 D_X, D_Y = 6.0, 1.0
 D1 = 1.0 * math.cos(math.pi / 2 - ANG) ** 2 + 6.0 * math.cos(ANG) ** 2
 T_TRUE = 16.0 / (4 * D1)  # as make_profiles.py
-RAMP = ["#73733a", "#a3ad5f", "#cfd99c", "#f1f4e1"]  # low Fo (edge) -> high Fo (core)
+# low Fo (edge) -> high Fo (core): light amber to olive, as in the other schematics
+# (Fe-rich olivine is the bright one in backscattered-electron images).
+RAMP = ["#F5D27F", "#B9B24F", "#56782B"]
 
 
 def scaled(poly, f, c=CORE_CENTRE):

@@ -21,9 +21,14 @@ no fit before stage 1, because the outer zone does not exist yet; its best fit i
 10.1 days (1σ 9.9-10.3), which FORSTER reports as 10.1 days since the first stage and
 4.1 days since the last. Fitting the same profile with both zones present from time zero
 (grey dashed) gives 6.7 days (1σ 6.1-7.5), which is neither of the two times. Its misfit
-is just as low (χ² 64.9 against 66.0 for 66 points), so the fit alone cannot tell the two
-histories apart: the growth history has to come from petrography, other elements or
-zoning that only growth explains. Circled letters mark the moments shown in **a**-**c**.
+is just as low (χ² 64.9 against 66.0 for 66 points), because each fit's noise model
+absorbs its own systematic misfit, so the time and its range alone do not reveal the
+wrong history. The residuals do: the single-stage fit leaves misfit about four times the
+analytical noise (0.0041 against 0.0010 Fo), concentrated at the zone boundary, and
+FORSTER's near-step check flags it (AIC improves by 22; it warns below -6), while the
+staged fit passes (+1.3). The check only says the starting profile is wrong near the
+step; that the cause is a growth stage still has to come from petrography, other
+elements or zoning that only growth explains. Circled letters mark the moments shown in **a**-**c**.
 
 Illustrative case, computed with FORSTER's own model (the case of its growth-stage
 tests): 1200 °C, 42 MPa, fO2 1.38 × 10^-3 Pa, profile along [001], Dohmen & Chakraborty

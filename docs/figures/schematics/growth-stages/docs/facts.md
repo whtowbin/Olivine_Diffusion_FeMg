@@ -49,7 +49,9 @@ fit), "outer step 4 d" and "inner gradient 10 d" (time since stage 1 = 4.07 d; s
 stage 0 = 10.07 d).
 Time panel: "stage 0: starting crystal", "stage 1: new rim zone", "time since stage 0
 (days)", ticks "2" "4" "6" "8" "10" "12" "14" "16", "misfit", "high", "low", "outer zone
-not grown: no staged fit" (plan, Fitting), "best fit" (staged minimum, 10.07 d), "6.7 d"
-(single-stage minimum, 6.74 d), "both zones from t = 0" (single-stage model, SINGLE in
+not grown: no staged fit" (plan, Fitting), "best fit" (staged minimum, 10.07 d), "6.7 d" (single-stage minimum, 6.74 d), "near-step warning"
+(on that fit: FORSTER's near-step check on that fit improves AIC by
+22.0, below its warning threshold of -6, while the same check on the staged fit gives
++1.3: `near_step` in curves.json, from compute_curves.py), "both zones from t = 0" (single-stage model, SINGLE in
 compute_curves.py), "since first stage: 10.1 d", "since last stage: 4.1 d" (time_days and
 time_since_last_stage_days of the staged fit).
