@@ -381,7 +381,7 @@ def test_masked_points_stay_in_the_project_and_out_of_the_fits(project, tmp_path
         again.set_masked(EXAMPLE, [True])
 
 
-def test_moving_a_profile_moves_its_runs_and_a_flip_needs_none(project):
+def test_moving_a_profile_moves_its_runs(project):
     x = project.profiles[EXAMPLE].distance_um.copy()
     flags = np.zeros(len(x), bool)
     flags[0] = True
@@ -393,13 +393,16 @@ def test_moving_a_profile_moves_its_runs_and_a_flip_needs_none(project):
     run = project.run(EXAMPLE)
     assert run.initial.domain_um == (before.initial.domain_um[0] - 2.5, 69.5)
     assert run.initial.steps_um == (21.5,) and run.stages[0].rim_um == -1.5
-    with pytest.raises(ValueError, match="flip it before adding runs"):
-        project.move_profile(EXAMPLE, flip=True, offset_um=70.0)
-    project.remove_run(EXAMPLE)
+    project.update_run(EXAMPLE, uncertainties={"step1_um": Uncertainty(2.0)})
     project.move_profile(EXAMPLE, flip=True, offset_um=x.max() - 2.5)
     moved = project.points(EXAMPLE)
     assert moved.distance_um.iloc[0] == 0.0 and moved.distance_um.is_monotonic_increasing
     assert moved.masked.iloc[-1]  # the masked first point is now the last
+    # A flip gives the run a new starting profile over the moved points.
+    run = project.run(EXAMPLE)
+    kept = project.profiles[EXAMPLE].distance_um
+    assert run.initial.domain_um == (kept.min(), kept.max())
+    assert run.uncertainties == {} and run.stages == () and run.conditions == before.conditions
 
 
 def test_the_monte_carlo_is_cached_and_matches_the_command_line(project):

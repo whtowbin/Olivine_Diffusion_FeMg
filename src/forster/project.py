@@ -662,22 +662,26 @@ class Project:
     def move_profile(self, name: str, *, flip: bool = False, offset_um: float = 0.0) -> None:
         """Flip a profile's distances (x -> offset - x) or shift them (x -> x - offset),
         so the rim is at 0 (`moved_x`); masked points move too. The runs on the profile
-        move with a shift (domain, steps, crystal centre, growth-stage rims); a flip
-        would turn their starting profiles around, so it is refused while runs use the
-        profile."""
-        users = [r for r in self.runs if r.profile_name == name]
-        if flip and users:
-            raise ValueError(
-                f"profile {name!r} is used by runs {[r.name for r in users]}: flip it before "
-                "adding runs, or remove them first"
-            )
-        moved = {r.name: _shifted(r, offset_um) for r in users}
-        for run in moved.values():
-            self.validate(run)
+        move with a shift (domain, steps, crystal centre, growth-stage rims). A flip
+        turns their starting profiles around, so each run on the profile gets a new one
+        spanning the moved points (`default_initial`), without its starting-profile
+        uncertainties, growth stages or held edge Fo; its other settings are kept."""
         p = self.profiles[name]
         x = moved_x(p.distance_um, flip, offset_um)
         order = np.argsort(x, kind="stable")
-        self.profiles[name] = Profile(x[order], p.fo[order], name=name)
+        profile = Profile(x[order], p.fo[order], name=name)
+        moved = {}
+        for run in self.runs:
+            if run.profile_name != name:
+                continue
+            if flip:
+                moved[run.name] = replace(
+                    run, initial=default_initial(profile), uncertainties={}, stages=(), rim_fo=None
+                )
+            else:
+                moved[run.name] = _shifted(run, offset_um)
+            self.validate(moved[run.name])
+        self.profiles[name] = profile
         if name in self.masked:
             mx, mfo = self.masked[name]
             mx = moved_x(mx, flip, offset_um)
@@ -926,6 +930,20 @@ def _reconcile(run: Run, changes: Mapping[str, Any]) -> Run:
         # mc_fO2_buffer is blank: say so here, so the run reads back as itself.
         out = replace(out, mc=replace(out.mc, fO2_buffer=out.fO2_form[0]))
     return out
+
+
+def default_initial(profile: Profile) -> InitialCondition:
+    """A first starting profile for a profile: spanning its points, one step in the
+    middle, the end points' Fo either side."""
+    x, fo = np.asarray(profile.distance_um), np.asarray(profile.fo)
+    lo, hi = float(np.nanmin(x)), float(np.nanmax(x))
+    order = np.argsort(x)
+    edge, core = float(fo[order[0]]), float(fo[order[-1]])
+    return InitialCondition(
+        (lo, hi),
+        steps_um=[round((lo + hi) / 2, 1)],
+        segment_fo=[round(min(edge, 1.0), 4), round(min(core, 1.0), 4)],
+    )
 
 
 def _shifted(run: Run, offset_um: float) -> Run:

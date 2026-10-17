@@ -272,3 +272,24 @@ def test_the_law_comparison_tasks(project):
     names = [t.run.diffusivity.name for t in tasks]
     assert len(names) == 4 and len(set(names)) == 4
     assert project.run(EXAMPLE).diffusivity.name == names[0]
+
+
+def test_the_editor_masks_points_and_moves_its_profile(editor, project):
+    points = editor.points()
+    i = editor.nearest_point(float(points.distance_um[4]), float(points.fo[4] * 100), 1.0, 1.0)
+    assert i == 4
+    assert editor.set_point_masked(4, True)
+    assert editor.points().masked.tolist() == [k == 4 for k in range(len(points))]
+    assert editor.set_point_masked(4, False) and not project.masked
+    for k in range(len(points) - 3):
+        assert editor.set_point_masked(k, True)
+    assert not editor.set_point_masked(len(points) - 1, True)
+    assert "at least 3" in editor.errors["mask"]
+    assert editor.rim_offset_text(False) == "0"
+    assert not editor.move_profile(False, "")
+    assert "give an offset" in editor.errors["move"]
+    assert editor.move_profile(False, "-2.5")
+    assert project.run(EXAMPLE).initial.domain_um == (5.0, 74.5)
+    assert editor.rows[0].start_um == 5.0  # the side table follows
+    assert editor.move_profile(True, editor.rim_offset_text(True))
+    assert abs(editor.points().distance_um.iloc[0]) < 1e-9

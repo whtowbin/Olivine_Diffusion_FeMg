@@ -41,7 +41,7 @@ from forster.model import (
     default_segment_names,
 )
 from forster.plotting import SIGMA
-from forster.project import FitTask, Project
+from forster.project import FitTask, Project, default_initial
 from forster.rescale import ConditionUncertainty, PosteriorOfTime, TimeDistribution
 from forster.sampling import METHODS as SAMPLING_METHODS
 from forster.scan import Uncertainty, resolve_names
@@ -533,6 +533,52 @@ class RunEditor:
             return ""
         return str(getattr(equation, "source", "") or "No source recorded.")
 
+    # -- the profile's points: masking and moving ----------------------------------------
+
+    def points(self) -> pd.DataFrame:
+        """The run's profile, masked points too (`Project.points`)."""
+        return self.project.points(self.run.profile_name)
+
+    def set_point_masked(self, index: int, masked: bool) -> bool:
+        """Mask point ``index`` (a row of `points`) out of the fits, or back in. This
+        changes the profile, so every run on it."""
+        flags = self.points().masked.to_numpy().copy()
+        flags[index] = masked
+        try:
+            self.project.set_masked(self.run.profile_name, flags)
+        except ValueError as error:
+            self.errors["mask"] = str(error)
+            return False
+        self.errors.pop("mask", None)
+        return True
+
+    def nearest_point(self, x_um: float, fo_pct: float, x_scale: float, fo_scale: float) -> int:
+        """The row of `points` nearest a place on the plot, distances measured in units
+        of ``x_scale`` um and ``fo_scale`` mol% (the plot's pixels per unit)."""
+        table = self.points()
+        d = np.hypot((table.distance_um - x_um) * x_scale, (table.fo * 100 - fo_pct) * fo_scale)
+        return int(d.to_numpy().argmin())
+
+    def rim_offset_text(self, flip: bool) -> str:
+        """The offset that puts the rim at 0 (the first point, or the last when flipped)."""
+        x = self.points().distance_um.to_numpy()
+        return f"{float(x.max() if flip else x.min()):.12g}"  # exact enough to land on 0
+
+    def move_profile(self, flip: bool, offset_text: str) -> bool:
+        """Flip and / or shift the run's profile (`Project.move_profile`): runs on it move
+        with a shift; a flip gives them new starting profiles."""
+        try:
+            offset = number(offset_text, "Offset (µm)", optional=True) or 0.0
+            if not flip and not offset:
+                raise ValueError("give an offset, or flip the profile")
+            self.project.move_profile(self.run.profile_name, flip=flip, offset_um=offset)
+        except ValueError as error:
+            self.errors["move"] = str(error)
+            return False
+        self.errors.pop("move", None)
+        self.reload()
+        return True
+
     # -- the Monte Carlo ----------------------------------------------------------------
 
     def mc_buffers(self) -> list[str]:
@@ -836,16 +882,7 @@ def new_run(project: Project, name: str, profile_name: str, like: str | None = N
     """A run on ``profile_name`` with the settings of run ``like`` (or defaults: 1200
     deg C, 100 MPa, QFM, the default equation), its starting profile spanning the
     measured points with one step in the middle and the end points' Fo."""
-    profile = project.profiles[profile_name]
-    x, fo = np.asarray(profile.distance_um), np.asarray(profile.fo)
-    lo, hi = float(np.nanmin(x)), float(np.nanmax(x))
-    order = np.argsort(x)
-    edge, core = float(fo[order[0]]), float(fo[order[-1]])
-    initial = InitialCondition(
-        (lo, hi),
-        steps_um=[round((lo + hi) / 2, 1)],
-        segment_fo=[round(min(edge, 1.0), 4), round(min(core, 1.0), 4)],
-    )
+    initial = default_initial(project.profiles[profile_name])
     if like is not None:
         base = project.run(like)
         return replace(
