@@ -1,0 +1,64 @@
+name: Publish to PyPI
+
+# Trusted publishing (no API tokens): PyPI and TestPyPI each need a "pending publisher"
+# for this repository, this workflow file and the environment named below (see
+# docs/releasing.md). A manual run publishes to TestPyPI; a version tag (v0.1.0, ...)
+# publishes to PyPI.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build sdist and wheel
+        run: uv build
+      - name: Check the metadata
+        run: uvx twine check dist/*
+      - name: Install the wheel in a clean environment and run the worked example
+        run: |
+          uv venv /tmp/check --python 3.12
+          VIRTUAL_ENV=/tmp/check uv pip install dist/*.whl
+          cd "$(mktemp -d)"
+          /tmp/check/bin/forster template example
+          cd example
+          /tmp/check/bin/forster fit profiles.csv parameters.csv --out results
+          test -s results/summary.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  testpypi:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
