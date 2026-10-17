@@ -316,6 +316,21 @@ PARAMETER_COLUMNS = (
         "Monte Carlo draws (default 4000; 200 refits for runs with growth stages).",
     ),
     Column("mc_seed", "", "optional", "Monte Carlo seed (default 0)."),
+    Column(
+        "crystal",
+        "",
+        "optional",
+        "Name of the crystal this profile was measured on: runs with the same crystal will "
+        "be fitted jointly (shared time and compositions, own steps). Carried through for "
+        "now; joint fits are planned (docs/plans/2026-10-16-joint-fits.md).",
+    ),
+    Column(
+        "sample",
+        "",
+        "optional",
+        "Name of the sample (rock) the crystal comes from: crystals of one sample form the "
+        "population for priors on segment Fo. Carried through for now.",
+    ),
     Column("notes", "", "optional", "Free text for your own records."),
 )
 

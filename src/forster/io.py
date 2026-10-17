@@ -154,7 +154,15 @@ class RenamedColumnWarning(UserWarning):
 # `forster.boundary.Stage` (start in days, new rim position, new zone's Fo, rim Fo).
 # The first two are needed for every stage; an empty entry in the others is None.
 STAGE_COLUMNS = ("stage_days", "stage_rim_um", "stage_zone_fo", "stage_rim_fo")
-METADATA_COLUMNS = ("Descriptive_Name", "Category", "Uncert_Category", "Notes", "notes")
+METADATA_COLUMNS = (
+    "crystal",  # profiles of one crystal (for joint fits; carried, not yet used)
+    "sample",  # crystals of one sample (for population priors; carried, not yet used)
+    "Descriptive_Name",
+    "Category",
+    "Uncert_Category",
+    "Notes",
+    "notes",
+)
 MIN_PROFILE_POINTS = 3  # Profile needs at least this many points
 
 

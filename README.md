@@ -332,6 +332,8 @@ One row per model run. Fo is a fraction throughout.
 | `mc_between_study` |  | optional | Monte Carlo: yes to add the spread between laboratories (for an absolute time); default no. |
 | `mc_samples` |  | optional | Monte Carlo draws (default 4000; 200 refits for runs with growth stages). |
 | `mc_seed` |  | optional | Monte Carlo seed (default 0). |
+| `crystal` |  | optional | Name of the crystal this profile was measured on: runs with the same crystal will be fitted jointly (shared time and compositions, own steps). Carried through for now; joint fits are planned (docs/plans/2026-10-16-joint-fits.md). |
+| `sample` |  | optional | Name of the sample (rock) the crystal comes from: crystals of one sample form the population for priors on segment Fo. Carried through for now. |
 | `notes` |  | optional | Free text for your own records. |
 
 *one form*: give fO2 either as `fO2_Pa` or as `fO2_buffer` with `fO2_delta_log`, and

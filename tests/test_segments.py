@@ -203,3 +203,12 @@ def test_summary_counts_points_outside_the_domain():
     profiles = read_profiles(PAPER_DATA, sheet="Olivine")
     row = summary_row(fit_run(run, profiles, check_near_step=False))
     assert row["points_outside_domain"] == 9
+
+
+def test_crystal_and_sample_labels_are_carried_through(tmp_path, example):
+    """`crystal` and `sample` (for the planned joint fits and population priors) are read
+    into the run's metadata and written back by run_row."""
+    row, _ = example
+    run = _read(tmp_path, dict(row, crystal="WHT01_Ol_63", sample="WHT01"))
+    assert run.metadata["crystal"] == "WHT01_Ol_63" and run.metadata["sample"] == "WHT01"
+    assert _read(tmp_path, run_row(run)) == run
