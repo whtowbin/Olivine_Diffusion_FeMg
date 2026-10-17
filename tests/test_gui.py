@@ -278,3 +278,10 @@ def test_import_mask_monte_carlo_views_export_and_reopen(app, tmp_path):
         assert limits is not None and limits[0] == pytest.approx((0.0, 20.0))
     finally:
         again.close()
+
+
+def test_the_installers_self_test_passes_in_a_checkout(app, tmp_path):
+    from forster.gui.selftest import self_test
+
+    assert self_test(tmp_path) == 0
+    assert (tmp_path / "project.zip").exists() and (tmp_path / "laws.png").exists()

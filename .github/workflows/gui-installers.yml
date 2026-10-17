@@ -1,0 +1,84 @@
+# Builds the desktop app (forster.gui) with PyInstaller on macOS, Windows and Linux,
+# runs the bundle's own self-test headless (forster.gui.selftest: a fit, a
+# starting-profile fit, a Monte Carlo, the law comparison, exports, save and reopen),
+# and uploads the packed bundle. Size, self-test time and three cold starts go to the
+# job summary. Run by hand (Actions > gui installers > Run workflow) or by pushing a
+# tag v*. Ported from the gui-qt-prototype branch; packaging lessons in
+# docs/plans/2026-10-15-gui.md. The apps are unsigned: macOS Gatekeeper and Windows
+# SmartScreen warn on first launch.
+name: gui installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      QT_QPA_PLATFORM: offscreen # no display on the runners
+      PYTHONUTF8: "1" # Windows: the logs hold µ and σ
+      # A python.org-style CPython from setup-python (shared libpython, which PyInstaller
+      # needs), not a uv-managed build.
+      UV_PYTHON_PREFERENCE: only-system
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Qt's system libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libopengl0 libglib2.0-0t64 libfontconfig1 libfreetype6 \
+            libdbus-1-3 libxkbcommon0 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+            libxcb-xinerama0 libxcb-xfixes0
+
+      - name: Environment (forster with Numba and the gui extra, no dev or analysis groups)
+        run: |
+          uv sync --locked --no-default-groups --extra fast --extra gui
+          uv run --no-sync --with-requirements packaging/gui/requirements.txt \
+            python -c "import sys, PySide6, PyInstaller, numba; print(sys.version, PySide6.__version__, PyInstaller.__version__, numba.__version__)"
+
+      - name: Build the bundle
+        run: |
+          uv run --no-sync --with-requirements packaging/gui/requirements.txt \
+            python packaging/gui/bundle.py build
+
+      - name: Self-test the bundle (headless)
+        run: |
+          uv run --no-sync --with-requirements packaging/gui/requirements.txt \
+            python packaging/gui/bundle.py test --out "packaging/gui/dist/report-${{ matrix.os }}.json"
+
+      - name: Pack the bundle
+        if: always()
+        run: |
+          uv run --no-sync python packaging/gui/bundle.py archive
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forster-gui-${{ matrix.os }}
+          path: |
+            packaging/gui/dist/*.zip
+            packaging/gui/dist/*.tar.gz
+            packaging/gui/dist/report-*.json
+          if-no-files-found: warn
+          compression-level: 0 # already compressed

@@ -1,0 +1,3 @@
+# Build tools for the desktop app's bundle (CI only; PySide6 comes from the gui extra).
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.8
