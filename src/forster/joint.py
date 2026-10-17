@@ -29,8 +29,9 @@ refitted at each new best fit until stable, as `fit_initial_condition` does.
 evaluation), with two options single-profile fits leave off: the Laplace covariance
 refined along its own directions (``whiten``: each profile's Fo offset and the shared
 segment Fo are degenerate but for their priors, which the prior-spread steps of the
-first pass mis-measure), and a fallback threshold scaled by the number of parameters
-(``scaled``; see `forster.sampling.sample_posterior`). The result's ranges are the
+first pass mis-measure), and a sample-count step instead of an ESS threshold
+(``step``; see `forster.sampling.sample_posterior`, calibrated in
+docs/plans/2026-10-16-joint-calibration). The result's ranges are the
 central 68.27% and 95.45% of the marginal posterior of time (over every free parameter
 and each profile's noise scale), as `ICPosterior`'s; with one profile and the offsets
 off, the best values are that profile's `fit_initial_condition`'s exactly and the
@@ -54,14 +55,14 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 import numpy as np
 import scipy.linalg as sla
 from scipy import special
 
 from forster import notes
-from forster.io import Run, _profile, fit_run
+from forster.io import Run, _profile, fit_run, scan_request
 from forster.model import (
     SECONDS_PER_DAY,
     FitResult,
@@ -519,10 +520,7 @@ def _grids(
         return {r.name: grid for r in runs}
     chosen = {}
     for run in runs:
-        request = run.scan_grid
-        if not request.is_complete():
-            max_time = run.grid.max_time_days if isinstance(run.grid, Grid) else None
-            request = replace(request, max_time_days=request.max_time_days or max_time)
+        request = scan_request(run, fits[run.name].time_days)
         chosen[run.name] = request.resolve(
             _profile(run, profiles),
             run.conditions,
@@ -796,7 +794,7 @@ def fit_crystal(
     offsets = _warn_best(like, z)
     if len(like.names):
         samples, used, ess, log_z = sample_posterior(
-            like, z, method, n_samples, nlive, seed, ess_fallback, say, whiten=True, scaled=True
+            like, z, method, n_samples, nlive, seed, ess_fallback, say, whiten=True, step=True
         )
     else:
         (samples, log_z), used, ess = _fixed_samples(like), "fixed", math.nan

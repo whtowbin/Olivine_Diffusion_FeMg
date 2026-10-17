@@ -1287,10 +1287,7 @@ def scan_run(
         candidates = candidate_grid(
             run.initial, run.uncertainties, run.scan_points, max_candidates=max_candidates
         )
-    request = run.scan_grid
-    if not request.is_complete():
-        max_time = run.grid.max_time_days if isinstance(run.grid, Grid) else None
-        request = replace(request, max_time_days=request.max_time_days or max_time)
+    request = scan_request(run, time_days)
     grid = request.resolve(
         profile,
         run.conditions,
@@ -1346,6 +1343,26 @@ def _cancellable(
             progress(i, n)
 
     return report
+
+
+# The starting-profile fit's runs model at most this many times the nominal fit's time
+# when scan_max_time_days is blank: the run's own max_time_days (200 days in the paper
+# table) gave Xenocryst_ol6 (0.23 days) a scan of 134,000 time steps. The fit warns when
+# its posterior of time reaches the end of the run.
+SCAN_TIME_FACTOR = 10.0
+
+
+def scan_request(run: Run, time_days: float | None = None) -> GridRequest:
+    """The starting-profile fit's grid request: ``scan_max_time_days`` if given, else the
+    run's ``max_time_days`` capped at `SCAN_TIME_FACTOR` x ``time_days`` (the nominal
+    fit's time, when known)."""
+    request = run.scan_grid
+    if request.is_complete() or request.max_time_days is not None:
+        return request
+    max_time = run.grid.max_time_days if isinstance(run.grid, Grid) else None
+    if max_time is not None and time_days is not None and time_days > 0:
+        max_time = min(max_time, SCAN_TIME_FACTOR * time_days)
+    return replace(request, max_time_days=max_time)
 
 
 def _check_scannable(run: Run) -> None:

@@ -212,3 +212,18 @@ def test_crystal_and_sample_labels_are_carried_through(tmp_path, example):
     run = _read(tmp_path, dict(row, crystal="WHT01_Ol_63", sample="WHT01"))
     assert run.metadata["crystal"] == "WHT01_Ol_63" and run.metadata["sample"] == "WHT01"
     assert _read(tmp_path, run_row(run)) == run
+
+
+def test_the_scan_models_at_most_ten_times_the_fitted_time(tmp_path, example):
+    """A run with a full grid and a long max_time_days (the paper table's 200 days):
+    the starting-profile fit's runs stop at 10x the nominal time unless
+    scan_max_time_days says otherwise."""
+    from forster.io import SCAN_TIME_FACTOR, scan_request
+
+    row, _ = example
+    run = _read(tmp_path, dict(row, dx_um=0.5, dt_s=60.0, max_time_days=200.0))
+    assert scan_request(run, 0.23).max_time_days == pytest.approx(SCAN_TIME_FACTOR * 0.23)
+    assert scan_request(run, 50.0).max_time_days == 200.0
+    given = _read(tmp_path, dict(row, dx_um=0.5, dt_s=60.0, max_time_days=200.0,
+                                 scan_max_time_days=30.0))  # fmt: skip
+    assert scan_request(given, 0.23).max_time_days == 30.0

@@ -270,8 +270,9 @@ PARAMETER_COLUMNS = (
         "scan_max_time_days",
         "days",
         "optional",
-        "Longest time the scan's runs model. Empty: max_time_days if given, else 3x the "
-        "fitted time.",
+        "Longest time the scan's runs model. Empty: max_time_days if given, capped at 10x "
+        "the fitted time, else 3x the fitted time; a warning says if the posterior of time "
+        "reaches the end.",
     ),
     Column(
         "mc_T_sd_C",

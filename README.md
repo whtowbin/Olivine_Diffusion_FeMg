@@ -330,7 +330,7 @@ One row per model run. Fo is a fraction throughout.
 | `scan_points` |  | optional | scan_method grid: points per uncertain parameter (default 13 for one, 9 for two, 5 for more). |
 | `scan_dx_um` | µm | optional | Grid spacing of the initial-condition scan's runs. Empty: chosen for about 5% accuracy (coarser and faster than the final fit). |
 | `scan_dt_s` | s | optional | Time step of the scan's runs. Empty: 1/80 of the nominal fit's time, and for central or dipra at least D dt / dx² = 0.4 for every candidate. |
-| `scan_max_time_days` | days | optional | Longest time the scan's runs model. Empty: max_time_days if given, else 3x the fitted time. |
+| `scan_max_time_days` | days | optional | Longest time the scan's runs model. Empty: max_time_days if given, capped at 10x the fitted time, else 3x the fitted time; a warning says if the posterior of time reaches the end. |
 | `mc_T_sd_C` | °C | optional | Monte Carlo over the conditions and the law (forster.rescale; run when any mc_ spread column is given): 1-sigma of temperature. |
 | `mc_P_sd_Pa` | Pa | optional | Monte Carlo: 1-sigma of pressure. |
 | `mc_fO2_sd_log` | log10 | optional | Monte Carlo: 1-sigma of log10 fO2 (relative to mc_fO2_buffer when given). |

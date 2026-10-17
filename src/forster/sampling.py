@@ -96,10 +96,16 @@ ESS_FALLBACK = 0.25
 # Those profiles had 2-5 uncertain parameters, mostly 3-4. The proposal's ESS fraction
 # falls with the number of parameters even when the posterior is exactly its Laplace
 # Gaussian (`ideal_ess_fraction`: 0.64 at 2, 0.48 at 4, 0.34 at 8, 0.25 at 15), so a joint
-# fit of many parameters scales the threshold by ideal(d) / ideal(ESS_REFERENCE_DIMENSION)
-# (`sample_posterior`'s ``scaled``). Not yet checked against nested-sampling references.
-ESS_REFERENCE_DIMENSION = 4
-MAX_SAMPLE_FACTOR = 4  # scaled: importance samples doubled up to this many x n_samples
+# fit of many parameters uses a sample-count step instead (`sample_posterior`'s ``step``):
+# keep n_samples if ESS/n reaches ideal(d), else draw STEP_FACTOR x n_samples and keep
+# them, falling back to nested sampling only below STEP_ESS_FLOOR. On the paper's two-
+# profile crystals (80 seeded decisions) every result was within 5% of a nested reference
+# (worst 4.6%), no case flipped method between seeds, at 12 s against 116 s per fit for an
+# ESS threshold; the ESS did not predict the error, and nested sampling at nlive 200 was
+# no more accurate (docs/plans/2026-10-16-joint-calibration, 5% tolerance: next to the
+# ~0.1 log uncertainty of the diffusivity laws).
+STEP_FACTOR = 4
+STEP_ESS_FLOOR = 20
 PROPOSAL_DF = 5
 PROPOSAL_INFLATION = 1.5
 HESSIAN_STEP = 0.15  # finite-difference step, in prior spreads
@@ -599,7 +605,7 @@ def sample_posterior(
     ess_fallback: float,
     say: Callable[[str], None],
     whiten: bool = False,
-    scaled: bool = False,
+    step: bool = False,
 ) -> tuple[_Samples, str, float, float]:
     """Samples of the posterior around the best fit ``z`` (prior spreads), the method
     used ("laplace" or "nested"), the importance samples' effective sample size and the
@@ -607,31 +613,26 @@ def sample_posterior(
     "nested" or when "auto" finds the effective sample size below ``ess_fallback`` x
     ``n_samples``. ``whiten``: refine the Laplace covariance (`_laplace_covariance`).
 
-    ``scaled`` (for many parameters): the fallback threshold per sample is
-    ``ess_fallback`` x ideal(d) / ideal(`ESS_REFERENCE_DIMENSION`) (`ideal_ess_fraction`),
-    and while the samples pass it but their ESS is below ``ess_fallback`` x
-    ``n_samples`` (the single-profile fit's standard), their number is doubled, up to
-    `MAX_SAMPLE_FACTOR` x ``n_samples``."""
+    ``step`` (joint fits, many parameters): keep ``n_samples`` if ESS / n reaches
+    `ideal_ess_fraction` (d), else draw `STEP_FACTOR` x ``n_samples`` and keep them;
+    "auto" falls back to nested sampling only when their ESS is below `STEP_ESS_FLOOR`
+    (see the constants for the calibration)."""
     used, ess, log_z = method, math.nan, math.nan
     samples = None
     if method in ("auto", "laplace"):
         say("importance sampling")
-        n, fraction = n_samples, ess_fallback
-        if scaled:
-            d = len(z)
-            fraction *= ideal_ess_fraction(d) / ideal_ess_fraction(ESS_REFERENCE_DIMENSION)
+        n = n_samples
         samples, ess = _importance(like, z, n, seed, whiten)
-        while (
-            scaled
-            and fraction * n <= ess < ess_fallback * n_samples
-            and n < MAX_SAMPLE_FACTOR * n_samples
-        ):
-            n *= 2
-            samples, ess = _importance(like, z, n, seed, whiten)
+        too_few = ess < ess_fallback * n
+        if step:
+            if ess < ideal_ess_fraction(len(z)) * n:
+                n = STEP_FACTOR * n_samples
+                samples, ess = _importance(like, z, n, seed, whiten)
+            too_few = ess < STEP_ESS_FLOOR
         joint = samples.log_w + special.logsumexp(samples.rows, axis=1) - math.log(like.rows)
         log_z = float(special.logsumexp(joint) - math.log(n))
         used = "laplace"
-        if method == "auto" and ess < fraction * n:
+        if method == "auto" and too_few:
             samples = None
     if samples is None:
         say("nested sampling")
