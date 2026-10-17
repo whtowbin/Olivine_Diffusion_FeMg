@@ -1,0 +1,9 @@
+case,role,run,prior,auto_method,auto_best_days,auto_low_days,auto_high_days,nested_best_days,nested_low_days,nested_high_days,nested_range_days,nested_ic_share,nested_seg_mean,nested_seg_sd,nested_method,nested_edge_warning
+full,core,AZ18 WHT06_ol_overgrowth1_prof_1,wide,laplace,1.1236,1.0109,1.304,1.1236,1.0156,1.297,0.2814,0.53701,0.90674,0.00044612,nested,False
+full,core,AZ18 WHT06_ol_overgrowth1_prof_1,pop,laplace,1.2499,2.1441,159.8,1.2499,2.4108,160.71,158.3,0.095791,0.90489,0.0026366,nested,False
+full,core,AZ18 WHT06_ol48_prof 1,wide,laplace,3.213,2.8812,3.7139,3.213,2.8981,3.741,0.84289,0.43572,0.88167,0.00041255,nested,False
+full,core,AZ18 WHT06_ol48_prof 1,pop,laplace,5.049,22.691,166.2,5.049,22.621,166.21,143.59,0.014714,0.89532,0.0054103,nested,False
+truncated,core,AZ18 WHT01_Ol_63_prof_1,wide,laplace,6.7973,5.4554,11.179,6.7973,5.6297,11.532,5.9022,0.60878,0.89836,0.00060417,nested,False
+truncated,core,AZ18 WHT01_Ol_63_prof_1,pop,laplace,12.184,18.418,163.33,12.184,18.394,163.38,144.99,0.10222,0.89689,0.00068171,nested,False
+truncated,core,AZ18 WHT06_ol48_prof 1,wide,laplace,3.213,2.7542,4.0129,3.213,2.757,4.0771,1.32,0.76008,0.88177,0.0010728,nested,False
+truncated,core,AZ18 WHT06_ol48_prof 1,pop,laplace,4.8195,31.216,168.24,4.8195,30.769,168.14,137.37,0.0096492,0.88988,0.0037952,nested,False

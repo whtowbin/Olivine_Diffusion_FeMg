@@ -134,6 +134,15 @@ model, the ranges or the starting-profile fit change, or a new test is run.
 - **Decided:** nothing changed in the paper tables; recommendations await Henry.
 - **Details:** `docs/plans/2026-10-16-dropped-plateau/`.
 
+## 2026-10-16: priors from the crystal population (explored)
+- **Found:** see `docs/plans/2026-10-16-population-priors/README.md`. Also a fault in the
+  starting-profile fit: its first noise model is fitted at the prior's centre and refitted
+  once, so an informative prior centred away from the data inflates the correlated noise
+  4-18x and leaves the time unconstrained (confirmed by holding the noise model; nested
+  sampling rules out a missed mode).
+- **Decided:** fix the noise start (iterate the noise refit and the search until stable)
+  before offering informative priors.
+
 ## Open
 - Make the near-step model part of the fit? (whitening study, follow-ups 1-6).
 - Henry to check the fitted starting profiles of WHT06_ol43 (step 1 moved to 6.7 µm, with

@@ -1,0 +1,38 @@
+crystal,sample,zoning,role,group,profiles,value,error,source,profile_values,profile_errors
+GCB1A R31_MP_Ol5,GCB1A,reverse,edge,GCB1A (reverse),2,0.9151,0.0015277,fitted,0.9134; 0.9175,0.0020; 0.0024
+GCB1A R31_MP_Ol5,GCB1A,reverse,rim,GCB1A (reverse),2,0.93128,0.0037093,fitted,0.9303; 0.9319,0.0059; 0.0048
+GCB1A R31_MP_Ol5,GCB1A,reverse,core,GCB1A,2,0.90401,0.00057383,fitted+measured,0.9025; 0.9052,0.0009; 0.0008
+AZ18 WHT06_ol_overgrowth2,AZ18 WHT06,reverse,rim,AZ18 WHT06 (reverse),1,0.92822,0.00079665,fitted,0.9282,0.0008
+AZ18 WHT06_ol_overgrowth2,AZ18 WHT06,reverse,core,AZ18 WHT06,1,0.9032,0.0015921,fitted,0.9032,0.0016
+AZ18 WHT06_ol_overgrowth1,AZ18 WHT06,reverse,rim,AZ18 WHT06 (reverse),1,0.93245,0.00059667,measured,0.9325,0.0006
+AZ18 WHT06_ol_overgrowth1,AZ18 WHT06,reverse,core,AZ18 WHT06,1,0.90672,0.00048286,fitted,0.9067,0.0005
+AZ18 WHT01_bigol1_overgrowth,AZ18 WHT01,reverse,rim,AZ18 WHT01 (reverse),1,0.91334,0.00094215,fitted,0.9133,0.0009
+AZ18 WHT01_bigol1_overgrowth,AZ18 WHT01,reverse,plateau,AZ18 WHT01 (reverse),1,0.93164,0.0048555,fitted,0.9316,0.0049
+AZ18 WHT01_bigol1_overgrowth,AZ18 WHT01,reverse,core,AZ18 WHT01,1,0.89732,0.00045017,measured,0.8973,0.0005
+AZ18 WHT01_bigol2_overgrowth,AZ18 WHT01,reverse,rim,AZ18 WHT01 (reverse),1,0.9148,0.0005978,fitted,0.9148,0.0006
+AZ18 WHT01_bigol2_overgrowth,AZ18 WHT01,reverse,core,AZ18 WHT01,1,0.89737,0.00034985,measured,0.8974,0.0003
+AZ18 WHT01_Ol_63,AZ18 WHT01,reverse,rim,AZ18 WHT01 (reverse),1,0.91591,0.00052807,fitted,0.9159,0.0005
+AZ18 WHT01_Ol_63,AZ18 WHT01,reverse,core,AZ18 WHT01,1,0.89888,0.00022323,measured,0.8989,0.0002
+AZ18 WHT01_Ol_180,AZ18 WHT01,normal,rim,AZ18 WHT01 (normal),1,0.83213,0.0024523,fitted,0.8321,0.0025
+AZ18 WHT01_Ol_180,AZ18 WHT01,normal,core,AZ18 WHT01,1,0.89478,0.00023092,measured,0.8948,0.0002
+AZ18 WHT01_Ol_181,AZ18 WHT01,normal,rim,AZ18 WHT01 (normal),1,0.79575,0.0024989,fitted,0.7957,0.0025
+AZ18 WHT01_Ol_181,AZ18 WHT01,normal,core,AZ18 WHT01,1,0.89619,0.00035968,measured,0.8962,0.0004
+AZ18 WHT01_Ol_190,AZ18 WHT01,reverse,edge,AZ18 WHT01 (reverse),1,0.90717,0.00096991,fitted,0.9072,0.0010
+AZ18 WHT01_Ol_190,AZ18 WHT01,reverse,core,AZ18 WHT01,1,0.89643,0.00018185,measured,0.8964,0.0002
+AZ18 WHT01_Ol_191,AZ18 WHT01,reverse,edge,AZ18 WHT01 (reverse),1,0.9073,0.0010711,fitted,0.9073,0.0011
+AZ18 WHT01_Ol_191,AZ18 WHT01,reverse,rim,AZ18 WHT01 (reverse),1,0.91649,0.0036465,fitted,0.9165,0.0036
+AZ18 WHT01_Ol_191,AZ18 WHT01,reverse,core,AZ18 WHT01,1,0.89661,0.00015599,measured,0.8966,0.0002
+AZ18 WHT01_Ol_192,AZ18 WHT01,reverse,rim,AZ18 WHT01 (reverse),1,0.91554,0.0002839,measured,0.9155,0.0003
+AZ18 WHT01_Ol_192,AZ18 WHT01,reverse,core,AZ18 WHT01,1,0.89736,0.00021654,measured,0.8974,0.0002
+AZ18 WHT01_Ol_193,AZ18 WHT01,reverse,rim,AZ18 WHT01 (reverse),1,0.91491,0.0016271,fitted,0.9149,0.0016
+AZ18 WHT01_Ol_193,AZ18 WHT01,reverse,core,AZ18 WHT01,1,0.89619,0.00029914,measured,0.8962,0.0003
+Xenocryst_ol6,Xenocryst,normal,edge,Xenocryst (normal),2,0.80499,0.0017222,fitted,0.7971; 0.8054,0.0080; 0.0018
+Xenocryst_ol6,Xenocryst,normal,rim,Xenocryst (normal),2,0.8364,0.00069958,fitted,0.8410; 0.8361,0.0027; 0.0007
+Xenocryst_ol6,Xenocryst,normal,core,Xenocryst,2,0.90521,0.00026107,measured,0.9050; 0.9054,0.0004; 0.0004
+AZ18 WHT06_ol43,AZ18 WHT06,normal,edge,AZ18 WHT06 (normal),1,0.81425,0.0053435,fitted,0.8142,0.0053
+AZ18 WHT06_ol43,AZ18 WHT06,normal,rim,AZ18 WHT06 (normal),1,0.85193,0.00049412,measured,0.8519,0.0005
+AZ18 WHT06_ol43,AZ18 WHT06,normal,core,AZ18 WHT06,1,0.89472,0.00023896,measured,0.8947,0.0002
+Xenocryst_ol23,Xenocryst,normal,rim,Xenocryst (normal),1,0.82568,0.0012659,measured,0.8257,0.0013
+Xenocryst_ol23,Xenocryst,normal,core,Xenocryst,1,0.90443,0.0004818,measured,0.9044,0.0005
+AZ18 WHT06_ol48,AZ18 WHT06,normal,rim,AZ18 WHT06 (normal),1,0.84814,0.00069943,fitted,0.8481,0.0007
+AZ18 WHT06_ol48,AZ18 WHT06,normal,core,AZ18 WHT06,1,0.88138,0.0002049,measured,0.8814,0.0002
