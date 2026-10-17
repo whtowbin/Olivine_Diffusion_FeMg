@@ -39,7 +39,7 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import scipy.linalg as sla
@@ -108,6 +108,30 @@ class Uncertainty:
             raise ValueError(f"uncertainty kind {self.kind!r}; use one of {UNCERTAINTY_KINDS}")
         if not (math.isfinite(self.spread) and self.spread > 0):
             raise ValueError(f"an uncertainty needs a positive spread, got {self.spread}")
+
+
+# A fitted value this many prior sd from its nominal (a Gaussian prior), short of the
+# prior's edge, suggests the prior and the data disagree: the prior then pulls the
+# starting profile, and the time with it (docs/plans/2026-10-16-population-priors).
+PRIOR_CONFLICT_SD = 2.0
+
+
+def warn_prior_conflict(offsets: Mapping[str, float], kinds: Mapping[str, str]) -> None:
+    """Warn for Gaussian-prior parameters fitted `PRIOR_CONFLICT_SD` or more prior sd from
+    their nominal value but inside the prior (its edge has its own warning)."""
+    conflict = {
+        n: z
+        for n, z in offsets.items()
+        if kinds.get(n) == "normal" and PRIOR_CONFLICT_SD <= abs(z) < NORMAL_SPAN - 1e-3
+    }
+    if conflict:
+        listed = ", ".join(f"{n} {z:+.1f} sd" for n, z in conflict.items())
+        notes.warn(
+            f"the data place {listed} from the nominal value: the prior and the data disagree, "
+            "and the prior pulls the fit. Check the prior (one built from other crystals may "
+            "not suit this one) or the starting profile",
+            stacklevel=3,
+        )
 
 
 def parameter_names(initial: InitialCondition) -> tuple[str, ...]:
@@ -339,6 +363,8 @@ class ScanResult:
     # `forster.uncertainty.near_step_check` at the best candidate and time (NaN when not
     # run, as from `fit_candidates` alone)
     near_step_delta_aic: float = math.nan
+    # each scanned value at the best candidate, (value - nominal) / spread (sd or half-width)
+    prior_offsets: dict[str, float] = field(default_factory=dict)
 
     @property
     def best_initial(self) -> InitialCondition:
@@ -460,6 +486,17 @@ def _extend_tails(runs, advances, lasts, W, total_steps):
             return runs
 
 
+def _prior_offsets(prior: CandidateGrid, best: int) -> dict[str, float]:
+    """The best candidate's values in prior units from the nominal (the grid's centre),
+    with `warn_prior_conflict`."""
+    offsets = {}
+    for j, name in enumerate(prior.names):
+        u, grid_nodes = prior.uncertainties[name], prior.nodes[name]
+        offsets[name] = (float(prior.values[best, j]) - float(grid_nodes.mean())) / u.spread
+    warn_prior_conflict(offsets, {n: u.kind for n, u in prior.uncertainties.items()})
+    return offsets
+
+
 def fit_candidates(
     runs: CandidateRuns,
     *,
@@ -521,6 +558,7 @@ def fit_candidates(
     low, high = central_range(weights.sum(axis=0), level)
     marginal = Interval(int(best_row), low, high, int(np.floor(low)), int(np.ceil(high)))
     probability = weights.sum(axis=1) / weights.sum()
+    offsets = _prior_offsets(prior, int(best_candidate)) if prior is not None else {}
     return ScanResult(
         runs,
         chi2,
@@ -532,6 +570,7 @@ def fit_candidates(
         marginal,
         probability,
         prior,
+        prior_offsets=offsets,
     )
 
 

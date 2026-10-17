@@ -1387,10 +1387,15 @@ def _posterior_summary(post: ICPosterior) -> dict[str, Any]:
         "scan_ess": post.ess,
         "scan_log_evidence": post.log_evidence,
         "scan_near_step_daic": post.near_step_delta_aic,
+        "scan_prior_offsets": _offsets_text(post.prior_offsets),
         "scan_dx_um": post.grid.dx_um,
         "scan_dt_s": post.grid.dt_s,
         "scan_max_time_days": post.grid.max_time_days,
     }
+
+
+def _offsets_text(offsets: Mapping[str, float]) -> str:
+    return "; ".join(f"{k}={v:+.2f}" for k, v in offsets.items())
 
 
 def scan_summary(scan: ScanResult | ICPosterior) -> dict[str, Any]:
@@ -1409,6 +1414,7 @@ def scan_summary(scan: ScanResult | ICPosterior) -> dict[str, Any]:
         "scan_candidates": len(scan.runs.candidates),
         "scan_dropped": scan.prior.dropped if scan.prior is not None else 0,
         "scan_near_step_daic": scan.near_step_delta_aic,
+        "scan_prior_offsets": _offsets_text(scan.prior_offsets),
         # The grid as requested, so a refit rebuilds the same one.
         "scan_dx_um": scan.runs.grid.dx_um,
         "scan_dt_s": scan.runs.grid.dt_s,

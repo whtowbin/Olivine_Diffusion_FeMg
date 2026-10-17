@@ -380,6 +380,7 @@ Written by `forster fit`: one row per fitted run with `run`, `profile`, the resu
 | `scan_sensitivity` |  | Sampled: change of the expected time per unit of each parameter (days per um for steps, days per unit Fo fraction), from the posterior samples. |
 | `scan_ess` |  | Sampled: effective sample size of the importance samples (out of 1024); below 256, auto uses nested sampling. |
 | `scan_log_evidence` |  | Sampled: log evidence; compare initial-condition models (one step or two) fitted to the same profile with the same grid. |
+| `scan_prior_offsets` |  | Each fitted starting-profile value's distance from its nominal value, in prior units (sd for _sd, half-width for _range): a_fo=+2.30 is 2.3 sd above. From 2 sd (short of the prior's edge at 2.5) a warning says the prior and the data disagree. |
 | `scan_near_step_daic` |  | near_step_daic at the best-fit initial condition. Fitting the initial condition usually clears a near-step warning; below -6 the misfit is still concentrated near the step, so quote the 2-sigma range. |
 | `mc_method` |  | Monte Carlo: rescale (t = t_fit D_fit / D_draw, exact for a fixed rim) or refit (growth stages: every draw refitted). |
 | `mc_draws` |  | Monte Carlo draws made. |

@@ -311,3 +311,20 @@ def test_cancel_stops_the_sampler_and_the_grid_scan(example):
             cancel=lambda: bool(stages),
         )
     assert stages == ["best fit"]
+
+
+def test_a_conflicting_prior_is_reported_in_prior_sd_and_warned(example):
+    """The data put the edge at 0.912; a Gaussian prior 0.9165 +- 0.002 then holds the
+    best value about 2.2 sd from its nominal (inside the 2.5 sd edge): a warning says
+    the prior and the data disagree, and the offset is reported."""
+    run, _, grid = example
+    profile, truth, _ = _synthetic(example)
+    nominal = replace(truth, edge_fo=0.9165)
+    with pytest.warns(UserWarning, match="the prior and the data disagree"):
+        post = fit_initial_condition(
+            profile, run.conditions, run.orientation, nominal,
+            {"edge_fo": Uncertainty(0.002)}, grid, run.diffusivity, "implicit",
+            method="laplace",
+        )  # fmt: skip
+    assert -2.5 < post.prior_offsets["a_fo"] <= -2.0
+    assert scan_summary(post)["scan_prior_offsets"].startswith("a_fo=-2.")

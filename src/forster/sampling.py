@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import scipy.linalg as sla
@@ -72,6 +72,7 @@ from forster.scan import (
     is_valid,
     parameter_names,
     resolve_names,
+    warn_prior_conflict,
 )
 from forster.uncertainty import (
     ONE_SIGMA,
@@ -261,6 +262,8 @@ class ICPosterior:
     # `forster.uncertainty.near_step_check` at the best initial condition and time (below
     # -6: the misfit is still concentrated near the step)
     near_step_delta_aic: float = math.nan
+    # each parameter's best value, (value - nominal) / spread (prior sd or half-width)
+    prior_offsets: dict[str, float] = field(default_factory=dict)
 
     @property
     def time_days(self) -> float:
@@ -561,6 +564,9 @@ def fit_initial_condition(
             "values beyond it, so the range may be cut short",
             stacklevel=2,
         )
+    offsets = {n: float(zi) for n, zi in zip(like.names, z, strict=True)}
+    kinds = {n: "normal" if k else "uniform" for n, k in zip(like.names, like.normal, strict=True)}
+    warn_prior_conflict(offsets, kinds)
     used, ess, log_z = method, math.nan, math.nan
     samples = None
     if method in ("auto", "laplace"):
@@ -617,4 +623,5 @@ def fit_initial_condition(
         days=summary["days"],
         density=summary["density"],
         near_step_delta_aic=near.delta_aic,
+        prior_offsets=offsets,
     )

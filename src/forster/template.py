@@ -526,6 +526,14 @@ SUMMARY_COLUMNS = (
         "to the same profile with the same grid.",
     ),
     Column(
+        "scan_prior_offsets",
+        "",
+        "",
+        "Each fitted starting-profile value's distance from its nominal value, in prior "
+        "units (sd for _sd, half-width for _range): a_fo=+2.30 is 2.3 sd above. From 2 sd "
+        "(short of the prior's edge at 2.5) a warning says the prior and the data disagree.",
+    ),
+    Column(
         "scan_near_step_daic",
         "",
         "",
