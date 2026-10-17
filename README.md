@@ -234,6 +234,20 @@ One row per analysis point.
 | `distance_um` | µm | required | Distance of the analysis from the crystal edge. |
 | `fo` | fraction | required | Forsterite content, 0-1 (0.895, not 89.5). |
 
+**Importing other layouts (`forster import`).** For a spreadsheet straight from the
+microprobe or another lab, `forster import data.xlsx` proposes a column mapping (which
+column is the profile name, the distance, Fo, each oxide or element, the total, the stage
+coordinates; with units) from the headers and values, writes it to `data.import.json` and
+stops, so you can check and edit it. `forster import data.xlsx --template data.import.json`
+then writes `data_profiles.csv` in the layout above. Without an Fo column, Fo is computed
+in moles from MgO and FeO in wt% (all iron as Fe2+), or from Mg and Fe. Points whose
+analytical total lies outside 98.5-101.5 wt% (`--total-window`) are flagged in the
+`total_ok` column and listed, not dropped. Rows marked in a `Marked_bad` or `Ignore`
+column are left out. The confirmed `.import.json` is an import template: files with the
+same columns import with it directly, and a file with columns it does not know, or
+without ones it needs, stops with a message. From Python: `forster.imports.guess`,
+`ImportTemplate`, `apply`.
+
 ### parameters.csv
 
 One row per model run. Fo is a fraction throughout.

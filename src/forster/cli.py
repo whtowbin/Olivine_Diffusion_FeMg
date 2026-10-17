@@ -304,6 +304,49 @@ def gui_command(args: argparse.Namespace) -> int:
     return gui_main(args.folder)
 
 
+def _mapping_text(template) -> str:
+    rows = [f"  {c.column!r:32} {c.role:9} {c.quantity or '':6} {c.unit or '':9} {c.note}"
+            for c in template.columns]  # fmt: skip
+    return "\n".join(rows)
+
+
+def import_command(args: argparse.Namespace) -> int:
+    """Without --template: guess a mapping, save it as a draft and stop for the user to
+    check it. With --template: import and write a FORSTER profiles table."""
+    from dataclasses import replace
+
+    from forster.imports import ImportTemplate, guess, read_with_template, template_table
+    from forster.io import read_table
+
+    source = Path(args.file)
+    sheet: str | int = args.sheet if args.sheet is not None else 0
+    if args.template is None:
+        draft = Path(args.save_template or source.with_suffix(".import.json"))
+        if draft.exists() and not args.force:
+            raise FileExistsError(f"{draft} exists; check it and pass it as --template, or --force")
+        proposal = guess(read_table(source, sheet), name=draft.name)
+        if args.total_window:
+            proposal = replace(proposal, total_window=tuple(args.total_window))
+        proposal.save(draft)
+        print(f"proposed mapping for {source.name} (not applied):\n{_mapping_text(proposal)}")
+        for note in proposal.notes:
+            print(f"  note: {note}")
+        for problem in proposal.problems():
+            print(f"  to fix: {problem}")
+        print(f"edit {draft} if needed, then run: forster import {source} --template {draft}")
+        return 3
+    template = ImportTemplate.load(args.template)
+    if args.total_window:
+        template = replace(template, total_window=tuple(args.total_window))
+    result = read_with_template(source, template, sheet=sheet)
+    out = Path(args.out or source.with_name(source.stem + "_profiles.csv"))
+    template_table(result.points).to_csv(out, index=False)
+    for note in result.notes:
+        print(note)
+    print(f"wrote {out}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forster",
@@ -354,6 +397,32 @@ def build_parser() -> argparse.ArgumentParser:
         + " (runs named <run>_<choice>)",
     )
     fit.set_defaults(handler=fit_command)
+
+    imp = commands.add_parser(
+        "import",
+        help="import measured profiles from any spreadsheet layout: propose a column "
+        "mapping, then apply a confirmed one (an import template)",
+    )
+    imp.add_argument("file", help="spreadsheet of analysis points (.csv or .xlsx)")
+    imp.add_argument("--sheet", help="Excel sheet (default: the first)")
+    imp.add_argument(
+        "--template",
+        help="confirmed import template (.import.json); without it the command proposes one",
+    )
+    imp.add_argument(
+        "--save-template", help="where to write the proposed template (default FILE.import.json)"
+    )
+    imp.add_argument("--out", help="profiles table to write (default FILE_profiles.csv)")
+    imp.add_argument(
+        "--total-window",
+        nargs=2,
+        type=float,
+        metavar=("LOW", "HIGH"),
+        help="flag points whose analytical total (wt%%) lies outside this window "
+        "(default 98.5 101.5); flagged points are kept",
+    )
+    imp.add_argument("--force", action="store_true", help="overwrite an existing draft")
+    imp.set_defaults(handler=import_command)
 
     gui = commands.add_parser(
         "gui",
