@@ -459,9 +459,7 @@ def test_a_variant_fit_is_keyed_by_its_own_settings(project):
     assert task.run.diffusivity == other and project.run(EXAMPLE).diffusivity != other
     assert task.key != project.result_key(EXAMPLE)
     assert project.variant_task(EXAMPLE).key == project.result_key(EXAMPLE)
-    assert project.cached(task) is None
     outcome = task.run_collecting()
+    assert outcome.result.inputs["diffusivity"] == other
     assert not project.store(task, outcome.result)  # not the run's own settings
-    cached = project.cached(task)
-    assert cached is not None and cached.time_s == outcome.result.time_s
     assert project.result(EXAMPLE) is None

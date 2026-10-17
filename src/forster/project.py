@@ -724,19 +724,11 @@ class Project:
 
     def variant_task(self, name: str, **changes: Any) -> FitTask:
         """The fit of the run with ``changes`` (Run fields; another diffusion equation,
-        say) as a task keyed by those settings; the run itself is not changed. Its result
-        can be read back with `cached` once stored with `store` (which files it under
-        the run only if the changes made no difference)."""
+        say) as a task keyed by those settings; the run itself is not changed. A front
+        end keeps such results itself (the cache holds one entry per run): `store` files
+        one under the run only if the changes made no difference."""
         variant = _reconcile(self.run(name), changes)
         return FitTask(name, self._key(variant, _fit_row(variant)), variant, dict(self.profiles))
-
-    def cached(self, task: FitTask) -> FitResult | None:
-        """The cached result of a task's settings (`variant_task`), or None."""
-        folder = self._cache(task.key)
-        if not (folder / "fit.json").exists():
-            return None
-        _no_links(folder.parents[1], folder.parent, folder, folder / "fit.json", folder / "fit.npz")
-        return _load_fit(folder, task.run)
 
     def store(self, task: FitTask, result: FitResult, warnings: Iterable[str] = ()) -> bool:
         """Cache a task's result (and its warnings, `FitOutcome`) under the settings it

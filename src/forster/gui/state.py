@@ -26,18 +26,23 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from forster.boundary import SECONDS_PER_DAY, Stage
 from forster.diffusivity import FE_MG_CHOICES, label, resolve
-from forster.grid import GridRequest
+from forster.grid import GridRequest, grid_diagnostics
 from forster.io import Run, RunDefaults, scan_summary, uncertainty_columns
 from forster.model import (
     FO2_BUFFERS,
+    SCHEMES,
     Conditions,
+    FitResult,
+    Grid,
     InitialCondition,
     Orientation,
     default_segment_names,
 )
 from forster.plotting import SIGMA
-from forster.project import Project
+from forster.project import FitTask, Project
+from forster.rescale import ConditionUncertainty, PosteriorOfTime, TimeDistribution
 from forster.sampling import METHODS as SAMPLING_METHODS
 from forster.scan import Uncertainty, resolve_names
 
@@ -498,8 +503,12 @@ class RunEditor:
         """(key, label) of the offered Fe-Mg equations, plus the run's own if it uses
         another one (a project equation or preset)."""
         choices = [(alias, text) for alias, (_, text) in FE_MG_CHOICES.items()]
+        presets = {name for name, _ in FE_MG_CHOICES.values()}
+        for name, equation in self.project.diffusivities.items():
+            if equation.element == "Fe-Mg" and name not in presets:
+                choices.append((name, label(equation)))
         current = self.diffusivity_key
-        if current not in FE_MG_CHOICES:
+        if current not in dict(choices):
             choices.append((current, label(self.run.diffusivity)))
         return choices
 
@@ -515,6 +524,309 @@ class RunEditor:
             self.errors["diffusivity"] = str(error)
             return False
         return self._commit("diffusivity", diffusivity=equation)
+
+    def diffusivity_source(self, key: str) -> str:
+        """Where an offered equation comes from (its ``source``), for the tooltip."""
+        try:
+            equation = resolve(key, self.project.diffusivities)
+        except ValueError:
+            return ""
+        return str(getattr(equation, "source", "") or "No source recorded.")
+
+    # -- the Monte Carlo ----------------------------------------------------------------
+
+    def mc_buffers(self) -> list[str]:
+        """The choices for holding fO2 to a buffer in the Monte Carlo: "" (not held: log
+        fO2 drawn on its own) and the buffers. A run whose fO2 is given relative to a
+        buffer is always held (the table reads a blank mc_fO2_buffer as its own)."""
+        buffers = [b for b in FO2_BUFFERS if b != "FMQ"]
+        return buffers if self.run.fO2_form else ["", *buffers]
+
+    def mc_text(self) -> dict[str, str]:
+        """The Monte Carlo fields (``on`` and the flags "yes" / "no"; P in MPa; blank
+        samples: the default)."""
+        run = self.run
+        mc = run.mc or ConditionUncertainty(fO2_buffer=run.fO2_form[0] if run.fO2_form else None)
+        buffer = mc.fO2_buffer or ""
+        return {
+            "on": "yes" if run.mc is not None else "no",
+            "T_sd_C": f"{mc.T_sd_C:.6g}",
+            "P_sd_MPa": f"{mc.P_sd_Pa / 1e6:.6g}",
+            "fO2_sd_log": f"{mc.fO2_sd_log:.6g}",
+            "fO2_buffer": "QFM" if buffer == "FMQ" else buffer,
+            "law": "yes" if mc.law else "no",
+            "between_study": "yes" if mc.between_study else "no",
+            "samples": "" if run.mc_samples is None else str(run.mc_samples),
+            "seed": str(run.mc_seed),
+        }
+
+    def set_mc(self, fields: dict[str, str], edited: str) -> bool:
+        """The Monte Carlo from its fields (`mc_text`); ``on`` "no" turns it off."""
+        if fields["on"] != "yes":
+            return self._commit(edited, mc=None, mc_samples=None, mc_seed=0)
+        try:
+            spreads = [
+                number(fields[k], what) or 0.0
+                for k, what in (
+                    ("T_sd_C", "T sd (°C)"),
+                    ("P_sd_MPa", "P sd (MPa)"),
+                    ("fO2_sd_log", "fO2 sd (log units)"),
+                )
+            ]
+            samples = number(fields["samples"], "Draws", optional=True)
+            seed = number(fields["seed"] or "0", "Seed")
+            for value, what in ((samples, "Draws"), (seed, "Seed")):
+                if value is not None and (value != int(value) or value < 0):
+                    raise ValueError(f"{what}: give a whole number, 0 or more")
+            if samples is not None and samples < 10:
+                raise ValueError("Draws: give at least 10 (blank: the default)")
+            mc = ConditionUncertainty(
+                T_sd_C=spreads[0],
+                P_sd_Pa=spreads[1] * 1e6,
+                fO2_sd_log=spreads[2],
+                fO2_buffer=fields["fO2_buffer"].strip().upper() or None,
+                law=fields["law"] == "yes",
+                between_study=fields["between_study"] == "yes",
+            )
+        except ValueError as error:
+            self.errors[edited] = str(error)
+            return False
+        return self._commit(
+            edited,
+            mc=mc,
+            mc_samples=None if samples is None else int(samples),
+            mc_seed=int(seed or 0),
+        )
+
+    # -- advanced: scheme, grid and growth stages ------------------------------------------
+
+    def grid_text(self) -> dict[str, str]:
+        """``scheme`` and the grid's ``dx_um``, ``dt_s``, ``max_time_days`` (blank: chosen
+        at fit time, `forster.grid.choose_grid`)."""
+        grid = self.run.grid
+        return {
+            "scheme": self.run.scheme,
+            "dx_um": um(grid.dx_um),
+            "dt_s": um(grid.dt_s),
+            "max_time_days": um(grid.max_time_days),
+        }
+
+    def set_scheme(self, scheme: str) -> bool:
+        if scheme not in SCHEMES:
+            self.errors["scheme"] = f"scheme: use one of {', '.join(SCHEMES)}"
+            return False
+        return self._commit("scheme", scheme=scheme)
+
+    def set_grid(self, fields: dict[str, str], edited: str) -> bool:
+        """dx (um), dt (s) and the longest time (days); a blank part is chosen at fit
+        time. With dx and dt both given the grid is fixed, and a blank longest time is the
+        table's default (`forster.io.RunDefaults`)."""
+        try:
+            dx, dt, longest = (
+                number(fields[k], what, optional=True)
+                for k, what in (
+                    ("dx_um", "dx (µm)"),
+                    ("dt_s", "dt (s)"),
+                    ("max_time_days", "Longest time (days)"),
+                )
+            )
+            for value, what in ((dx, "dx"), (dt, "dt"), (longest, "Longest time")):
+                if value is not None and value <= 0:
+                    raise ValueError(f"{what} must be positive")
+        except ValueError as error:
+            self.errors[edited] = str(error)
+            return False
+        if dx is not None and dt is not None:
+            grid = Grid(dx, dt, longest or RunDefaults().max_time_days)
+        else:
+            grid = GridRequest(dx, dt, longest)
+        return self._commit(edited, grid=grid)
+
+    def grid_lines(self) -> list[str]:
+        """What the cached fit's grid was and how well it resolved the fit
+        (`forster.grid.grid_diagnostics`)."""
+        result = self.project.result(self.name)
+        if result is None:
+            return ["Fit the run to see the grid it used."]
+        grid: Grid = result.inputs["grid"]
+        d = grid_diagnostics(result)
+        lines = [
+            f"Used: dx {grid.dx_um:.3g} µm ({len(result.model_x_um)} nodes), "
+            f"dt {grid.dt_s:.4g} s, up to {grid.max_time_days:.4g} days",
+            f"Diffusion length / dx = {d['grid_resolution']:.3g}; error of the time at most "
+            f"about {d['grid_error_pct']:.2g}% (worst case measured)",
+        ]
+        if math.isfinite(d["grid_stability"]):
+            lines.append(
+                f"Stability ratio D·dt/dx² = {d['grid_stability']:.2g} (above 0.5 each step "
+                "is split into stable substeps)"
+            )
+        return lines
+
+    def set_stage_cell(self, row: int, column: str, text: str) -> bool:
+        """A typed value in the growth-stage table (`STAGE_FIELDS`)."""
+        key = f"stage:{row}:{column}"
+        rows = stage_rows(self.run)
+        title = f"stage {row + 1}, {STAGE_TITLES[column]}"
+        try:
+            if column in ("zone_fo", "rim_fo"):
+                value = fraction(text, title, optional=True)
+                if value is not None and not 0 < value <= 1:
+                    raise ValueError(f"{title}: Fo is in mol%, above 0 and at most 100")
+            else:
+                value = number(text, title)
+            rows[row] = replace(rows[row], **{column: value})
+            stages = stages_of(rows)
+        except ValueError as error:
+            self.errors[key] = str(error)
+            return False
+        return self._commit(key, stages=stages)
+
+    def add_stage(self) -> bool:
+        """A new last stage a day after the one before, the rim where it was and its
+        value that of edge 1 (edit from there)."""
+        rows = stage_rows(self.run)
+        days = rows[-1].days + 1 if rows else 1.0
+        rim = rows[-1].rim_um if rows else self.run.initial.domain_um[0]
+        held = self.run.rim_fo or self.run.initial.segment_fo[0]
+        rows.append(StageRow(days, rim, None, held))
+        return self._commit("stages", stages=stages_of(rows))
+
+    def remove_stage(self, row: int) -> bool:
+        rows = stage_rows(self.run)
+        if not 0 <= row < len(rows):
+            return False
+        del rows[row]
+        return self._commit("stages", stages=stages_of(rows))
+
+
+# -- growth stages ----------------------------------------------------------------------
+
+STAGE_FIELDS = ("days", "rim_um", "zone_fo", "rim_fo")
+STAGE_TITLES = {
+    "days": "Starts (days)",
+    "rim_um": "Rim at (µm)",
+    "zone_fo": "New zone Fo (mol%)",
+    "rim_fo": "Rim Fo (mol%)",
+}
+
+
+@dataclass(frozen=True)
+class StageRow:
+    """One growth stage as the table shows it (the parameter table's stage_days,
+    stage_rim_um, stage_zone_fo and stage_rim_fo); Fo as fractions, None when blank."""
+
+    days: float
+    rim_um: float
+    zone_fo: float | None = None
+    rim_fo: float | None = None
+
+
+def stage_rows(run: Run) -> list[StageRow]:
+    """The run's growth stages (fixed rim values only, as the table writes them)."""
+    rows = []
+    for s in run.stages:
+        rim = s.rim_value
+        if rim is not None and not isinstance(rim, int | float):
+            raise ValueError("a rim value that changes in time has no table form")
+        rows.append(
+            StageRow(
+                s.start_s / SECONDS_PER_DAY,
+                s.rim_um,
+                s.zone_value,
+                None if rim is None else float(rim),
+            )
+        )
+    return rows
+
+
+def stages_of(rows: list[StageRow]) -> tuple[Stage, ...]:
+    """Stages from the table (the run's edit checks them as the table reader does)."""
+    return tuple(
+        Stage(r.days * SECONDS_PER_DAY, r.rim_um, rim_value=r.rim_fo, zone_value=r.zone_fo)
+        for r in rows
+    )
+
+
+def stage_text(row: StageRow) -> tuple[str, str, str, str]:
+    return um(row.days), um(row.rim_um), pct(row.zone_fo), pct(row.rim_fo)
+
+
+# -- copying settings between runs ------------------------------------------------------
+
+# What "copy settings to other runs" offers: a group's title and the Run fields it copies.
+COPY_GROUPS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "conditions": ("Conditions (T, P, fO2)", ("conditions",)),
+    "orientation": ("Orientation", ("orientation",)),
+    "equation": ("Diffusion equation", ("diffusivity",)),
+    "uncertainties": (
+        "Starting-profile uncertainties and sampler",
+        ("uncertainties", "scan_method", "scan_seed", "scan_points", "scan_grid"),
+    ),
+    "mc": ("Monte Carlo settings", ("mc", "mc_samples", "mc_seed")),
+    "grid": ("Grid and scheme", ("grid", "scheme")),
+}
+
+
+def copy_settings(project: Project, source: str, targets: list[str], groups: list[str]) -> None:
+    """Copy the chosen groups of settings (`COPY_GROUPS`) from one run to others
+    (`Project.copy_settings`: each target is checked, and none changes if one fails)."""
+    unknown = [g for g in groups if g not in COPY_GROUPS]
+    if unknown:
+        raise ValueError(f"no settings group {unknown[0]!r}")
+    if not groups or not targets:
+        raise ValueError("choose at least one group of settings and one run")
+    fields = [f for g in groups for f in COPY_GROUPS[g][1]]
+    project.copy_settings(source, [t for t in targets if t != source], fields)
+
+
+# -- views: time distributions and the law comparison --------------------------------------
+
+TIME_VIEWS = {
+    "fit": "The fit alone",
+    "start": "With the starting profile",
+    "all": "With conditions and law",
+}
+
+
+TimeView = tuple[FitResult, PosteriorOfTime | None, TimeDistribution | None]
+
+
+def time_view(project: Project, name: str, mode: str) -> TimeView | str:
+    """What `plot_time_distributions` draws for ``mode`` (`TIME_VIEWS`): (fit, starting-
+    profile posterior or None, Monte Carlo or None), or why it cannot yet."""
+    result = project.result(name)
+    if result is None:
+        return "Fit the run first."
+    if result.uncertainty != "correlated":
+        return "The distribution of time needs the correlated uncertainty method."
+    posterior = mc = None
+    if mode in ("start", "all"):
+        scan = project.scan(name) if project.run(name).uncertainties else None
+        if scan is not None and scan.days is not None and scan.density is not None:
+            posterior = PosteriorOfTime(scan.days, scan.density)
+        elif mode == "start":
+            return (
+                "Run 'Fit starting profile' (Uncertainties tab) with a sampler (not grid) "
+                "to see the time with the starting profile's uncertainty."
+            )
+    if mode == "all":
+        record = project.mc(name)
+        if record is None:
+            return "Run the Monte Carlo (Uncertainties tab) to see the time with the conditions."
+        mc = record.distribution
+    return result, posterior, mc
+
+
+def law_tasks(project: Project, name: str) -> list[FitTask]:
+    """The run fitted under its own equation and each other offered Fe-Mg equation, as
+    tasks (`Project.variant_task`), the run's own first."""
+    run = project.run(name)
+    tasks = [project.variant_task(name)]
+    for _, (preset, _label) in FE_MG_CHOICES.items():
+        if preset != run.diffusivity.name:
+            tasks.append(project.variant_task(name, diffusivity=resolve(preset)))
+    return tasks
 
 
 # -- runs and results across the project ------------------------------------------------
@@ -569,6 +881,9 @@ RESULT_COLUMNS = (
     "high_1s",
     "low_2s",
     "high_2s",
+    "mc_median",
+    "mc_low",
+    "mc_high",
     "status",
     "warnings",
 )
@@ -581,6 +896,9 @@ RESULT_TITLES = {
     "high_1s": f"1{SIGMA} high",
     "low_2s": f"2{SIGMA} low",
     "high_2s": f"2{SIGMA} high",
+    "mc_median": "MC median",
+    "mc_low": "MC 16%",
+    "mc_high": "MC 84%",
     "status": "Status",
     "warnings": "Warnings",
 }
@@ -607,6 +925,13 @@ def result_rows(project: Project) -> list[dict[str, Any]]:
                 "low_2s": summary["low2_days"],
                 "high_2s": summary["high2_days"],
             }
+            mc = project.mc(run.name)
+            if mc is not None:
+                row |= {
+                    "mc_median": mc.summary["mc_median_days"],
+                    "mc_low": mc.summary["mc_low_days"],
+                    "mc_high": mc.summary["mc_high_days"],
+                }
         rows.append(row)
     return rows
 
@@ -625,6 +950,9 @@ def summary_table(project: Project) -> pd.DataFrame:
         scan = project.scan(run.name) if run.uncertainties else None
         if scan is not None:
             row |= scan.summary
+        mc = project.mc(run.name)
+        if mc is not None:
+            row |= mc.summary
         row["warnings"] = "; ".join(project.fit_warnings(run.name) or ())
         rows.append(row)
     return pd.DataFrame(rows)
@@ -645,12 +973,20 @@ def scan_lines(summary: dict[str, Any]) -> list[str]:
 
 
 __all__ = [
+    "COPY_GROUPS",
     "SCAN_METHODS",
+    "TIME_VIEWS",
     "RunEditor",
     "SegmentRow",
+    "StageRow",
+    "copy_settings",
+    "law_tasks",
     "new_run",
     "result_rows",
     "scan_lines",
     "scan_summary",
+    "stage_rows",
+    "stages_of",
     "summary_table",
+    "time_view",
 ]
