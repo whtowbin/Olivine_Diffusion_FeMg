@@ -19,7 +19,9 @@ Every upload is confirmed with Henry first.
    - On `testpypi`: limit deployments to `master`.
    - Settings → Rules → Rulesets: a tag ruleset on `v*` that blocks updates and
      deletions, so a released tag cannot be moved to other code.
-   - After any workflow change, run `uvx zizmor .github/workflows/`: it should report no
+   - After any workflow change, run from the repository root
+     `GH_TOKEN=$(gh auth token) uvx zizmor .github/workflows/` (run elsewhere it fails
+     with "invalid input"; without the token it skips the online audits): it should report no
      findings.
 4. **Read the Docs** (readthedocs.org): import the repository; it builds from
    `.readthedocs.yaml`. The project slug `forster` gives https://forster.readthedocs.io
