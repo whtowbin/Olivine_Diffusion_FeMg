@@ -37,9 +37,10 @@ tolerance needs), with no limit from the gaps between steps: the cell average pl
 them exactly. On all 35 real profiles the chosen final grid was within 0.3% of a
 converged reference.
 
-l comes from a quick fit on a coarse grid, using the slowest species' diffusivity at
-the middle of its composition range (for several species, each one's own best time
-would be more exact; the slowest D with the Fo time is the default). `check_grid`
+l comes from a quick fit on a coarse grid (in the fit's own scheme), using the slowest
+species' diffusivity at the middle of its composition range (for several species, each
+one's own best time would be more exact; the slowest D with the Fo time is the
+default). `check_grid`
 reports what is wrong or wasteful about a grid a user gives.
 """
 
@@ -56,7 +57,6 @@ from forster import notes
 from forster.diffusivity import DEFAULT_DIFFUSIVITY, Diffusivity, resolve
 from forster.model import (
     DEFAULT_SCHEME,
-    EXPLICIT_SCHEMES,
     SECONDS_PER_DAY,
     Conditions,
     FitResult,
@@ -235,9 +235,12 @@ def _coarse_time_days(
     max_time_days: float,
     scheme: str,
 ) -> float:
-    """Best-fit time from a quick fit on a coarse grid, refined once if too coarse.
-    Always an explicit scheme ("central" for "implicit"): it needs no time scale."""
-    scheme = scheme if scheme in EXPLICIT_SCHEMES else "central"
+    """Best-fit time from a quick fit on a coarse grid, refined once if too coarse, in the
+    fit's own scheme. Its dt is the larger of the explicit stable step and
+    ``max_time_days / COARSE_MAX_ROWS``: an explicit run substeps within it; the implicit
+    run takes it as is, which on a fine coarse grid is tens of times faster (2026-10-18:
+    24 s to 0.7 s without Numba on a 30-point profile; best times within 0.44% of the
+    explicit estimate's on the 35 paper and round robin runs with automatic grids)."""
     span = initial.domain_um[1] - initial.domain_um[0]
     gap_dx = max(narrowest_gap_um(initial) / MIN_NODES_PER_GAP, span / COARSE_MAX_NODES)
     dx = min(span / COARSE_POINTS, gap_dx)
