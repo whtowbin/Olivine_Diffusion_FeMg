@@ -215,18 +215,21 @@ W = interpolation_matrix(result.model_x_um, fit.x_um)
 r = fit.fo - W @ result.curves[fit.interval.best]
 z = np.linalg.solve(np.linalg.cholesky(fit.noise.covariance(fit.x_um)), r)
 
-legacy = forster.fit_run(replace(run, uncertainty="legacy"), profiles)  # the old rule
+# The old rule (it needs an explicit scheme; the default is the implicit one).
+legacy = forster.fit_run(replace(run, uncertainty="legacy", scheme="central"), profiles)
 ```
 
-For this profile:
+For this profile, the code above gives (default implicit scheme, the template's grid;
+Figure 1 used the explicit scheme and the paper-table grid, hence its 5.10 d and
+4.20–6.19 d):
 
 | Quantity | Value |
 |---|---|
-| Best fit, correlated | 5.10 d |
-| 1σ range, correlated (Δ = 1.08 for 27 points) | 4.20–6.19 d |
+| Best fit, correlated | 5.14 d |
+| 1σ range, correlated (Δ = 1.08 for 27 points) | 4.24–6.21 d |
 | Fitted noise | s = 0.055 Fo, a = 0.044 Fo, L = 4.0 µm |
-| Lag-1 autocorrelation | 0.24 raw, −0.10 whitened |
-| 1σ range, legacy rule | 3.39–8.29 d |
+| Lag-1 autocorrelation | 0.25 raw, −0.10 whitened |
+| 1σ range, legacy rule (explicit scheme) | 3.41–8.21 d |
 
 From the command line, `forster fit` reports the three noise values in
 `summary.csv` as `white_sigma_fo`, `correlated_sigma_fo` and

@@ -4,6 +4,11 @@ from dataclasses import replace
 import pandas as pd
 sys.path.insert(0, "tests"); warnings.simplefilter("ignore")
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _private import write_rows  # noqa: E402  (round robin rows to the submodule)
 from forster import RunDefaults, fit_run, read_profiles, read_runs
 from forster.grid import GridRequest
 
@@ -32,4 +37,4 @@ for runs, profiles in sets:
                 ref = fit_run(replace(r, grid=replace(g, dx_um=g.dx_um / 3, dt_s=g.dt_s / 2)), profiles)
                 out["reference_days"] = ref.time_days
         rows.append(out); print(out, flush=True)
-pd.DataFrame(rows).to_csv(__file__.replace(".py", "2.csv"), index=False)
+write_rows(rows, Path(__file__).stem + "2.csv")

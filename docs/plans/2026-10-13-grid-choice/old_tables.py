@@ -5,6 +5,11 @@ from pathlib import Path
 import pandas as pd
 sys.path.insert(0, "tests"); warnings.simplefilter("ignore")
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _private import write_rows  # noqa: E402  (round robin rows to the submodule)
 from forster import RunDefaults, fit_run, read_profiles, read_runs
 sets = [(read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(max_time_days=730)), read_profiles(ROUND_ROBIN_DATA)),
         (read_runs(PAPER_PARAMS), read_profiles(PAPER_DATA, sheet="Olivine"))]
@@ -24,4 +29,4 @@ for runs, profiles in sets:
             res = fit_run(replace(run, scheme=scheme), profiles)
             out[f"{scheme}_days"], out[f"{scheme}_s"] = res.time_days, time.perf_counter() - t0
         rows.append(out); print(out, flush=True)
-pd.DataFrame(rows).to_csv(__file__.replace(".py", ".csv"), index=False)
+write_rows(rows, Path(__file__).stem + ".csv")

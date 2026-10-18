@@ -36,8 +36,13 @@ The machine has 48 GB and a nearly full disk; it has frozen in swap.
 The round robin profiles (SH63olv066, KS20-527, ...) come from other labs.
 - Raw profiles and plots of them stay in the private submodule `Diffusion Round Robin/`
   (commit and push there, then commit the pointer in the main repo).
-- Derived numbers may sit in public docs until the release; every public file holding
-  them is listed in CHANGELOG "Before release" and must move first. Add new ones there.
+- Results derived from them (times, ranges, noise numbers, per-profile rows, figures) never
+  go in public files either (Henry, 2026-10-17; old commits may keep them).
+  `tests/test_public_tree.py` fails on any tracked file outside the submodule that names a
+  round robin sample, unless it is on its allow-list of code that only reads the private
+  data. Scripts write round robin rows to `Diffusion Round Robin/outputs/public_tree_moved/`
+  and keep only paper rows next to themselves; a table whose numbers would reveal a round
+  robin time is made relative (e.g. times divided by the true time).
 - Never commit round robin data as test fixtures; tests skip when the submodule is absent.
 
 ## Commits

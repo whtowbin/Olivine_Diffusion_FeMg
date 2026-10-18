@@ -57,6 +57,9 @@ ALLOWED = {
         "private figures only with --private, written to the submodule"
     ),
     # Grid-choice benchmarks: run lists of the private profiles (timings and grid errors).
+    "docs/plans/2026-10-13-grid-choice/_private.py": (
+        "sends round robin rows to the submodule, keeps paper rows public"
+    ),
     "docs/plans/2026-10-13-grid-choice/bench_numba.py": "grid benchmark; reads private runs",
     "docs/plans/2026-10-13-grid-choice/calib_grid.py": "grid benchmark; reads private runs",
     "docs/plans/2026-10-13-grid-choice/calib_grid2.py": "grid benchmark; reads private runs",

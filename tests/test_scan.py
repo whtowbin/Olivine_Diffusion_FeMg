@@ -194,7 +194,7 @@ def test_two_parameter_scan_covers_step_and_edge_errors(setup):
         grid,
         stop_early=False,
     )
-    k = round(42.2 * 86400 / grid.dt_s)
+    k = round(40 * 86400 / grid.dt_s)
     truth = runs.at_points[-1][k]
     candidates = replace(
         runs,

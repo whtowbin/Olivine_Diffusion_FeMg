@@ -295,16 +295,16 @@ def test_check_grid_for_the_implicit_scheme(two_step):
     # The explicit schemes substep within it (fit_profile), so it is no error either.
     assert check_grid(big_dt, *args, scheme="central") == []
     assert check_grid(big_dt, *args, scheme="implicit") == []
-    assert check_grid(big_dt, *args, scheme="implicit", time_days=70) == []
+    assert check_grid(big_dt, *args, scheme="implicit", time_days=60) == []
     coarse_dt = replace(big_dt, dt_s=10 * DAY)
     assert any(
         "time steps up to the fit" in m
-        for m in check_grid(coarse_dt, *args, scheme="implicit", time_days=70)
+        for m in check_grid(coarse_dt, *args, scheme="implicit", time_days=60)
     )
     coarse_dx = replace(big_dt, dx_um=20.0)
     assert any(
         "may be off by up to" in m
-        for m in check_grid(coarse_dx, *args, scheme="implicit", time_days=70)
+        for m in check_grid(coarse_dx, *args, scheme="implicit", time_days=60)
     )
 
 

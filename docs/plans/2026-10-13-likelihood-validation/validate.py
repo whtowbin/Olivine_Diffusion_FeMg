@@ -20,7 +20,8 @@ For the two systematic initial-condition errors, the same data are also fitted w
 `forster.scan` over 13 candidates (step position -6..+6 um, or edge Fo -0.006..+0.006),
 giving the profile-likelihood and marginal ranges.
 
-Writes coverage.csv and trials.csv next to this file. Run from the repo root:
+Writes coverage.csv and trials.csv (times relative to the true time) next to this file,
+and trials.csv in time steps to the round robin submodule. Run from the repo root:
     uv run python docs/plans/2026-10-13-likelihood-validation/validate.py [trials]
 """
 
@@ -276,10 +277,38 @@ for name, shifted_initial in SYSTEMATIC.items():
         rows += run_case(geometry, name, setup=setup, scan_runs=scan_runs)
         print(f"{time.perf_counter() - t0:7.1f}s  {geometry} / {name}", flush=True)
 
+# Columns in time steps of the model. The true step is a round robin profile's fitted time,
+# which is private: the public trials.csv holds every step column divided by the true step
+# (so k_true is 1 there); the full table goes to the round robin submodule.
+STEP_COLUMNS = [
+    "k_true", "best", "low", "high", "white_best", "white_low", "white_high",
+    "one_low", "one_high", "post_low", "post_high", "scan_best_row",
+    "scan_profile_low", "scan_profile_high", "scan_marginal_low", "scan_marginal_high",
+]  # fmt: skip
+PRIVATE = (
+    HERE.parents[2]
+    / "Diffusion Round Robin"
+    / "outputs"
+    / "public_tree_moved"
+    / HERE.relative_to(HERE.parents[2])
+)
+
+
+def relative_to_truth(table):
+    out = table.copy()
+    k = table["k_true"].astype(float)
+    for c in STEP_COLUMNS:
+        out[c] = table[c] / k
+    return out
+
+
 if SUMMARISE_ONLY:
     trials = pd.read_csv(HERE / "trials.csv")
 else:
     trials = pd.DataFrame(rows)
+    PRIVATE.mkdir(parents=True, exist_ok=True)
+    trials.to_csv(PRIVATE / "trials.csv", index=False)
+    trials = relative_to_truth(trials)
     trials.to_csv(HERE / "trials.csv", index=False)
 
 

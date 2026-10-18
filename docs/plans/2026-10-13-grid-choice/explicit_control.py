@@ -19,6 +19,11 @@ sys.path.insert(0, "tests")
 warnings.simplefilter("ignore")
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS  # noqa: E402
 
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _private import write_rows  # noqa: E402  (round robin rows to the submodule)
+
 from forster import RunDefaults, fit_profile, read_profiles, read_runs  # noqa: E402
 from forster.model import Profile, _diffusion_model, fe_mg_diffusivity, model_grid  # noqa: E402
 from forster.uncertainty import chi2_per_step, interpolation_matrix, points_in_domain  # noqa: E402
@@ -131,4 +136,4 @@ for run, profiles in cases:
     for k in (5, 8, 12, 20, 30):
         r = {b + "/" + st: run_case(k, b, st) for b in ("ghost", "node") for st in ("snapped", "average")}
         rows.append(dict(run=run.name, k=k, **r))
-pd.DataFrame(rows).to_csv(__file__.replace(".py", ".csv"), index=False)
+write_rows(rows, Path(__file__).stem + ".csv")

@@ -4,6 +4,11 @@ from dataclasses import replace
 import numpy as np, pandas as pd
 sys.path.insert(0, "tests"); warnings.simplefilter("ignore")
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _private import write_rows  # noqa: E402  (round robin rows to the submodule)
 from forster import RunDefaults, fit_profile, read_profiles, read_runs
 from forster.model import Profile, fe_mg_diffusivity
 
@@ -35,4 +40,4 @@ for run, profiles in cases:
         rows.append(dict(run=run.name, k=k, dx_um=dx, ell_um=ell, time_days=r.time_days,
                          low_days=r.time_days + r.time_minus_days, high_days=r.time_days + r.time_plus_days, seconds=el))
         print(f"  k={k:4}: dx {dx:7.3f} um  t {r.time_days:9.4f} d  range {r.time_days + r.time_minus_days:8.3f}-{r.time_days + r.time_plus_days:8.3f}  {el:6.2f} s", flush=True)
-pd.DataFrame(rows).to_csv(sys.argv[1], index=False)
+write_rows(rows, Path(sys.argv[1]).name)

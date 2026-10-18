@@ -114,16 +114,16 @@ def test_check_grid_messages(two_step):
     # A dt above the stable step is split into stable steps by fit_profile: no complaint.
     assert check_grid(Grid(0.5, 10 * good_dt, 100), *args, scheme="central") == []
     assert (
-        check_grid(Grid(0.5, good_dt, 100), *args, time_days=71, purpose="scan", scheme="central")
+        check_grid(Grid(0.5, good_dt, 100), *args, time_days=60, purpose="scan", scheme="central")
         == []
-    )  # l/dx ~ 72; 48 needed for 5%
-    coarse = check_grid(Grid(12.0, 1.0, 100), *args, time_days=71, scheme="central")
+    )  # l/dx ~ 66; 48 needed for 5%
+    coarse = check_grid(Grid(12.0, 1.0, 100), *args, time_days=60, scheme="central")
     assert any("coarse" in m for m in coarse)
     assert any("nodes across the narrowest" in m for m in coarse)
     fine = check_grid(
         Grid(0.05, 0.4 * (0.05e-6) ** 2 / 1e-15, 100),
         *args,
-        time_days=71,
+        time_days=60,
         purpose="scan",
         scheme="central",
     )
@@ -135,17 +135,17 @@ def test_check_grid_messages(two_step):
 def test_grid_request_fills_in_what_is_missing(two_step):
     run, profile = two_step
     args = (profile, run.conditions, run.orientation, run.initial, run.diffusivity)
-    given_dx = GridRequest(dx_um=2.0).resolve(*args, time_days=71, scheme="central")
+    given_dx = GridRequest(dx_um=2.0).resolve(*args, time_days=60, scheme="central")
     assert given_dx.grid.dx_um == 2.0
     dx = actual_dx_um(profile, 2.0, run.initial, "central")
     stable = stable_dt(dx, [(run.diffusivity, fo_range(run.initial))], *args[1:3])
-    assert given_dx.grid.dt_s == max(stable, resolving_dt(71, 0.01))
-    assert given_dx.grid.max_time_days == pytest.approx(3 * 71)
+    assert given_dx.grid.dt_s == max(stable, resolving_dt(60, 0.01))
+    assert given_dx.grid.max_time_days == pytest.approx(3 * 60)
     # A given dt is kept, whatever its stability: the explicit run substeps within it.
-    assert GridRequest(dt_s=1e5).resolve(*args, time_days=71, scheme="central").grid.dt_s == 1e5
+    assert GridRequest(dt_s=1e5).resolve(*args, time_days=60, scheme="central").grid.dt_s == 1e5
     # The implicit scheme (the default) keeps a given dt: it is stable at any dt.
-    implicit = GridRequest(dx_um=2.0).resolve(*args, time_days=71)
-    assert implicit.grid.dt_s == pytest.approx(71 * 86400 * 0.01 / 4)
+    implicit = GridRequest(dx_um=2.0).resolve(*args, time_days=60)
+    assert implicit.grid.dt_s == pytest.approx(60 * 86400 * 0.01 / 4)
 
 
 @pytest.fixture

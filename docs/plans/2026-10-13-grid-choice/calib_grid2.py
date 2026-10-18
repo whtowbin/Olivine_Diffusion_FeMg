@@ -4,6 +4,11 @@ from dataclasses import replace
 import numpy as np, pandas as pd
 sys.path.insert(0, "tests"); warnings.simplefilter("ignore")
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _private import write_rows  # noqa: E402  (round robin rows to the submodule)
 from forster import RunDefaults, fit_profile, read_profiles, read_runs
 from forster.model import Profile, fe_mg_diffusivity
 
@@ -41,4 +46,4 @@ for run, profiles in cases:
             offset = min(abs(step_x - run.initial.steps_um[0]).min(), 99)
             rows.append(dict(run=run.name, k=k, aligned=aligned, dx=dx, step_offset_um=offset, time_days=r.time_days, seconds=time.perf_counter() - tt))
             print(f"  k={k:3d} {'aligned' if aligned else 'as is  '} dx {dx:6.3f}  nearest node to step {offset:5.3f} um  t {r.time_days:9.4f} d  {rows[-1]['seconds']:5.2f} s", flush=True)
-pd.DataFrame(rows).to_csv(sys.argv[1], index=False)
+write_rows(rows, Path(sys.argv[1]).name)
