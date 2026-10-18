@@ -11,6 +11,8 @@
 
 ### Fixed
 
+- **CI green again (2026-10-17).** The test workflow had failed on master since at least 2026-10-16: the GUI tests could not load Qt on the Linux runner (the workflow now installs libEGL and the other Qt libraries and runs Qt offscreen); `fit_element` on a profile without zoning missed its "does not constrain a diffusion time" warning on Linux, where rounding put the minimum of a flat chi-squared at a row other than zero (it now also warns when the 1-sigma range spans every modelled row); a test compared a joint and a single fit's chi-squared bit for bit, which differs in the last bits on Linux (now to 1e-12).
+
 - **The starting-profile fit no longer fits its noise model at the prior's centre (2026-10-16).** `fit_initial_condition` fitted the first noise model at the nominal starting profile and refitted it once at the optimum. With an informative prior centred away from what the data favour (a population prior, `docs/plans/2026-10-16-population-priors`), the correlated term absorbed that misfit (4-18x larger), the search then stayed off, and the time range spread over the whole run (WHT06_ol_overgrowth1: 2.1-160 days against 1.01-1.31). The first search now scores with white noise, the noise model is fitted at that data-driven optimum, and it is refitted at each new optimum until stable (at most 4 times). A synthetic profile with a prior 2 sd off: correlated term 0.023 instead of 0.12 mol%, and the range covers the true time. The template example's sampled range moves by about 1% (5.57-7.62 to 5.68-7.62 days); grid scans are unchanged.
 
 ### Added

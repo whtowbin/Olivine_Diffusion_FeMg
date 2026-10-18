@@ -227,7 +227,7 @@ def test_early_stopping_gives_the_same_element_fit(synthetic):
 
 
 def test_joint_fit_with_fo_alone_equals_fit_profile(synthetic, monkeypatch):
-    monkeypatch.setattr(compiled, "_kernels", None)  # bit for bit: both on the NumPy steppers
+    monkeypatch.setattr(compiled, "_kernels", None)  # both on the NumPy steppers
     fo_profile = synthetic[0]
     joint = fit_joint(fo_profile, [], CONDITIONS, ALONG_001, FO_INITIAL, {}, FIT_GRID)
     single = fit_profile(
@@ -239,7 +239,9 @@ def test_joint_fit_with_fo_alone_equals_fit_profile(synthetic, monkeypatch):
         single.time_minus_s,
         single.time_plus_s,
     )
-    assert np.array_equal(joint.chi2, single.sum_chi2)
+    # Same rows and times; chi-squared to rounding (the two paths sum in a different order,
+    # which differs in the last bits on Linux).
+    np.testing.assert_allclose(joint.chi2, single.sum_chi2, rtol=1e-12)
 
 
 def test_joint_fit_of_fo_and_ni_is_at_least_as_tight_as_either(synthetic):

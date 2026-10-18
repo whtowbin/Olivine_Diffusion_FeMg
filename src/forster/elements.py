@@ -526,11 +526,16 @@ def _run(setup: _Setup, grid: Grid, stop_early: bool) -> tuple[np.ndarray, _Join
     )
 
 
-def _warn_if_unconstrained(name: str, best: int) -> None:
-    if best == 0:
+def _warn_if_unconstrained(name: str, interval: Any, n_rows: int) -> None:
+    # With no zoning chi-squared is flat in time, so its minimum is set by rounding in the
+    # solver (row 0 on one machine, another row elsewhere); a range spanning every
+    # modelled row says the same thing.
+    flat = interval.low_row == 0 and interval.high_row == n_rows - 1
+    if interval.best == 0 or flat:
         warnings.warn(
-            f"{name}: the best fit is at time zero, so the profile does not constrain a "
-            "diffusion time (zoning within the noise, or the initial condition is wrong)",
+            f"{name}: the profile does not constrain a diffusion time (the best fit is at "
+            "time zero or the 1-sigma range spans every modelled time: zoning within the "
+            "noise, or the initial condition is wrong)",
             stacklevel=3,
         )
 
@@ -560,7 +565,8 @@ def fit_element(
     The result's Fo-named fields (``data_fo``, ``fit_fo``) hold the element's values;
     ``element`` names it. ``inputs["element_initial"]`` is the starting profile used,
     with fitted concentrations at the best fit; ``curves`` hold those concentrations
-    at every row. Warns if the best fit is at time zero.
+    at every row. Warns if the profile does not constrain a time (best fit at time zero, or a
+    1-sigma range spanning every modelled row).
     """
     element = profile.element
     setup = _setup(
@@ -578,7 +584,7 @@ def fit_element(
     packed, joint = _run(setup, grid, stop_early)
     (observed,) = setup.observed
     fit, span = joint.fits[element], joint.interval
-    _warn_if_unconstrained(f"{profile.name} {element}", span.best)
+    _warn_if_unconstrained(f"{profile.name} {element}", span, len(joint.chi2))
     init = setup.initials[element]
     if isinstance(init, FittedInitial):
         init = observed.initial_at(fit, span.best, init.steps_for(fo_initial))

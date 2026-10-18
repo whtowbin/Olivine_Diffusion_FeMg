@@ -208,7 +208,11 @@ def run_case(geometry, noise_name, setup=None, scan_runs=None):
                 "post_high": post.high,
                 "post_covered": post.low <= k <= post.high,
                 "scan_best_row": scan.best_row if scan else np.nan,
-                "scan_best_step_um": scan.best_initial.steps_um[0] if scan else np.nan,
+                # Offset from the nominal step: the nominal position is the round robin
+                # profile's (private) starting profile.
+                "scan_best_step_offset_um": (
+                    scan.best_initial.steps_um[0] - ks_init.steps_um[0] if scan else np.nan
+                ),
                 "scan_profile_low": scan.profile.low if scan else np.nan,
                 "scan_profile_high": scan.profile.high if scan else np.nan,
                 "scan_marginal_low": scan.marginal.low if scan else np.nan,
