@@ -85,7 +85,8 @@ COARSE_MIN_RESOLUTION = 8.0  # refine the coarse fit once if l / dx is below thi
 COARSE_MAX_NODES = 600
 # Most time steps the coarse fit records: above this its dt is longer than the stable
 # step and the explicit run takes stable substeps within it (`fit_profile`), so a dense
-# profile (SH63olv066-1: 9.1 GB of rows at the stable step) stays small.
+# profile (a round robin profile of 298 points: 9.1 GB of rows at the stable step) stays
+# small.
 COARSE_MAX_ROWS = 20_000
 MAX_GAP_NODES = 5000
 COST_FACTOR = 4.0  # warn of wasted time when a grid is this much finer than needed

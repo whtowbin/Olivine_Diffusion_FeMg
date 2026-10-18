@@ -56,7 +56,8 @@ FORSTER issues these warnings about the noise and the profile:
   study it fired in at most 0.2% of synthetic fits whose noise model was right, and in
   76–94% of fits with strong misfit near the step on 29- and 298-point profiles. On a
   17-point profile it caught only 14–37%, so silence on a short profile is weak
-  evidence. It fires on 7 of the 36 real profiles tested.
+  evidence. Among the real profiles tested it fires on three of the paper profiles and
+  on some of the dense round robin profiles.
 - **"the misfit spans the profile"** when L reaches half the profile and a is at least
   half of s. Check the initial and boundary conditions.
 - **"even at the best-fit initial condition the misfit is concentrated near the step"**
@@ -199,7 +200,7 @@ fitted with the default noise model (blue) and the near-step model (orange):
 
 In all three the residuals are largest in the yellow near-step zone. The near-step
 best fit can move either way, and in two of the three it falls outside the default 1σ
-range. In all three it lies inside the default 2σ range, and the same holds for the four
+range. In all three it lies inside the default 2σ range, and the same holds for the
 dense round robin profiles that trigger the warning. **When the warning fires, the 2σ
 range is the honest quote.**
 

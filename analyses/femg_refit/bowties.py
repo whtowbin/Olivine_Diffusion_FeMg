@@ -2,11 +2,11 @@
 
 One figure per law form x method in figures/bowties/<form>__<method>.png. Each has
 two panels: (a) at the centre of the data (fO2 1e-7 Pa, Fo90, 1 atm, [001]) and
-(b) at the round robin KS20 conditions (fO2 1.38e-3 Pa, Fo85, 42 MPa, [001]). The
-data are moved to each panel's conditions by that fit itself; bands are the
-16-84% and 2.5-97.5% quantiles of the predicted log D over parameter draws (the
-bootstrap resamples, or draws from the fit's covariance), as in Henry's
-odr_bootstrap. A paragraph under each figure says what is particular to that form
+(b) at the RR1200 conditions (the round robin 1200 C conditions: fO2 1.38e-3 Pa,
+Fo85, 42 MPa, [001]). The data are moved to each panel's conditions by that fit
+itself; bands are the 16-84% and 2.5-97.5% quantiles of the predicted log D over
+parameter draws (the bootstrap resamples, or draws from the fit's covariance), as in
+Henry's odr_bootstrap. A paragraph under each figure says what is particular to that form
 and method, with numbers from the fit.
 
 Run: uv run --with odrpack python analyses/femg_refit/bowties.py
@@ -97,7 +97,7 @@ METHOD_TEXT = {
 
 PANELS = {
     "a": ("centre of the data: fO2 1e-7 Pa, Fo90, 1 atm", -7.0, 0.90, 1e5),
-    "b": ("round robin KS20: fO2 1.4e-3 Pa, Fo85, 42 MPa", math.log10(0.00138), 0.85, 4.2e7),
+    "b": ("round robin RR1200: fO2 1.4e-3 Pa, Fo85, 42 MPa", math.log10(0.00138), 0.85, 4.2e7),
 }
 
 
@@ -142,7 +142,7 @@ def _change(a: float, b: float) -> str:
 MOVE_BINS = ((0.0, 0.03, 1.0), (0.03, 0.1, 0.55), (0.1, np.inf, 0.28))
 
 
-def _summary(form: F.Form, fit: dict, band_a: float, band_b: float, at_ks20: float) -> str:
+def _summary(form: F.Form, fit: dict, band_a: float, band_b: float, at_rr1200: float) -> str:
     p = dict(zip(form.params, fit["beta"], strict=True))
     se = dict(zip(form.params, np.sqrt(np.diag(fit["cov"])), strict=True))
     bits = []
@@ -154,7 +154,7 @@ def _summary(form: F.Form, fit: dict, band_a: float, band_b: float, at_ks20: flo
         # The fO2 x 1/T term moves part of the T dependence: E = -R (q + g ln fO2[bar]).
         e_at = {
             label: -F.R * (p["q"] + p["g_fT"] * (log_pa - 5) * LN10) / 1e3
-            for label, log_pa in (("1e-7 Pa", -7.0), ("KS20 fO2", math.log10(0.00138)))
+            for label, log_pa in (("1e-7 Pa", -7.0), ("RR1200 fO2", math.log10(0.00138)))
         }
         bits.append(
             "E = "
@@ -177,9 +177,10 @@ def _summary(form: F.Form, fit: dict, band_a: float, band_b: float, at_ks20: flo
         )
     return (
         "; ".join(bits)
-        + f". At 1200 C, D[001] is {at_ks20:+.2f} log units from the default (Dohmen & Chakraborty"
-        f" 2007) at the KS20 conditions. The 68% band at 1200 C is +-{band_a:.2f} log at the data's"
-        f" centre and +-{band_b:.2f} at the KS20 fO2 ({_change(band_a, band_b)})."
+        + f". At 1200 C, D[001] is {at_rr1200:+.2f} log units from the default (Dohmen &"
+        f" Chakraborty 2007) at the RR1200 conditions. The 68% band at 1200 C is"
+        f" +-{band_a:.2f} log at the data's centre and +-{band_b:.2f} at the RR1200 fO2"
+        f" ({_change(band_a, band_b)})."
     )
 
 
@@ -193,7 +194,7 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
         "a": fig.add_axes((0.07, 0.38, 0.40, 0.47)),
         "b": fig.add_axes((0.57, 0.38, 0.40, 0.47)),
     }
-    widths, at_ks20 = {}, 0.0
+    widths, at_rr1200 = {}, 0.0
     for key, (title, log_fo2, x_fo, p_pa) in PANELS.items():
         ax = axd[key]
         v = _grid(t, log_fo2, x_fo, p_pa)
@@ -256,7 +257,7 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
         i1200 = int(np.argmin(np.abs(t - 1200)))
         widths[key] = (hi68[i1200] - lo68[i1200]) / 2
         if key == "b":
-            at_ks20 = (
+            at_rr1200 = (
                 best[i1200]
                 - _published("dohmen_chakraborty2007", t[i1200 : i1200 + 1], log_fo2, x_fo, p_pa)[0]
             )
@@ -286,7 +287,7 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
         [
             FORM_TEXT[form.name],
             METHOD_TEXT[method],
-            _summary(form, fit, widths["a"], widths["b"], at_ks20),
+            _summary(form, fit, widths["a"], widths["b"], at_rr1200),
             "Points are moved to each panel's conditions by this fit: dark bars are the "
             "measurement error, light bars add the uncertainty of that move, and fainter points "
             "were moved further (correction 1-sigma over 0.03 or 0.1 log). The move's "
@@ -296,8 +297,8 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
     )
     fig.text(0.07, 0.27, textwrap.fill(body, 96), va="top", ha="left", fontsize=7.8)
     fig.suptitle(
-        f"{form.name}, {method}: D[001] at 1200 C and the KS20 fO2 is {at_ks20:+.2f} log from the "
-        f"default;\nits 68% band there is +-{widths['b']:.2f} log, "
+        f"{form.name}, {method}: D[001] at 1200 C and the RR1200 fO2 is {at_rr1200:+.2f} log "
+        f"from the default;\nits 68% band there is +-{widths['b']:.2f} log, "
         f"against +-{widths['a']:.2f} at the centre of the data",
         fontsize=10,
         y=0.985,
@@ -305,7 +306,7 @@ def figure(form: F.Form, method: str, fit: dict, df: pd.DataFrame, rng: np.rando
     name = f"{form.name}__{method.split(' ')[0]}.png"
     fig.savefig(OUT / name, dpi=170)
     plt.close(fig)
-    return name, at_ks20, widths["a"], widths["b"]
+    return name, at_rr1200, widths["a"], widths["b"]
 
 
 def main() -> None:
@@ -322,9 +323,9 @@ def main() -> None:
                     "figure": name,
                     "form": form.name,
                     "method": method,
-                    "minus_default_1200C_KS20": d,
+                    "minus_default_1200C_RR1200": d,
                     "band68_centre": wa,
-                    "band68_KS20": wb,
+                    "band68_RR1200": wb,
                 }
             )
     summary = pd.DataFrame(rows)

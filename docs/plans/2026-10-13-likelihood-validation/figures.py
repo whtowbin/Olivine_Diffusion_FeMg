@@ -1,8 +1,11 @@
 """Figures for docs/references/likelihood-method.md.
 
-Reads coverage.csv, trials.csv and real_profiles.csv (from validate.py and
-diagnostics.py) and refits one round robin profile for the worked example. Writes
-PNG files to docs/references/figures/likelihood/. Run from the repo root:
+Reads coverage.csv, trials.csv, real_profiles.csv and real_methods.csv (from
+validate.py, diagnostics.py and compare_real.py) and fits AZ18 WHT01_Ol_63_prof_1
+(Towbin and Plank 2026, the profile of the `forster template` example) with its
+paper-table settings for the worked example. The public CSVs
+hold the paper profiles only; the round robin rows are private. Writes PNG files
+to docs/references/figures/likelihood/. Run from the repo root:
     uv run python docs/plans/2026-10-13-likelihood-validation/figures.py
 """
 
@@ -11,6 +14,7 @@ from __future__ import annotations
 
 import sys
 import warnings
+from dataclasses import replace
 from pathlib import Path
 
 import matplotlib as mpl
@@ -24,9 +28,9 @@ REPO = HERE.parents[2]
 OUT = REPO / "docs" / "references" / "figures" / "likelihood"
 OUT.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(REPO / "tests"))
-from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS  # noqa: E402
+from conftest import PAPER_DATA, PAPER_PARAMS  # noqa: E402
 
-from forster import RunDefaults, fit_run, read_profiles, read_runs  # noqa: E402
+from forster import fit_run, read_profiles, read_runs  # noqa: E402
 from forster.uncertainty import (  # noqa: E402
     chi2_per_step,
     delta_chi2_interval,
@@ -70,13 +74,27 @@ def save(fig, name):
     plt.close(fig)
 
 
-# 1. Worked example ----------------------------------------------------------------
-run = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(max_time_days=730))}[
-    "KS20-527_2-transect-1"
-]
+def geometry_label(geometry, wrap=0):
+    """Geometry label for a figure, in µm. wrap=1 puts "(measured positions)" on its own
+    line; wrap=2 also breaks after the point count."""
+    text = geometry.replace(" um", " µm")
+    if wrap:
+        text = text.replace(" (measured", "\n(measured")
+    if wrap == 2:
+        text = text.replace(", ", ",\n", 1)
+    return text
+
+
+# 1. Worked example: the profile of the `forster template` example --------------------
+run = {r.name: r for r in read_runs(PAPER_PARAMS)}["AZ18 WHT01_Ol_63_prof_1"]
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    res = fit_run(run, read_profiles(ROUND_ROBIN_DATA))
+    res = fit_run(
+        # The explicit scheme, as in the validation runs of 2026-10-13 (real_methods.csv).
+        replace(run, uncertainty="correlated", scheme="central"),
+        read_profiles(PAPER_DATA, sheet="Olivine"),
+        keep_curves=True,
+    )
 x, y, noise, dt = res.fit_x_um, res.fit_fo, res.noise, res.dt_s
 W = interpolation_matrix(res.model_x_um, x)
 curves = res.curves[: 3 * res.indices[0]]
@@ -148,11 +166,12 @@ ax.set(
     xlim=(0.4 * res.time_days, 1.6 * res.time_days),
     xlabel="Time (days)",
     ylabel="χ² − minimum",
-    title=f"c  χ² against time\n1σ: {w_lo:.0f}–{w_hi:.0f} d → {c_lo:.0f}–{c_hi:.0f} d",
+    title=f"c  χ² against time\n1σ: {w_lo:.1f}–{w_hi:.1f} d → {c_lo:.1f}–{c_hi:.1f} d",
 )
 ax.legend(**BELOW)
+print(f"fig 1: independent {w_lo:.2f}-{w_hi:.2f} d, correlated {c_lo:.2f}-{c_hi:.2f} d")
 fig.suptitle(
-    "KS20-527_2-transect-1: correlated residuals widen the 1σ range "
+    f"{run.name.replace('AZ18 ', '')}: correlated residuals widen the 1σ range "
     f"{(c_hi - c_lo) / (w_hi - w_lo):.1f}×",
     x=0.0,
     ha="left",
@@ -203,7 +222,7 @@ for ax, noise_name, title in zip(axes, panels, titles, strict=True):
     ax.set(xlim=(0, 100), title=title, xticks=[0, 50, 100])
     ax.grid(axis="y", visible=False)
 axes[0].set_yticks(range(len(geometries)))
-axes[0].set_yticklabels([g.replace(" um", " µm") for g in reversed(geometries)])
+axes[0].set_yticklabels([geometry_label(g, wrap=1) for g in reversed(geometries)])
 axes[2].set_xlabel("Coverage of the true time (%)", loc="left")
 fig.legend(*axes[0].get_legend_handles_labels(), loc="outside lower center", ncol=2)
 dense = smooth_rows[smooth_rows.n_points >= 29]
@@ -247,7 +266,7 @@ for ax, g in zip(axes, geometries, strict=True):
             )
         ax.annotate(f"{share:.0%}", (true_L, 0.42), ha="center", fontsize=7, color="0.35")
     ax.set(
-        xscale="log", yscale="log", xlim=(1.5, 60), ylim=(0.3, 300), title=g.replace(" um", " µm")
+        xscale="log", yscale="log", xlim=(1.5, 60), ylim=(0.3, 300), title=geometry_label(g, wrap=2)
     )
     ax.title.set_fontsize(8.5)
 for ax in grid[:, 0]:
@@ -269,7 +288,7 @@ save(fig, "fig3_length.png")
 # 4. Real profiles -----------------------------------------------------------------
 fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.4), layout="constrained")
 ax = axes[0]
-sets = {"round robin": ("o", OKABE_ITO[5]), "Towbin and Plank 2026": ("s", OKABE_ITO[1])}
+sets = {"Towbin and Plank 2026": ("s", OKABE_ITO[1])}  # the round robin rows are private
 found = real[real.corr_sigma_fo > 0]
 ax.plot([0.3, 30], [0.3, 30], color=GREY, lw=0.8)
 for label, (marker, color) in sets.items():
@@ -326,7 +345,7 @@ ax.set_title(
 )
 ax.legend(loc="lower right")
 fig.suptitle(
-    "Real profiles: the fitted noise model leaves near-white residuals",
+    "Towbin and Plank (2026) profiles: the fitted noise model leaves near-white residuals",
     x=0.0,
     ha="left",
     fontsize=10,
@@ -365,7 +384,10 @@ for ax, noise_name, title in zip(
     ax.grid(axis="y", visible=False)
 axes[0].set_yticks(range(len(geometries)))
 axes[0].set_yticklabels(
-    [g.replace(" um", " µm").replace(", measured", "") for g in reversed(geometries)]
+    [
+        geometry_label(g).replace(" (measured positions)", "").replace(", ", ",\n")
+        for g in reversed(geometries)
+    ]
 )
 axes[1].set_yticks(range(len(geometries)))
 axes[1].set_yticklabels([])
@@ -433,8 +455,8 @@ style = {
     "step scan, marginal": (SCAN, "^"),
 }
 profiles_shown = list(dict.fromkeys(methods.run))
-fig, axes = plt.subplots(2, 3, figsize=(7.2, 4.6), layout="constrained")
-for ax, name in zip(axes.ravel(), profiles_shown, strict=True):
+fig, axes = plt.subplots(1, len(profiles_shown), figsize=(7.2, 2.8), layout="constrained")
+for ax, name in zip(axes, profiles_shown, strict=True):
     sub = methods[methods.run == name].set_index("method").loc[order]
     yy = np.arange(len(order))[::-1]
     for y_, (m, row) in zip(yy, sub.iterrows(), strict=True):
@@ -442,21 +464,21 @@ for ax, name in zip(axes.ravel(), profiles_shown, strict=True):
         ax.hlines(y_, row.low_days, row.high_days, color=color, lw=2)
         ax.plot(row.best_days, y_, marker, color=color, ms=4)
     ax.set_yticks(yy)
-    ax.set_yticklabels(order if ax in axes[:, 0] else [], fontsize=7.5)
+    ax.set_yticklabels(order if ax is axes[0] else [], fontsize=7.5)
     n = int(sub.n_points.iloc[0])
-    short = (
-        name.replace("AZ18 ", "").replace("_prof_1", "").replace("KS20-527_2-transect-", "KS2 t")
-    )
+    short = name.replace("AZ18 ", "").replace("_prof_1", "")
     ax.set_title(f"{short} ({n} pts)", fontsize=8)
     ax.set_xlabel("Time (days)", fontsize=8)
     ax.grid(axis="y", visible=False)
-ks = methods[methods.run == "KS20-527_2-transect-1"].set_index("method")
+ol63 = methods[methods.run == "AZ18 WHT01_Ol_63_prof_1"].set_index("method")
 fig.suptitle(
-    "Where the step position is uncertain it dominates: on KS20-527_2-transect-1\n"
-    f"the scan moves the time from {ks.loc['small-sample (default)', 'best_days']:.0f} d (step "
-    f"{ks.loc['step scan, marginal', 'nominal_steps_um']} µm) to "
-    f"{ks.loc['step scan, profile', 'best_days']:.0f} d (step "
-    f"{ks.loc['step scan, marginal', 'best_steps_um']} µm)",
+    "A step scan widens the range where step and time trade off: on WHT01_Ol_63 the best step\n"
+    f"moves from {ol63.loc['step scan, marginal', 'nominal_steps_um']} to "
+    f"{ol63.loc['step scan, marginal', 'best_steps_um']} µm and the range from "
+    f"{ol63.loc['small-sample (default)', 'low_days']:.1f}–"
+    f"{ol63.loc['small-sample (default)', 'high_days']:.1f} d to "
+    f"{ol63.loc['step scan, profile', 'low_days']:.1f}–"
+    f"{ol63.loc['step scan, profile', 'high_days']:.1f} d (profile range)",
     x=0.0,
     ha="left",
     fontsize=9.5,

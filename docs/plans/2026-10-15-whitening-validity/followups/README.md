@@ -135,13 +135,13 @@ Fo. Time shift is the near-step model's best fit against the default's.
   is 1.7 to 2.4. The implied ratio is the higher of the two on all three, most of all
   on Xenocryst_ol6_prof_1, which has only 6 points near the step. Part of the misfit near
   the step is taken up by the fitted time itself, which lowers the measured ratio. On the
-  dense round robin profiles the two ratios agree within 0.18.
+  dense round robin profiles the two ratios agree closely (private file).
 - **Where the check is quiet (dAIC > −2), h is meaningless**, even when it sits at 100
   (WHT01_Ol_63, WHT01_Ol_180, GCB1A prof 2): its interval includes 0 and has no upper
   limit.
 - **Time shifts barely move.** The near-step model's best fit moves by the same amount
   under both fits within 2 points on every paper profile. The round robin profiles
-  differ by up to 5 points (private file).
+  differ by more (private file).
 
 **Synthetic profiles, grid against continuous h** (dAIC < −6, 2000 draws each). "1% point":
 the dAIC that 1% of draws fall below. "Largest drop": the most the continuous fit

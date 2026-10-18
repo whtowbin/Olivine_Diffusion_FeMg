@@ -4,7 +4,8 @@ For each of the 17 round robin and 18 Towbin and Plank (2026) runs, fits with
 ``stop_early=True`` (the default) and ``False`` and compares the best fit, the 1-sigma
 range and the noise model; reports the time modelled and the wall time of each.
 
-Writes early_stop.csv next to this file. Run from the repo root:
+Writes early_stop.csv next to this file (paper rows only; the full table, with the
+round robin rows, goes to the private round robin submodule). Run from the repo root:
     uv run python docs/plans/2026-10-13-likelihood-validation/early_stop_check.py
 """
 
@@ -29,6 +30,23 @@ from conftest import (  # noqa: E402
 
 from forster import RunDefaults, fit_profile, read_profiles, read_runs  # noqa: E402
 from forster.model import Profile  # noqa: E402
+
+PRIVATE = (
+    HERE.parents[2]
+    / "Diffusion Round Robin"
+    / "outputs"
+    / "public_tree_moved"
+    / HERE.relative_to(HERE.parents[2])
+)
+
+
+def write_table(table, name, **kwargs):
+    """The round robin rows are private (other labs' data): the full table goes to the
+    round robin submodule, the public copy next to this file keeps the paper rows."""
+    PRIVATE.mkdir(parents=True, exist_ok=True)
+    table.to_csv(PRIVATE / name, index=False, **kwargs)
+    table[table["set"] != "round robin"].to_csv(HERE / name, index=False, **kwargs)
+
 
 SETS = {
     "round robin": (
@@ -95,7 +113,7 @@ for label, (runs, profiles) in SETS.items():
         del full, early
 
 table = pd.DataFrame(rows)
-table.to_csv(HERE / "early_stop.csv", index=False, float_format="%.6g")
+write_table(table, "early_stop.csv", float_format="%.6g")
 print(
     f"identical best fit and noise model: {int((table.same_best & table.same_noise).sum())} of "
     f"{len(table)}; max |range end difference| "

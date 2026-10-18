@@ -44,10 +44,10 @@ Two questions Henry approved on 2026-10-14:
 
 ## Results
 
-Log units throughout. "vs DC07" is D[001] at the KS20 conditions (1200 C, fO2 1.4e-3 Pa,
+Log units throughout. "vs DC07" is D[001] at the RR1200 conditions (the round robin 1200 C conditions: 1200 C, fO2 1.4e-3 Pa,
 Fo85, 42 MPa).
 
-| Fit | n | tau (95%) | sd within | m | E (kJ/mol) | KS20 vs DC07 | KS20 1 sigma, law / one new lab |
+| Fit | n | tau (95%) | sd within | m | E (kJ/mol) | RR1200 vs DC07 | RR1200 1 sigma, law / one new lab |
 |---|---|---|---|---|---|---|---|
 | power, TaMED (= preset) | 135 | 0.255 (0.11-0.60) | 0.221 | 0.221 | 209.1 | +0.27 | 0.122 / 0.283 |
 | power + Oeser, all | 189 | 0.245 (0.14-0.57) | 0.283 | 0.161 | 239.4 | +0.24 | 0.110 / 0.268 |
@@ -66,8 +66,8 @@ Fo85, 42 MPa).
 What the numbers say:
 
 - **Oeser's depth-profile runs agree with the refit at our conditions.** Adding them moves
-  the KS20 level by +0.01, the exponent by +0.005 and E by +4 kJ/mol. They narrow the law's
-  1 sigma at KS20 from 0.122 to 0.097, and the new-lab range from 0.283 to 0.239.
+  the RR1200 level by +0.01, the exponent by +0.005 and E by +4 kJ/mol. They narrow the law's
+  1 sigma at RR1200 from 0.122 to 0.097, and the new-lab range from 0.283 to 0.239.
 - **Oeser enters as a sixth study at +0.15.** With the melt term fitted, the solid-source
   spread grows from 0.107 to 0.188. Oeser now sits on the high side, and it takes up part
   of what the melt term had absorbed (+0.57 to +0.42).
@@ -78,7 +78,7 @@ What the numbers say:
 - **The sum fits both regimes with one law, but changes nothing at our conditions.** Its
   extrinsic term matters only below about 1e-10 Pa. There it fits Dohmen et al.'s PED
   points as well as it fits its own TaMED points (rms 0.28 each; the power law's TaMED rms is 0.26). Between 1e-7
-  and 1e-2 Pa the two laws differ by at most 0.09 log, and at KS20 by 0.01.
+  and 1e-2 Pa the two laws differ by at most 0.09 log, and at RR1200 by 0.01.
 - **The sum does not reproduce Oeser's steepening at 1150 C.** Its local exponent there
   is 0.24 at 1e-6 Pa and 0.25 at 1e-4.35 Pa, against Oeser's local slopes of 0.09-0.24
   and 0.42-0.52.
@@ -93,7 +93,7 @@ What the numbers say:
 ## What this leaves open
 
 - **Whether to add Oeser to the default compilation** and re-export `femg_refit2026` (dp
-  runs only). Effect at KS20: level +0.01, law 1 sigma 0.122 to 0.097. Because it changes
+  runs only). Effect at RR1200: level +0.01, law 1 sigma 0.122 to 0.097. Because it changes
   the preset, `export_preset.py`'s exact-match check requires updating the preset in the
   same change.
 - **The melt-term preset decision is now entangled with Oeser.** With both in, the

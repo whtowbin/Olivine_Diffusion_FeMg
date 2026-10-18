@@ -4,8 +4,10 @@ This note explains how forster finds the best-fit diffusion time and its 1σ ran
 the correlated-noise likelihood (default since 2026-10-12) and the additions of
 2026-10-13. Those additions are the small-sample threshold, early stopping, a
 Bayesian alternative and a scan over initial conditions. The note shows worked
-examples and tests the method on synthetic profiles of known age and on the 35 real
-profiles in this repository. The code is `src/forster/uncertainty.py` and
+examples and tests the method on synthetic profiles of known age and on 35 real
+profiles: 18 from Towbin and Plank (2026), whose results are given here, and 17
+from an interlaboratory round robin. The round robin data belong to other labs and
+are private, so their results are described in words only, without numbers. The code is `src/forster/uncertainty.py` and
 `src/forster/scan.py`. How the method differs from earlier versions is in
 [fit-uncertainty.md](fit-uncertainty.md).
 
@@ -28,9 +30,9 @@ profiles in this repository. The code is `src/forster/uncertainty.py` and
   about the same width, shifted slightly toward longer times (section 6).
 - **Initial-condition errors are not in the single-fit range.** With the step 3 µm
   off, it covers the true time only 21–23% of the time. `forster.scan` fits a set
-  of candidate initial conditions and lifts that to 65–74% (section 7). On round
-  robin profile KS20-527_2-transect-1, it moves the step from 41 to 46 µm and the
-  time from 42 to 24 d. Each step position and the edge, core and plateau Fo can be
+  of candidate initial conditions and lifts that to 65–74% (section 7). On one of
+  the round robin profiles it moved the step by several micrometres and changed the
+  fitted time substantially. Each step position and the edge, core and plateau Fo can be
   given a Gaussian (1σ) or uniform (± half-width) uncertainty, from Python or in
   `parameters.csv`.
 - **Early stopping** gives the same fits as running to `max_time_days`, 6.6×
@@ -46,8 +48,8 @@ Real profiles break both assumptions:
 - **The model never fits perfectly.** Initial-condition shape, 1-D geometry,
   beam convolution and growth leave smooth misfit. Neighbouring residuals share a
   sign (Fig. 1b). Counting such points as independent overstates the evidence.
-- **σ is rarely known well.** The round robin's SH63 profiles scatter by
-  0.6–0.7 Fo, not the 0.2 Fo assumed.
+- **σ is rarely known well.** The dense round robin profiles scatter by much
+  more than the 0.2 Fo their original fits assumed.
 
 Rescaling the errors so that reduced χ² = 1 does not fix this. The number of
 degrees of freedom is undefined for a nonlinear model (Andrae et al. 2010), and the
@@ -176,19 +178,21 @@ approximate here. Its effect on coverage is measured in section 4. The function 
 
 ![Fig. 1](figures/likelihood/fig1_example.png)
 
-**Figure 1.** Round robin profile KS20-527_2-transect-1 (29 EPMA points, 10 µm
-apart; 1200 °C).
+**Figure 1.** AZ18 WHT01_Ol_63_prof_1 (Towbin and Plank 2026; the profile of the
+`forster template` example), 27 EPMA points in the fitted domain, 2.5 µm apart,
+1250 °C, fitted with its paper-table grid and the explicit scheme.
 - (a) The measured points, the initial step and the best fit.
 - (b) Residuals at the best fit, with the fitted smooth-misfit component (the
   Gaussian-process mean, a²K C⁻¹r) and ± the fitted white noise s.
 - (c) χ² against time for independent errors (σ fitted, dashed) and for the
-  correlated error model (solid). The horizontal line is the 29-point threshold,
-  Δ = 1.07; shading marks each 1σ range.
+  correlated error model (solid). The horizontal line is the 27-point threshold,
+  Δ = 1.08; shading marks each 1σ range.
 
-The residuals run in same-sign stretches of about two points, so the fitted
-L = 13 µm. Allowing for that widens the 1σ range from 38–48 d to 34–50 d.
+The residuals run in same-sign stretches of a few points, so the fitted
+L = 4.0 µm, a little more than the point spacing. Allowing for that widens the 1σ
+range from 4.49–5.85 d to 4.20–6.19 d.
 
-From Python (this is the `forster template` example, a Towbin and Plank 2026 profile):
+From Python (this is the `forster template` example, the same profile):
 
 ```python
 from dataclasses import replace
@@ -234,15 +238,18 @@ From the command line, `forster fit` reports the three noise values in
 
 Profiles of known age were made with the forward model. Measurements were drawn
 from known noise and fitted exactly as forster fits real data, 400 times for each
-case. Two real geometries were used:
+case. The model setups (conditions, initial condition and measured positions) of
+two round robin profiles were used, at six sampling geometries:
 
-- **KS20-527_2-transect-1** at five sampling densities: its 29 measured points,
-  10 and 6 of them (30 and 50 µm apart), and 100 and 300 evenly spaced points
-  (3 and 1 µm apart);
-- **SH63olv066-1** at its 298 measured points, 0.5 µm apart.
+- a 29-point profile measured 10 µm apart (1200 °C), at five sampling densities:
+  its 29 measured points, 10 and 6 of them (30 and 50 µm apart), and 100 and 300
+  evenly spaced points (3 and 1 µm apart);
+- a 298-point profile measured 0.5 µm apart, at its measured positions.
 
-White noise was set to 0.2 Fo for the EPMA-like spacings, rising to 0.4 and 0.6 Fo
-for the dense ones, as on the SH63 data. Four noise cases were tested: white only,
+The geometries are named by their point count and spacing, for example
+"29-point profile, 10 um spacing (measured positions)" in the CSV files. White
+noise was set to 0.2 Fo for the EPMA-like spacings, rising to 0.4 and 0.6 Fo for
+the dense ones. Four noise cases were tested: white only,
 and white plus a smooth misfit of 0.4 Fo with L = 3, 10 or 30 µm. Two systematic
 initial-condition errors were also tested: data made with the step 3 µm further from
 the rim, or with the edge 0.3 Fo higher, and fitted with the nominal model.
@@ -265,12 +272,12 @@ is the 95% sampling range for 400 trials (±4.6 points).
 
 | Profile | White only | Misfit L = 3 µm | L = 10 µm | L = 30 µm |
 |---|---|---|---|---|
-| KS 6 pts (50 µm) | 64 (59) | 66 (57) | 66 (57) | 60 (48) |
-| KS 10 pts (30 µm) | 71 (66) | 70 (65) | 70 (65) | 60 (50) |
-| KS 29 pts (10 µm), measured | 71 (65) | 71 (66) | 68 (49) | 60 (32) |
-| KS 100 pts (3 µm) | 72 (69) | 72 (56) | 66 (36) | 59 (24) |
-| KS 300 pts (1 µm) | 71 (67) | 68 (44) | 65 (26) | 53 (20) |
-| SH63 298 pts (0.5 µm), measured | 68 (64) | 64 (32) | 58 (26) | 62 (34) |
+| 6-point profile, 50 µm spacing | 64 (59) | 66 (57) | 66 (57) | 60 (48) |
+| 10-point profile, 30 µm spacing | 71 (66) | 70 (65) | 70 (65) | 60 (50) |
+| 29-point profile, 10 µm spacing (measured positions) | 71 (65) | 71 (66) | 68 (49) | 60 (32) |
+| 100-point profile, 3 µm spacing | 72 (69) | 72 (56) | 66 (36) | 59 (24) |
+| 300-point profile, 1 µm spacing | 71 (67) | 68 (44) | 65 (26) | 53 (20) |
+| 298-point profile, 0.5 µm spacing (measured positions) | 68 (64) | 64 (32) | 58 (26) | 62 (34) |
 
 Values are coverage (%) for the default rule, with independent errors in brackets.
 Target 68%.
@@ -281,8 +288,8 @@ What the table shows:
   denser, to 20–44% at 0.5–1 µm spacing, because more points just repeat the same
   misfit. With 29 or more points the correlated likelihood stays at 58–72% for
   misfit up to 10 µm long.
-- **Misfit about as long as the diffusion length** (L = 30 µm here, where
-  √(D t) ≈ 27 µm) lowers coverage to 53–62%. With paper-style sampling (17 points 2.9 µm apart) it
+- **Misfit about as long as the diffusion length** (L = 30 µm here, close to
+  the diffusion length √(D t) of the synthetic profiles) lowers coverage to 53–62%. With paper-style sampling (17 points 2.9 µm apart) it
   fell to 52% (the 2026-10-15 whitening-validity study). The misfit term and the diffusion
   profile then trade off, a known limit of model-discrepancy terms (Brynjarsdóttir
   and O'Hagan 2014). It is still far better than the 20–34% from independent
@@ -293,7 +300,7 @@ What the table shows:
 - **Bias:** best fits are nearly unbiased, with the median error within ±4% in
   every random-noise case.
 - **Widths:** median 1σ ranges are 7–42% of the true time with white noise
-  (narrowest for the 298-point SH63 profile, widest at 6 points) and 10–84% with
+  (narrowest for the 298-point profile, widest at 6 points) and 10–84% with
   smooth misfit.
 
 **Systematic errors, single fit.**
@@ -356,25 +363,28 @@ Among the 35 real profiles it fires for one, WHT01_Ol_192 (section 5).
 
 ![Fig. 4](figures/likelihood/fig4_real_profiles.png)
 
-**Figure 4.** The 17 round robin profiles and 18 Towbin and Plank (2026) profiles,
-each fitted with the default method.
-- (a) Fitted L against median point spacing for the 30 profiles where the fit chose
+**Figure 4.** The 18 Towbin and Plank (2026) profiles, each fitted with the default
+method. The 17 round robin profiles were checked the same way; their data are
+private, so they are left out of the figure and of the numbers below.
+- (a) Fitted L against median point spacing for the 13 profiles where the fit chose
   a correlated term. The line is L = spacing. Labelled profiles have L more than 3×
   the diffusion length √(D t).
 - (b) Lag-1 autocorrelation of the residuals at the best fit, before (open) and
   after (filled) whitening.
 
-- **Whitening works on real data.** 14 of 35 profiles have raw residual
+- **Whitening works on real data.** 6 of the 18 paper profiles have raw residual
   autocorrelation above 0.3; none do after whitening, where all values lie between
-  −0.29 and +0.17. A Kolmogorov-Smirnov test of the whitened residuals against
-  N(0, 1) gave p > 0.16 for every profile.
-- **L is sensible for most profiles.** For the round robin EPMA traverses 10 µm
-  apart, L is 13–27 µm (1.3–2.7 spacings), except KS20-527_2-transect-3 (below).
-  Five paper profiles need no correlated term. For SH63olv066 (298 points, 0.5 µm
-  apart), L = 7.7 µm is about the diffusion length (7.0 µm); this is the case in
+  −0.29 and +0.06. A Kolmogorov-Smirnov test of the whitened residuals against
+  N(0, 1) gave p > 0.21 for every paper profile. The round robin profiles behaved
+  the same way: none kept a lag-1 autocorrelation above 0.3 after whitening.
+- **L is sensible for most profiles.** Five paper profiles need no correlated
+  term, and on the others L is mostly one to a few point spacings. The round robin
+  EPMA traverses (10 µm apart) also gave L of one to a few spacings, except one
+  profile with a very long L (below). On the dense round robin profile (298 points,
+  0.5 µm apart), L came out close to the diffusion length; this is the case in
   section 4 where coverage drops a little.
 - **Some profiles stand out** with L much longer than the diffusion length:
-  - KS20-527_2-transect-3: L = 146 µm, half the profile;
+  - one round robin profile, with L a large fraction of the profile length;
   - WHT01_Ol_181: 70 µm;
   - WHT01_Ol_192: 40 µm, the only one that triggers the warning (ρ ≥ 0.5);
   - Xenocryst_ol23: 15 µm, against a 2 µm diffusion length.
@@ -384,12 +394,13 @@ each fitted with the default method.
   are the ones to recheck for initial and boundary conditions:
   - Xenocryst_ol6_prof_1: −27%;
   - WHT01_Ol_192: −19%;
-  - KS20-527_2-transect-3: −14%.
+  - the round robin profile with the very long L.
 
-  Section 7 does this for the step position. 1σ ranges span 9–38% of the best fit on
-  the round robin profiles and 13–105% on the paper profiles (Xenocryst_ol6_prof_1,
-  0.14 d, is the widest). Per-profile values are in
-  `docs/plans/2026-10-13-likelihood-validation/real_profiles.csv`.
+  Section 7 does this for the step position. 1σ ranges span 13–105% of the best fit
+  on the paper profiles (Xenocryst_ol6_prof_1, 0.14 d, is the widest). Per-profile
+  values for the paper profiles are in
+  `docs/plans/2026-10-13-likelihood-validation/real_profiles.csv`; the round robin
+  rows are private.
 
 ## 6. The Bayesian alternative
 
@@ -422,8 +433,9 @@ differs by at most 4.7 points, 0.7 on average.
 - At the hardest case (300 points, L = 30 µm) the posterior reaches 58% and the
   default 53%, because it widens the long-time side.
 
-On real profiles (Fig. 6) the two ranges have nearly the same width (ratio
-0.97–1.03). The posterior sits slightly toward longer times, because χ² rises more
+On real profiles the two ranges have nearly the same width: the ratio is 1.03 on
+WHT01_Ol_63 and 0.97 on WHT01_Ol_192 (Fig. 6), and it stayed close to 1 on the
+three round robin profiles tested. The posterior sits slightly toward longer times, because χ² rises more
 slowly on the long-time side. The exception is the sparse, very short Xenocryst_ol6
 profile (15 points, 0.14 d), where the posterior is 1.27× wider: 0.11–0.30 d against
 0.08–0.23 d.
@@ -489,20 +501,17 @@ The ranges widen honestly where step position and time trade off: moving the ste
 
 ![Fig. 6](figures/likelihood/fig6_real_methods.png)
 
-**Figure 6.** Best fit and 1σ range of time for six real profiles by each method:
-the legacy rule, Δ = 1, the small-sample default, the Bayesian posterior, and a
-step scan of ±6 µm in 1 µm steps (profile and marginal ranges).
+**Figure 6.** Best fit and 1σ range of time for three Towbin and Plank (2026)
+profiles by each method: the legacy rule, Δ = 1, the small-sample default, the
+Bayesian posterior, and a step scan of ±6 µm in 1 µm steps (profile and marginal
+ranges). Three round robin profiles were compared the same way; their results are
+private and are left out of the figure.
 
-- **KS20-527_2-transect-1:**
-  - The scan prefers the step at 46–47 µm over the nominal 41 µm. The nominal step
-    is worse by Δχ² = 14, so the data reject it.
-  - The time falls from 42 d (34–50 d) to 24 d (profile 20.6–26.8 d, marginal
-    21.2–27.5 d).
-  - 46 µm is the step the round robin itself used for transect-3, the same profile
-    with a different initial step. A scan from −12 to +15 µm confirms the optimum.
-  - For this profile, the choice of step dominates the uncertainty in time.
-- **KS20-527_2-transect-3 and SH63olv066-1:** the nominal step is already the best,
-  and the scan ranges match the single fit.
+- **Round robin profiles (private):** on one of the three, the data clearly
+  rejected the nominal step position, the scan moved the step by several
+  micrometres and the fitted time changed substantially; for that profile the
+  choice of step dominates the uncertainty in time. On the other two the nominal
+  step was already the best and the scan ranges matched the single fit.
 - **WHT01_Ol_63:** the best step moves 1 µm, to 23 µm. The range widens from
   4.20–6.19 d to 4.21–6.87 d (profile) or 4.67–7.96 d (marginal).
 - **WHT01_Ol_192 and Xenocryst_ol6:** the steps move by 1 µm, and the times by
@@ -566,22 +575,23 @@ Coarsening was measured on two profiles before choosing this, using a step scan 
 
 | Profile (native dx, dt) | Native | dx ×2, dt ×4 | dx ×3, dt ×9 | dt only, to D dt/dx² = 0.4 |
 |---|---|---|---|---|
-| KS20-527_2-transect-1 (1 µm, 600 s) | 23.67 d, 3.0 s | 23.53 d, 0.7 s | 24.44 d (step 45), 0.3 s | **23.69 d, 1.3 s** |
+| 29-point round robin profile (1 µm, 600 s) | reference, 3.0 s | −0.6%, 0.7 s | +3.3% (best step moved), 0.3 s | **+0.1%, 1.3 s** |
 | WHT01_Ol_63, template (0.5 µm, 60 s) | 5.55 d, 6.5 s | 4.89 d (step 24), 1.6 s | 5.01 d (step 24), 0.7 s | **5.54 d, 1.1 s** |
 
 - **Coarsening dx biases the result:** by up to 12% on the 0.5 µm paper profile,
   and the best step moves.
 - **Raising dt alone changes the best fit by 0.2% or less,** and the ranges by under
-  0.1 d, while running 2.3–5.8× faster. The same held for the DIPRA scheme (23.686
-  against 23.694 d).
+  0.1 d, while running 2.3–5.8× faster. The same held for the DIPRA scheme (a change
+  of 0.03%). The round robin row gives changes relative to the native grid, since
+  its times are private.
 - **The nominal fit is unchanged.** It still runs on the user's dt and dx;
   `scan_dt_s` reports the scan's time step.
 
 ### Validation with two uncertain parameters
 
 Data were made with the step 3 µm and the edge 0.002 Fo away from nominal, and
-fitted with 9 × 9 = 81 candidates (150 noise draws, KS20-527_2-transect-1, 29
-points):
+fitted with 9 × 9 = 81 candidates (150 noise draws, the 29-point round robin
+setup of section 4):
 
 | Uncertainties | Scan, profile | Scan, marginal | Marginal width |
 |---|---|---|---|
@@ -599,7 +609,7 @@ the marginal for when the stated uncertainties are trusted as priors.
 ## 8. Early stopping
 
 Runs used to go to `max_time_days` even when the fit was at a small fraction of it:
-SH63olv066-1 fits at 10 d out of 730 d modelled. Since 2026-10-13, the correlated
+Xenocryst_ol6_prof_1 fits at 0.14 d out of 200 d modelled. Since 2026-10-13, the correlated
 method runs the model in blocks of about 1% of `max_time_days` and stops once three
 things hold:
 - the run is 2× past the best fit so far;
@@ -613,13 +623,14 @@ how far a run went.
 
 The time steppers resume exactly where they stopped, so a run in blocks gives the
 same numbers as one run. Checked on all 35 real profiles, including the two-step
-initial conditions (KS20-527-8, SH63olv066), where a late second minimum would show:
+initial conditions (seven paper profiles and two of the round robin profiles), where
+a late second minimum would show:
 - best fit, noise model and warnings were identical for all 35;
 - the ends of the 1σ range differed by exactly 0 s;
 - total fitting time fell from 129 s to 19 s (6.6×), up to 90× for single
   profiles (Xenocryst_ol6: 7.3 s to 0.08 s);
-- the two profiles whose best fit is past a year (KS20-527_5-transect-1 and
-  SH63olv084) ran the full time, as they should.
+- the two round robin profiles whose best fit lies late in the modelled time ran
+  the full time, as they should.
 
 `tests/test_uncertainty.py` checks a two-step profile, including with stop settings
 so tight that the run has to be extended.
@@ -687,6 +698,11 @@ uv run --with adjustText python docs/plans/2026-10-13-likelihood-validation/figu
 - `early_stop_check.py` writes `early_stop.csv`.
 - `compare_real.py` writes `real_methods.csv`.
 - `figures.py` reads these files and writes `docs/references/figures/likelihood/`.
+- `diagnostics.py`, `early_stop_check.py` and `compare_real.py` fit the round
+  robin profiles too when the private round robin submodule is checked out. They
+  write the full tables into the submodule and only the paper rows next to the
+  scripts. `validate.py` needs the submodule, because its synthetic profiles use
+  the model setups of two round robin profiles.
 
 `tests/test_uncertainty.py` and `tests/test_scan.py` repeat smaller coverage tests
 on every test run.

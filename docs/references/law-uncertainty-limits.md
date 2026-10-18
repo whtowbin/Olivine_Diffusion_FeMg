@@ -24,8 +24,8 @@ runs beyond the fit itself:
 2. At the run's temperature, pressure, fO2, orientation and a composition X, the
    gradient g of log10 D with respect to those parameters is known in closed form,
    so the law's 1-sigma in log10 D is sigma = sqrt(g' C g)
-   (`ArrheniusDiffusivity.log10_sigma`). At the round robin KS20 conditions along
-   [001] it is 0.132 log (0.102 before each value's published error and a random
+   (`ArrheniusDiffusivity.log10_sigma`). At RR1200 (the round robin 1200 C
+   conditions: fO2 1.4e-3 Pa, Fo85, 42 MPa) along [001] it is 0.132 log (0.102 before each value's published error and a random
    offset per experiment entered the fit, 0.073 with V also fixed at 7 cm3/mol, 0.087
    for the verified-only preset, 0.114 for the one with Oeser, 0.122 before that).
 3. **The D t argument.** The diffusion equation with D(X) = D_level f(X) and fixed
@@ -35,7 +35,7 @@ runs beyond the fit itself:
 4. Each side of the fit's own range is combined with sigma in quadrature in log10
    time (`forster.uncertainty.widen_log10`), so an asymmetric range stays
    asymmetric. "law_and_studies" also adds the between-study spread tau (0.072 log for
-   `femg_refit2026`) in quadrature: hypot(0.132, 0.072) = 0.150 log at KS20.
+   `femg_refit2026`) in quadrature: hypot(0.132, 0.072) = 0.150 log at RR1200.
 
 ### Checked: linear propagation against a Monte Carlo over the covariance
 
@@ -49,7 +49,7 @@ oblique direction. 4000 draws from the preset's covariance, log10 D at Fo 0.85
 
 | conditions | orientation | linear sigma | Monte Carlo sd | MC 16-84% half-width |
 |---|---|---|---|---|
-| 1200 C, 0.042 GPa, KS20 fO2 | every direction | 0.1321 | 0.1316 | 0.1303 |
+| 1200 C, 0.042 GPa, RR1200 fO2 | every direction | 0.1321 | 0.1316 | 0.1303 |
 | 900 C, 0.1 GPa, 1e-9 Pa | every direction | 0.0877 | 0.0867 | 0.0869 |
 | 1300 C, 1 atm, 1e-2 Pa | every direction | 0.1554 | 0.1546 | 0.1541 |
 
@@ -61,7 +61,7 @@ nothing for an Fo fit for which the D t argument holds.
 
 ## Where the D t argument holds (measured)
 
-A synthetic profile was made with `femg_refit2026` at KS20 conditions (6 days,
+A synthetic profile was made with `femg_refit2026` at RR1200 conditions (6 days,
 noise 5e-4 Fo) and fitted twice: with the law, and with D raised by delta in log10.
 Where the argument holds, the fitted log10 t moves by -delta
 (`dt_scaling.csv`):
@@ -140,19 +140,19 @@ range, and is cruder than the usual case.
   quantities in log10; the fit's range is a 68% likelihood interval. The widened
   range is a 68% range under those assumptions. tau is poorly determined from four
   studies (95% range 0.00-0.42 log), and the "law_and_studies" range moves with it:
-  hypot(0.132, tau) is 0.132 to 0.442 log over that interval at KS20.
+  hypot(0.132, tau) is 0.132 to 0.442 log over that interval at RR1200.
 
 ## What the covariance does not contain
 
 - **Model-form error.** C is the uncertainty of the parameters *within* the DC07
   form with the anisotropy at 6x. Other forms predict D at
-  KS20 differently: fitted to the full compilation (135 points) with a random study
+  RR1200 differently: fitted to the full compilation (135 points) with a random study
   offset, the five forms span +0.20 to +0.30 log against the default law; without
   it (OLS, WLS, ODR, bootstrap) they span -0.01 to +0.85
   (`analyses/femg_refit/README.md`, bowtie table). Choosing a form is a systematic
   the law range does not include.
 - **The choice of experiments.** C is conditional on which data were fitted. The
-  preset's D at KS20 along [001] (Fo 0.85), against the default law, was +0.274 log
+  preset's D at RR1200 along [001] (Fo 0.85), against the default law, was +0.274 log
   fitted to all 135 TaMED points (first export), +0.195 on the verified subset with
   Oeser et al. (2026), +0.103 on 118 points from four studies, +0.155 with Holzapfel's
   14 Au-capsule runs added at an fO2 sd of 2 log and each run's input errors carried

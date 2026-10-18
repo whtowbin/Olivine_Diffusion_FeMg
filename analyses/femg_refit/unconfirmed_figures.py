@@ -6,12 +6,12 @@ by that same method. These figures put everything else beside it, labelled, so t
 reader sees what each unconfirmed set would do; docs/references/data-to-source.md says
 what would confirm each.
 
-- figures/unconfirmed/u1_law_and_data.png: the verified law at the KS20 conditions
+- figures/unconfirmed/u1_law_and_data.png: the verified law at the RR1200 conditions
   (log D minus DC07, as the melt-contact bowties), its verified points, the unconfirmed
   points moved by the same law, and as boxes the melt-contact evidence that cannot be
   placed point by point (Jurewicz and Watson; Shea et al.'s full set; the Kilauea Iki
   lava lake, a lower bound).
-- figures/unconfirmed/u2_variants.png: the KS20 and SH63 levels and their 1-sigma
+- figures/unconfirmed/u2_variants.png: the RR1200 and RR1102 levels and their 1-sigma
   (law, and one new lab) for the verified law and for each unconfirmed addition.
 - figures/unconfirmed/u3_fo2.png: the preset against fO2 at 1200 C with the
   unconfirmed data; Holzapfel's Au-capsule runs (in the preset) carry their assumed fO2
@@ -165,7 +165,7 @@ def table(fits) -> pd.DataFrame:
 
 
 def u1(show, sigma, fit, rng) -> None:
-    log_fo2, x_fo, p_pa = MF.KS20
+    log_fo2, x_fo, p_pa = MF.RR1200
     t = MF.T_GRID
     v = MF.B._grid(t, log_fo2, x_fo, p_pa)
     x = 1e4 / (t + 273.15)
@@ -224,7 +224,7 @@ def u1(show, sigma, fit, rng) -> None:
     ax.axhline(0, color="0.2", lw=0.9, ls=":", label="DC07 (default law)")
     i1200 = int(np.argmin(np.abs(t - 1200)))
     ax.set_xlabel("10⁴ / T (1/K)")
-    ax.set_ylabel("log10 D[001] minus DC07 at the KS20 conditions")
+    ax.set_ylabel("log10 D[001] minus DC07 at the RR1200 conditions")
     lo, hi = ax.get_xlim()
     top = ax.twiny()
     top.set_xlim(lo, hi)
@@ -236,7 +236,7 @@ def u1(show, sigma, fit, rng) -> None:
     ax.set_title(
         f"The preset sits {best[i1200] - dc07[i1200]:+.2f} ± {half[i1200]:.2f} log "
         "above DC07 "
-        f"at KS20, 1200 °C (±{nl[i1200]:.2f} for one new lab).\nFaded: unconfirmed data, not "
+        f"at RR1200, 1200 °C (±{nl[i1200]:.2f} for one new lab).\nFaded: unconfirmed data, not "
         "fitted. Pink boxes: melt-contact evidence (mean ± sd), placed by temperature only",
         loc="left",
         fontsize=9.5,
@@ -249,7 +249,7 @@ def u2(tab: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8), layout="constrained", sharey=True)
     names = tab["scenario"].tolist()
     y = np.arange(len(names))
-    for ax, cond in zip(axes, ("KS20", "SH63"), strict=True):
+    for ax, cond in zip(axes, ("RR1200", "RR1102"), strict=True):
         mu, law, nl = tab[f"{cond}_vs_dc07"], tab[f"{cond}_se_law"], tab[f"{cond}_se_new_lab"]
         colours = [
             MF.SOLID if n == PRESET_LABEL else ("#882255" if "melt" in n else "0.35") for n in names
@@ -273,10 +273,10 @@ def u2(tab: pd.DataFrame) -> None:
     axes[0].set_yticks(y, labels)
     axes[0].invert_yaxis()
     solid_src = tab["scenario"].str.contains("Holzapfel|Oeser")  # unconfirmed solid-source rows
-    ref = tab.loc[tab["scenario"] == PRESET_LABEL, "KS20_vs_dc07"].iloc[0]
-    shift = (tab.loc[solid_src, "KS20_vs_dc07"] - ref).abs()
+    ref = tab.loc[tab["scenario"] == PRESET_LABEL, "RR1200_vs_dc07"].iloc[0]
+    shift = (tab.loc[solid_src, "RR1200_vs_dc07"] - ref).abs()
     fig.suptitle(
-        "Unconfirmed solid-source data would move the law at KS20 by at most "
+        "Unconfirmed solid-source data would move the law at RR1200 by at most "
         f"{shift.max():.2f} log; "
         "melt contact is a separate offset (in brackets).\nThick bars: the law's 1 sigma; "
         "thin: one new lab",
@@ -325,8 +325,8 @@ def u3(show, sigma, fit, rng) -> None:
         elinewidth=0.8,
         capsize=0,
     )
-    ks20, paper = -2.86, -2.08
-    ax.axvspan(ks20 - 0.9, paper, color="0.9", lw=0, zorder=0)
+    rr1200, paper = -2.86, -2.08
+    ax.axvspan(rr1200 - 0.9, paper, color="0.9", lw=0, zorder=0)
     ax.set_xlabel("log10 fO2 (Pa)")
     ax.set_ylabel("log10 D[001] (m²/s) at 1200 °C, Fo90, 1 atm (points moved by the preset)")
     handles, labels = ax.get_legend_handles_labels()
@@ -355,8 +355,16 @@ def main() -> None:
     u2(tab)
     u3(show, sigma, preset, rng)
     pd.set_option("display.width", 220)
-    cols = ["scenario", "n_points", "tau_log10", "m_fO2", "E_kJ_mol", "KS20_vs_dc07", "KS20_se_law"]
-    cols += ["SH63_vs_dc07", "melt_log10", "melt_se"]
+    cols = [
+        "scenario",
+        "n_points",
+        "tau_log10",
+        "m_fO2",
+        "E_kJ_mol",
+        "RR1200_vs_dc07",
+        "RR1200_se_law",
+    ]
+    cols += ["RR1102_vs_dc07", "melt_log10", "melt_se"]
     print(tab[cols].round(3).to_string(index=False))
 
 

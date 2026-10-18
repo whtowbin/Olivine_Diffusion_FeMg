@@ -166,32 +166,10 @@ A profile made by the reference scheme at a known time, fitted back with each en
 | Case | $D$ ratio across the step | Fitted / true time, as written | After the fix |
 |---|---|---|---|
 | Paper-like rim, Fo 0.92 to 0.895, 1250 °C | 1.19 | 0.987 | 1.000 |
-| KS20-like, Fo 0.82 to 0.885, 1200 °C | 1.57 | 0.917 | 1.001 |
-| SH63-like, Fo 0.67 to 0.745, 1200 °C | 1.68 | 0.892 | 1.001 |
+| Step like the round robin profiles (A), Fo 0.82 to 0.885, 1200 °C | 1.57 | 0.917 | 1.001 |
+| Step like the round robin profiles (B), Fo 0.67 to 0.745, 1200 °C | 1.68 | 0.892 | 1.001 |
 
-The 17 round robin runs, refitted with the batch settings of `Round_Robin_Diffusion_Modeling Part 2.py` (gaussian kriging, 2-year model length, uniform uncertainty 0.001):
-
-| Run | Best fit before (days) | Best fit after (days) | After / before | Range after (days) | Min. reduced χ², before → after |
-|---|---|---|---|---|---|
-| KS20-527-8_transect-1 | 65.0 | 75.0 | 1.16 | 65.6-85.7 | 1.50 → 1.61 |
-| KS20-527-8_transect-2 | 60.8 | 71.8 | 1.18 | 61.5-83.3 | 1.43 → 1.59 |
-| KS20-527-8_transect-3 | 29.5 | 35.3 | 1.20 | 25.7-46.2 | 2.46 → 1.72 |
-| KS20-527-8_transect-4 | 57.4 | 65.6 | 1.14 | 55.5-76.9 | 1.33 → 1.56 |
-| KS20-527-8_transect-5 | 44.5 | 50.4 | 1.13 | 41.1-61.1 | 1.62 → 1.94 |
-| KS20-527_2-transect-1 | 29.9 | 42.8 | 1.43 | 30.5-56.3 | 2.40 → 3.40 |
-| KS20-527_2-transect-2 | 27.7 | 39.5 | 1.43 | 27.3-53.1 | 2.35 → 3.20 |
-| KS20-527_2-transect-3 | 21.6 | 27.6 | 1.28 | 18.1-40.2 | 2.99 → 2.38 |
-| KS20-527_2-transect-4 | 18.8 | 22.2 | 1.18 | 15.4-31.5 | 7.23 → 3.39 |
-| KS20-527_5-transect-1 | 289.3 | 365.1 | 1.26 | 306.5-429.1 | 1.98 → 3.29 |
-| KS20-527_5-transect-2 | 185.2 | 245.2 | 1.32 | 185.6-310.4 | 1.21 → 2.11 |
-| KS20-527_5-transect-3 | 146.3 | 179.5 | 1.23 | 128.7-242.0 | 1.85 → 1.26 |
-| SH63olv066-1 | 7.7 | 9.7 | 1.26 | 8.6-10.9 | 12.7 → 23.4 |
-| SH63olv066-2 | 8.4 | 10.6 | 1.26 | 9.4-11.9 | 6.16 → 17.5 |
-| SH63olv066-3 | 9.1 | 11.6 | 1.27 | 10.2-13.0 | 3.51 → 15.1 |
-| SH63olv066-4 | 8.2 | 10.2 | 1.25 | 9.0-11.7 | 4.37 → 11.4 |
-| SH63olv084 | 611.7 | 441.1 | 0.72 | 407.8-476.5 | 5.17 → 7.80 |
-
-Most times get 13-43% longer. SH63olv084 gets 28% shorter: its Fo falls from the edge into the core (73 to 62.6), so the gradient runs the other way relative to $D$ and the error had the opposite sign. The real profiles move more than the idealised steps because their steps are sharper and their Fo contrasts larger.
+The 17 round robin runs were also refitted with the batch settings of `Round_Robin_Diffusion_Modeling Part 2.py` (gaussian kriging, 2-year model length, uniform uncertainty 0.001). The round robin data belong to other labs, so the per-run times and the table of changes are kept in the private round robin repository. Most times got longer with the fix. One profile whose Fo falls from the edge into the core got shorter, because its gradient runs the other way relative to $D$ and the error had the opposite sign. The real profiles moved more than the idealised steps because their steps are sharper and their Fo contrasts larger.
 
 ### What follows
 
@@ -205,8 +183,8 @@ Most times get 13-43% longer. SH63olv084 gets 28% shorter: its Fo falls from the
   | WHT01 contact overgrowth (exterior) | 5.9 (2.3-15.2) | 7.5 (3.2-17.9) | +28% |
   | Xenocrysts | 0.79 (0.14-5.5) | 0.86 (0.17-5.7) | +9% |
 
-  The melt-vein timescales (the paper's 1-3 weeks) move by 2-5%; single melt-vein profiles move -9% to +5%, except AZ18 WHT06_ol_overgrowth2 (18.3 to 15.4 days, -16%). The exterior contact overgrowths move most (profile 180: 7.0 to 8.3 days; profile 181: 3.3 to 4.6 days) because their Fo contrast is 7-10 units; their median of 7.5 days is still about one week, and the melt-vein and exterior timescales remain similar. Any ascent rate computed from the exterior times would come down by up to about 20% [check how the paper derives 0.05-0.15 m/s]. Per-profile numbers: `docs/plans/2026-10-11-engine-fix/paper_fix_effect_profiles.csv` and `paper_fix_effect_summary.csv`; round robin: `round_robin_fix_effect.csv`; DIPRA comparison script: `dipra_check.py`. The Xenolith_Melt_Vein_Modeling README should get a short note with these numbers. Henry (2026-10-11): note these effects to return to later in an addendum to the paper.
-- The round robin results need rerunning. The reduced χ² of the SH63olv066 fits gets clearly worse (3.5-12.7 before, 11.4-23.4 after), which suggests their step positions and plateau Fo were tuned while fitting with the old engine; they should be revisited before the new times are final. If the round robin results have been sent to the organisers, they need a correction.
+  The melt-vein timescales (the paper's 1-3 weeks) move by 2-5%; single melt-vein profiles move -9% to +5%, except AZ18 WHT06_ol_overgrowth2 (18.3 to 15.4 days, -16%). The exterior contact overgrowths move most (profile 180: 7.0 to 8.3 days; profile 181: 3.3 to 4.6 days) because their Fo contrast is 7-10 units; their median of 7.5 days is still about one week, and the melt-vein and exterior timescales remain similar. Any ascent rate computed from the exterior times would come down by up to about 20% [check how the paper derives 0.05-0.15 m/s]. Per-profile numbers: `docs/plans/2026-10-11-engine-fix/paper_fix_effect_profiles.csv` and `paper_fix_effect_summary.csv`; the round robin table (`round_robin_fix_effect.csv`) is private and lives in the round robin repository; DIPRA comparison script: `dipra_check.py`. The Xenolith_Melt_Vein_Modeling README should get a short note with these numbers. Henry (2026-10-11): note these effects to return to later in an addendum to the paper.
+- The round robin results need rerunning. The reduced χ² of the fits to one round robin sample's four profiles gets clearly worse, which suggests their step positions and plateau Fo were tuned while fitting with the old engine; they should be revisited before the new times are final. If the round robin results have been sent to the organisers, they need a correction.
 
 ## Phases (each ends with tests passing and a commit you approve)
 
@@ -240,7 +218,7 @@ Tasks:
 
 Verify once at the end: `uv run pytest -n 8`, `uv run ruff check`, `uv run ruff format --check`, `uv run ty check`, complexipy, and `uv build` with the example CSVs inside the wheel.
 
-**Before the first release (flagged 2026-10-11):** come back to the cross-term fix (see "Engine fix" above and `CHANGELOG.md`). The release notes must say that results from versions before the fix are biased where D varies along the profile, and by how much; the round robin results must be refitted (including the SH63olv066 initial conditions) and any submitted round robin results corrected; and the Xenolith_Melt_Vein_Modeling README needs its note on the size of the effect on the paper.
+**Before the first release (flagged 2026-10-11):** come back to the cross-term fix (see "Engine fix" above and `CHANGELOG.md`). The release notes must say that results from versions before the fix are biased where D varies along the profile, and by how much; the round robin results must be refitted (including the initial conditions of that sample's four profiles) and any submitted round robin results corrected; and the Xenolith_Melt_Vein_Modeling README needs its note on the size of the effect on the paper.
 
 ## Decisions (Henry, 2026-10-11)
 

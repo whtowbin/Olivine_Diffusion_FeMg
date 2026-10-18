@@ -107,7 +107,7 @@ def cases():
                 ),
             )
 
-    ks20 = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
+    rr1200 = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
     along = Orientation(90, 90, 0)
     x = np.arange(0.0, 200.0, 1.0)
     dummy = Profile(x, np.full(len(x), 0.88) + 1e-4 * np.sin(x), name="dummy")
@@ -117,7 +117,7 @@ def cases():
         "stages/central",
         lambda: fit_profile(
             dummy,
-            ks20,
+            rr1200,
             along,
             early,
             Grid(1.0, 20.0, 10),
@@ -128,14 +128,16 @@ def cases():
     )
     yield (
         "stages/implicit",
-        lambda: fit_profile(dummy, ks20, along, early, Grid(1.0, 0.05 * day, 10), stages=[growth]),
+        lambda: fit_profile(
+            dummy, rr1200, along, early, Grid(1.0, 0.05 * day, 10), stages=[growth]
+        ),
     )
     whole = InitialCondition((0, 199), edge_fo=0.86, core_fo=0.90, steps_um=(40,))
     yield (
         "rimpath/implicit",
         lambda: fit_profile(
             dummy,
-            ks20,
+            rr1200,
             along,
             whole,
             Grid(1.0, 0.05 * day, 20),
@@ -155,15 +157,17 @@ def cases():
     fit_grid = Grid(dx_um=1.0, dt_s=60.0, max_time_days=30)
     yield (
         "element/ni",
-        lambda: fit_element(ni_profile, ks20, along, fo_initial, ni, fit_grid),
+        lambda: fit_element(ni_profile, rr1200, along, fo_initial, ni, fit_grid),
     )
     yield (
         "element/ni_fitted_concentrations",
-        lambda: fit_element(ni_profile, ks20, along, fo_initial, None, fit_grid),
+        lambda: fit_element(ni_profile, rr1200, along, fo_initial, None, fit_grid),
     )
     yield (
         "joint/fo_ni",
-        lambda: fit_joint(fo_profile, [ni_profile], ks20, along, fo_initial, {"Ni": ni}, fit_grid),
+        lambda: fit_joint(
+            fo_profile, [ni_profile], rr1200, along, fo_initial, {"Ni": ni}, fit_grid
+        ),
     )
 
     import tempfile

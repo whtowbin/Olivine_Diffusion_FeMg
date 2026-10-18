@@ -24,7 +24,9 @@ parameters). Seed check: nlive 1000 with seeds 2 and 3 on 3 profiles, both prior
     uv run --with dynesty python analyses/ic_sampling/references.py --report # summary
 
 Resumable: (profile, prior) cases and seed checks already in references.csv with status
-"ok" are skipped. At most 4 worker processes, one BLAS thread each.
+"ok" are skipped. Round robin rows are written only to the private submodule
+(`PRIVATE_CSV`); references.csv here holds the paper rows. At most 4 worker processes,
+one BLAS thread each.
 """
 
 import argparse
@@ -57,6 +59,12 @@ from forster.uncertainty import NoiseModel
 
 HERE = Path(__file__).resolve().parent
 CSV_PATH = HERE / "references.csv"
+# Round robin rows (other laboratories' profiles) go only to the private submodule; the
+# public references.csv holds the paper rows. Resuming reads both.
+PRIVATE_CSV = (
+    HERE.parents[1] / "Diffusion Round Robin" / "outputs" / "ic_sampling" / "references.csv"
+)
+DEFAULT_CSV = CSV_PATH
 BLAS_THREAD_VARS = (
     "OMP_NUM_THREADS",
     "OPENBLAS_NUM_THREADS",
@@ -320,9 +328,11 @@ def _execute(task):
 
 
 def read_csv():
-    if not CSV_PATH.exists():
+    paths = [CSV_PATH] + ([PRIVATE_CSV] if CSV_PATH == DEFAULT_CSV else [])
+    frames = [pd.read_csv(p, keep_default_na=False, na_values=[""]) for p in paths if p.exists()]
+    if not frames:
         return pd.DataFrame(columns=FIELDS)
-    df = pd.read_csv(CSV_PATH, keep_default_na=False, na_values=[""])
+    df = pd.concat(frames, ignore_index=True)
     # seeds as text ("1", "" for the grid), however pandas parsed the column
     df["seed"] = df["seed"].map(lambda v: "" if pd.isna(v) else str(int(float(v))))
     return df
@@ -379,22 +389,35 @@ def run_all(workers, only=None, seed_check=True):
     for var in BLAS_THREAD_VARS:
         os.environ[var] = "1"
     t0 = time.perf_counter()
+    split = CSV_PATH == DEFAULT_CSV
+    if split:
+        PRIVATE_CSV.parent.mkdir(parents=True, exist_ok=True)
+    private_path = PRIVATE_CSV if split else CSV_PATH
     new_file = not CSV_PATH.exists()
+    new_private = not private_path.exists()
     with (
         open(CSV_PATH, "a", newline="") as fh,
+        open(private_path, "a", newline="") as fh_private,
         ProcessPoolExecutor(max_workers=min(workers, MAX_WORKERS)) as pool,
     ):
-        writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
+        public = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
+        private = csv.DictWriter(fh_private, fieldnames=FIELDS, extrasaction="ignore")
         if new_file:
-            writer.writeheader()
+            public.writeheader()
+        if split and new_private:
+            private.writeheader()
+        data = load()
         pending = {pool.submit(_execute, t): t for t in tasks}
         while pending:
             finished, _ = wait(pending, return_when=FIRST_COMPLETED)
             for fut in finished:
                 task = pending.pop(fut)
                 rows = fut.result()
-                writer.writerows(rows)
+                for r in rows:
+                    rr = data.get(r["profile"], (None, None, ""))[2] == "round_robin"
+                    (private if split and rr else public).writerow(r)
                 fh.flush()
+                fh_private.flush()
                 el = time.perf_counter() - t0
                 for r in rows:
                     print(

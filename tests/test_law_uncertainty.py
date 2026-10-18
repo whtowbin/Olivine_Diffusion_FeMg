@@ -32,7 +32,8 @@ from forster.model import _law_uncertainty
 from forster.uncertainty import widen_log10
 
 PRESET = DIFFUSIVITY_PRESETS["femg_refit2026"]
-KS20 = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
+# RR1200: the round robin experimental conditions at 1200 C (the femg_refit label).
+RR1200 = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
 ALONG_001 = Orientation(90, 90, 0)
 OBLIQUE = Orientation(50, 70, 46.5)
 # The preset is fitted to the verified data (analyses/femg_refit/fit_verified.py).
@@ -86,21 +87,21 @@ def test_log10_sigma_is_the_covariance_through_the_laws_own_gradient(orientation
 def test_a_law_without_covariance_has_no_sigma():
     default = DIFFUSIVITY_PRESETS["dohmen_chakraborty2007"]
     assert default.uncertainty is None
-    assert default.log10_sigma(KS20, ALONG_001, 0.85) is None
+    assert default.log10_sigma(RR1200, ALONG_001, 0.85) is None
 
 
 @pytest.mark.skipif(not PREDICTIONS.exists(), reason="the refit's results are not here")
 def test_the_preset_reproduces_the_refit_at_the_round_robin_conditions():
-    """`analyses/femg_refit/fit_verified.py` (dc07_x6_V, the preset) at KS20, Fo85, [001]."""
+    """`analyses/femg_refit/fit_verified.py` (dc07_x6_V, the preset) at RR1200, Fo85, [001]."""
     pred = pd.read_csv(PREDICTIONS)
     row = pred[
         (pred.form == "dc07_x6_V")
         & (pred.method == "random study")
-        & (pred.condition == "KS20, 1200 C")
+        & (pred.condition == "RR1200, 1200 C")
     ].iloc[0]
-    log10_d = math.log10(PRESET.axis_diffusivities(KS20, 0.85)[2])
+    log10_d = math.log10(PRESET.axis_diffusivities(RR1200, 0.85)[2])
     assert log10_d == pytest.approx(row.log10_D001, abs=1e-9)
-    assert PRESET.log10_sigma(KS20, ALONG_001, 0.85) == pytest.approx(row.se, abs=1e-9)
+    assert PRESET.log10_sigma(RR1200, ALONG_001, 0.85) == pytest.approx(row.se, abs=1e-9)
     assert PRESET.uncertainty is not None
     tau = PRESET.uncertainty.between_study_log10
     assert math.hypot(row.se, tau) == pytest.approx(row.se_new_lab, abs=1e-9)
@@ -160,7 +161,7 @@ def test_summary_row_of_a_time_zero_fit_with_the_preset():
     x = np.arange(0.0, 199.0, 3.0)
     flat = Profile(x, np.where(x < 40, 0.82, 0.90))
     fit = fit_profile(
-        flat, KS20, ALONG_001, initial, Grid(1.0, 0.02 * 86400, 5), diffusivity="femg_refit2026"
+        flat, RR1200, ALONG_001, initial, Grid(1.0, 0.02 * 86400, 5), diffusivity="femg_refit2026"
     )
     assert fit.time_days == 0.0
     row = summary_row(fit)
@@ -175,10 +176,10 @@ def test_no_law_range_with_a_changing_rim():
 
     initial = InitialCondition((0, 199), edge_fo=0.86, core_fo=0.90, steps_um=(40,))
     path = RimPath((0.0, 3.0), (0.86, 0.82))
-    sigma, _ = _law_uncertainty(PRESET, KS20, ALONG_001, initial, (), 0.82)
+    sigma, _ = _law_uncertainty(PRESET, RR1200, ALONG_001, initial, (), 0.82)
     assert sigma is not None
-    assert _law_uncertainty(PRESET, KS20, ALONG_001, initial, (), path) == (None, None)
-    assert _law_uncertainty(PRESET, KS20, ALONG_001, initial, (), lambda t: 0.84) == (None, None)
+    assert _law_uncertainty(PRESET, RR1200, ALONG_001, initial, (), path) == (None, None)
+    assert _law_uncertainty(PRESET, RR1200, ALONG_001, initial, (), lambda t: 0.84) == (None, None)
 
 
 @pytest.fixture(scope="module")
@@ -225,8 +226,8 @@ def test_no_law_range_with_growth_stages():
 
     initial = InitialCondition((40, 199), edge_fo=0.86, core_fo=0.90, steps_um=(40,))
     stage = Stage(6 * 86400.0, rim_um=0.0, zone_value=0.82)
-    assert _law_uncertainty(PRESET, KS20, ALONG_001, initial, ()) != (None, None)
-    assert _law_uncertainty(PRESET, KS20, ALONG_001, initial, (stage,)) == (None, None)
+    assert _law_uncertainty(PRESET, RR1200, ALONG_001, initial, ()) != (None, None)
+    assert _law_uncertainty(PRESET, RR1200, ALONG_001, initial, (stage,)) == (None, None)
 
 
 @pytest.mark.parametrize(("edge", "core"), [(0.80, 0.90), (0.90, 0.80)])
@@ -240,15 +241,15 @@ def test_the_composition_term_moves_time_as_evaluated_a_third_of_the_way_in(edge
     dummy = Profile(x, np.full(len(x), 0.85) + 1e-4 * np.sin(x))
     grid = Grid(1.0, 1800.0, max_time_days=20)
     curves = fit_profile(
-        dummy, KS20, ALONG_001, initial, grid, diffusivity=law, stop_early=False, keep_curves=True
+        dummy, RR1200, ALONG_001, initial, grid, diffusivity=law, stop_early=False, keep_curves=True
     ).curves
     points = np.arange(2.0, 120.0, 2.0)
     truth = np.interp(points, x, curves[int(10 * 86400 / grid.dt_s)])
     profile = Profile(points, truth + np.random.default_rng(1).normal(0, 0.002, len(points)))
     long = replace(grid, max_time_days=60)
-    base = fit_profile(profile, KS20, ALONG_001, initial, long, diffusivity=law).time_days
+    base = fit_profile(profile, RR1200, ALONG_001, initial, long, diffusivity=law).time_days
     x_ref = edge + (core - edge) / 3
     for dn in (-0.3, 0.3):
         moved = replace(law, name=f"n{dn}", fo_coefficient=law.fo_coefficient + dn)
-        t = fit_profile(profile, KS20, ALONG_001, initial, long, diffusivity=moved).time_days
+        t = fit_profile(profile, RR1200, ALONG_001, initial, long, diffusivity=moved).time_days
         assert math.log10(t / base) == pytest.approx(-dn * (law.fo_ref - x_ref), abs=0.002)

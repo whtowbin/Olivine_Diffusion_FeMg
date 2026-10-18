@@ -292,11 +292,11 @@ decisions, and "1024 if ESS/n >= 0.4, else 4096", which draws 4096 needlessly: a
 
 ## Round robin crystals
 
-None could be used. The round robin runs named KS20-527_2-transect-1 to -4,
-KS20-527_5-transect-1 to -3 and KS20-527-8_transect-1 to -5 each point to a single
-measured profile per sample (`KS20-527_2-transect` and so on: one EPMA traverse in the
-data file and in the original spreadsheet `DiffusionRR-2.xlsx`); the numbered runs are
-different starting profiles fitted to that one profile, as for SH63olv066-1 to -4. Fitting
+None could be used. The numbered round robin runs of each sample (for example
+"transect-1" to "transect-4" of one sample) all point to a single measured profile per
+sample (one EPMA traverse in the data file and in the original spreadsheet
+`DiffusionRR-2.xlsx`); the numbered runs are different starting profiles fitted to that
+one profile. Fitting
 them as one crystal would count the same measurements several times. So 0 private
 multi-transect crystals exist in the data, and nothing was written to the private folder.
 

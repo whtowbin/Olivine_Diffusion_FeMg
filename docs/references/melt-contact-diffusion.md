@@ -14,7 +14,7 @@ How the melt-olivine experiments of Shea et al. (2023) compare with the study of
 
     The Jurewicz and Watson and full-Shea values are read from Shea's Fig. 6. **The 8 Shea profiles with a known axis (the Table 1 rows whose crystal axis Shea's Figs 2-4 state; the only Shea rows we can fit) run about 0.17 log above Shea's full set**, so a melt term fitted on them is biased high by about that much.
 -   **The between-study term in `femg_refit2026` is mostly one melt experiment.** τ = 0.254 log with Spandler; 0.105 without it, or 0.107 with melt contact as a fixed term (+0.57 ± 0.18 log). With Shea's rows added as a second melt study, the melt term is +0.83 ± 0.17 and τ 0.174. The `mutch_x6` form gives the same numbers to within 0.02.
--   **For solid contact the level and its uncertainty both drop.** At KS20 the law is +0.16 above DC07 instead of +0.27, with 1σ 0.06 (law) and 0.12 (one new lab) instead of 0.12 and 0.28.
+-   **For solid contact the level and its uncertainty both drop.** At RR1200 (the round robin 1200 C conditions: fO2 1.4e-3 Pa, Fo85, 42 MPa) the law is +0.16 above DC07 instead of +0.27, with 1σ 0.06 (law) and 0.12 (one new lab) instead of 0.12 and 0.28.
 -   **The fO2 exponent hardly moves**: 0.221 → 0.207-0.213, about 0.05 log at our fO2. The melt studies set the level near our fO2, not the slope.
 -   **Shea's offset is the same on every axis and nearly the same for Fe-Mg, Ni and Mn** (+1.12, +1.01, +1.00 log against the laws they used). Spandler's is shared by Fe-Mg and Mn (+0.7) but not by Ni (+0.15).
 -   **What this changes:** τ as fitted mixes a one-sided melt effect into a symmetric lab spread. It widens the slow side, which no data support, and it understates the fast side if natural crystals in melt behave like Shea's.
@@ -52,9 +52,9 @@ From our transcribed D, the mean against the refit is +0.92.
 
 ## The between-study term
 
-`fit_random` (REML, a random offset per study) on the 135 TaMED points, then with Spandler removed, with melt contact as a fixed term, and with Shea's 8 profiles with a known axis added. These are `dc07_free` results; `mutch_x6` is in `variants.csv` and agrees to within 0.02 on τ and the KS20 level.
+`fit_random` (REML, a random offset per study) on the 135 TaMED points, then with Spandler removed, with melt contact as a fixed term, and with Shea's 8 profiles with a known axis added. These are `dc07_free` results; `mutch_x6` is in `variants.csv` and agrees to within 0.02 on τ and the RR1200 level.
 
-| Variant | n | τ (95%) | fO2 exponent | E (kJ/mol) | Melt term | KS20 vs DC07 | KS20 1σ law / new lab |
+| Variant | n | τ (95%) | fO2 exponent | E (kJ/mol) | Melt term | RR1200 vs DC07 | RR1200 1σ law / new lab |
 |---------|---------|---------|---------|---------|---------|---------|---------|
 | baseline (the preset) | 135 | 0.254 (0.11-0.66) | 0.221 | 209.1 |  | +0.27 | 0.122 / 0.282 |
 | without Spandler | 132 | 0.105 (0.02-0.40) | 0.207 | 210.6 |  | +0.16 | 0.062 / 0.121 |
@@ -62,17 +62,17 @@ From our transcribed D, the mean against the refit is +0.92.
 | Shea as a sixth study | 143 | 0.449 (0.26-0.97) | 0.225 | 208.4 |  | +0.45 | 0.189 / 0.487 |
 | melt term (Spandler and Shea) | 143 | 0.174 (0.06-0.49) | 0.213 | 209.3 | +0.83 ± 0.17 | +0.17 | 0.094 / 0.198 |
 
-The SH63 and paper conditions move the same way: from +0.23 to +0.12 and from +0.32 to +0.20, with the new-lab 1σ from 0.28 to 0.12-0.13. The KS20 levels are for solid contact, with the melt term set to zero.
+The RR1102 (round robin 1102 C) and paper conditions move the same way: from +0.23 to +0.12 and from +0.32 to +0.20, with the new-lab 1σ from 0.28 to 0.12-0.13. The RR1200 levels are for solid contact, with the melt term set to zero.
 
 -   **Without the melt experiments, the four solid-source studies disagree by about 0.1 log.** That is half the within-study scatter (0.22). Their shrunken offsets are Chakraborty −0.04, Dohmen −0.03, Holzapfel −0.05 and Petry +0.12.
--   **Treated as one more lab, Shea nearly doubles τ (0.45)** and lifts the KS20 level by 0.17. A random study offset cannot tell "one lab is off" from "melt contact differs".
+-   **Treated as one more lab, Shea nearly doubles τ (0.45)** and lifts the RR1200 level by 0.17. A random study offset cannot tell "one lab is off" from "melt contact differs".
 -   **The two melt studies differ from each other by about 0.34 log** (shrunken offsets −0.17 and +0.17 around the shared term), which keeps τ at 0.17 when both are in. They differ in melt (synthetic against natural Kilauea basalt), temperature (1300 against 1200-1255 °C) and geometry (a crucible with no growth, against seeds that dissolved and then grew a rim).
 -   **The asymmetry.** A random offset is symmetric: τ = 0.254 makes "one new lab" equally likely to be 0.25 log slow or fast. The melt effect seen so far only makes diffusion faster. As a fixed term it is reported as a one-sided scenario, and the symmetric spread that remains (0.1) is what the solid-source labs support.
--   **So `femg_refit2026` carries about half a Spandler**, in its level (+0.11 at KS20) and in its `between_study_log10` (0.254 against 0.107).
+-   **So `femg_refit2026` carries about half a Spandler**, in its level (+0.11 at RR1200) and in its `between_study_log10` (0.254 against 0.107).
 
 ## The fO2 exponent
 
--   **Separating melt moves the exponent by 0.008-0.014**: 0.221 → 0.207-0.213 (`mutch_x6` 0.225 → 0.213-0.214). Our runs are 3.3-4.9 log units above 10⁻⁷ Pa, so that is 0.03-0.07 log in D. The other 0.06 of the 0.11 drop at KS20 is Spandler's level, not its slope.
+-   **Separating melt moves the exponent by 0.008-0.014**: 0.221 → 0.207-0.213 (`mutch_x6` 0.225 → 0.213-0.214). Our runs are 3.3-4.9 log units above 10⁻⁷ Pa, so that is 0.03-0.07 log in D. The other 0.06 of the 0.11 drop at RR1200 is Spandler's level, not its slope.
 -   **Both melt studies are at FMQ−1** (Spandler 1300 °C, Shea 1200-1255 °C). So a melt term and the exponent do not trade off here. Equally, nothing tells us whether the melt effect changes with fO2.
 -   **Without the melt studies, Petry et al. (2004) are the only 1-atm solid-source data near our fO2** (to 10\^-3.9 Pa). Their shrunken offset rises a little (+0.09 → +0.12-0.15).
 -   **Oeser et al. (2026) would fill this gap**: a solid powder source at 1100-1300 °C and 10⁻⁷ to 10⁻² Pa. Transcribing their tables is the most useful next data step for the solid-source exponent at 10⁻⁴ to 10⁻² Pa.
@@ -129,7 +129,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
 
 ## Decisions (Henry's, not made here)
 
-1.  **Whether to re-export `femg_refit2026` with melt as a fixed term.** τ would be about 0.11, the KS20 level +0.16 against DC07, and the law 1σ 0.06. This touches `export_preset.py` and `diffusivity.py`. The review-fixes refactor that blocked it landed in 462680b. `export_preset.py` exits 1 unless the law it builds equals the preset exactly. The current τ is also quoted in:
+1.  **Whether to re-export `femg_refit2026` with melt as a fixed term.** τ would be about 0.11, the RR1200 level +0.16 against DC07, and the law 1σ 0.06. This touches `export_preset.py` and `diffusivity.py`. The review-fixes refactor that blocked it landed in 462680b. `export_preset.py` exits 1 unless the law it builds equals the preset exactly. The current τ is also quoted in:
 
     -   `src/forster/diffusivity.py` (the value and its source text);
     -   `law-uncertainty-limits.md` (how the range is computed, step 4; the "Gaussian in log10 D" bullet, 0.11-0.66 and 0.164-0.671);
@@ -148,9 +148,9 @@ So a study or melt offset shared across elements is supported by Shea and half s
 
 ## Figures
 
-![Melt-term bowties at the KS20 conditions](../../analyses/melt_contact/figures/fig1_bowties.png)
+![Melt-term bowties at the RR1200 conditions](../../analyses/melt_contact/figures/fig1_bowties.png)
 
-**Fig. 1. Arrhenius bowties of the `dc07_free` random-study fit at the KS20 conditions** (fO2 1.4e-3 Pa, Fo85, 42 MPa, \[001\]), drawn as log D minus DC07 so that 0.1 log differences show.
+**Fig. 1. Arrhenius bowties of the `dc07_free` random-study fit at the RR1200 conditions** (fO2 1.4e-3 Pa, Fo85, 42 MPa, \[001\]), drawn as log D minus DC07 so that 0.1 log differences show.
 
 -   **Panels:** (a) as the `femg_refit2026` preset; (b) with a melt term for Spandler; (c) with one melt term for Spandler and Shea.
 -   **Blue (solid contact):** 68% and 95% bands are quantiles over 4000 draws from the fit's covariance. The dashed lines add τ (the 68% range for one new lab).

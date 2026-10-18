@@ -222,10 +222,10 @@ def width_from_curve(v, ll, drop=0.5):
 
 # ------------------------------------------------------------------- IC: real profiles
 
-# Fitted times (days) at the nominal IC, from the noise-models guide's tables
-# (real_examples.csv, rr_examples.csv): they size each profile's scan grid.
+# Fitted times (days) at the nominal IC, from the noise-models guide's table
+# (real_examples.csv): they size each profile's scan grid. Round robin times are private
+# and are read from the private rr_examples.csv (see nominal_days).
 NOMINAL_DAYS = {
-    "SH63olv066-1": 10.817,
     "Xenocryst_ol6_prof_1": 0.14792,
     "AZ18 WHT06_ol43_prof 1": 1.9229,
     "AZ18 WHT06_ol48_prof 1": 3.0389,
@@ -281,13 +281,24 @@ class Case:
         return self.like.at_points(ic), ic
 
 
+def nominal_days(name):
+    """A paper profile's time from NOMINAL_DAYS, or a round robin profile's from the
+    private rr_examples.csv written by noise_models/make_figures.py --private."""
+    if name in NOMINAL_DAYS:
+        return NOMINAL_DAYS[name]
+    table = pd.read_csv(
+        REPO / "Diffusion Round Robin" / "outputs" / "noise_models" / "rr_examples.csv"
+    )
+    return float(table.set_index("run").loc[name, "time_days"])
+
+
 def make_case(name, runs, profiles, spreads=None, factor=3.0) -> Case:
     """The profile's run on a scan grid to ``factor`` x its nominal time, with an
     ICLikelihood over every IC parameter (spreads: 2 um for steps, 1 mol% for Fo,
     unless given)."""
     run = runs[name]
     profile = profiles[run.profile_name]
-    t = NOMINAL_DAYS[name]
+    t = nominal_days(name)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         grid = choose_grid(profile, run.conditions, run.orientation, run.initial,

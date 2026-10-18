@@ -85,7 +85,7 @@ build-backend = "hatchling.build"
 packages = ["src/forster"]
 
 # The source distribution holds the package only: the docs, analyses and plans (tens of
-# MB, some with round robin results) stay in the repository.
+# MB) stay in the repository.
 [tool.hatch.build.targets.sdist]
 only-include = ["src/forster", "README.md", "LICENSE", "pyproject.toml"]
 

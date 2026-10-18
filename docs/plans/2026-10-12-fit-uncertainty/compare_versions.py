@@ -6,7 +6,9 @@ v2: engine.Best_fit_Chi2 = fit_profile(uncertainty="legacy") (March to October
     2026), kriged grid, reduced chi2 within min + 1.
 v3: fit_profile(uncertainty="correlated"), the default from 2026-10-12.
 
-Writes round_robin_versions.csv next to this file. Times in days; *_minus and
+Writes round_robin_versions.csv into the private round robin submodule
+(Diffusion Round Robin/outputs/public_tree_moved/docs/plans/2026-10-12-fit-uncertainty/),
+because the round robin results are not public. Times in days; *_minus and
 *_plus are offsets from the best fit. Run from the repo root:
     uv run python docs/plans/2026-10-12-fit-uncertainty/compare_versions.py
 """
@@ -60,4 +62,12 @@ for run in read_runs(ROUND_ROBIN_PARAMS, defaults=BATCH_DEFAULTS):
     )
     del legacy, new  # each run holds a few hundred MB of curves
     print(run.name, flush=True)
-pd.DataFrame(rows).to_csv(HERE / "round_robin_versions.csv", index=False, float_format="%.4g")
+OUT = (
+    HERE.parents[2]
+    / "Diffusion Round Robin"
+    / "outputs"
+    / "public_tree_moved"
+    / HERE.relative_to(HERE.parents[2])
+)
+OUT.mkdir(parents=True, exist_ok=True)
+pd.DataFrame(rows).to_csv(OUT / "round_robin_versions.csv", index=False, float_format="%.4g")

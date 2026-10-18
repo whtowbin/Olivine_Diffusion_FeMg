@@ -24,7 +24,8 @@ with h on H_GRID (h = 0 is forster's model). This is the shape of the synthetic
 Candidate warning: after the default fit, the whitened residuals within 2 l of a step
 have a larger variance than the rest (Brown-Forsythe p < 0.05 and ratio > 1).
 
-Writes zone_trials.csv and zone_coverage.csv (synthetic), zone_real.csv (real profiles).
+Writes zone_trials.csv and zone_coverage.csv (synthetic), zone_real.csv (real profiles;
+round robin rows only to the private submodule).
 
     uv run python docs/plans/2026-10-15-whitening-validity/zone_noise.py measure
     uv run python docs/plans/2026-10-15-whitening-validity/zone_noise.py run [trials]
@@ -46,7 +47,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import scipy.linalg as sla  # noqa: E402
-from common import HERE, kernel_matrix, length_grid, whiten  # noqa: E402
+from common import HERE, kernel_matrix, length_grid, whiten, write_split  # noqa: E402
 from scipy import stats  # noqa: E402
 from synthetic import GEOMETRIES, SEED, _band, build_geometries, geometry, make_noise  # noqa: E402
 
@@ -356,7 +357,7 @@ def real():
             f"width x{row['corr_width_ratio']:.2f} time x{row['corr_time_ratio']:.2f}",
             flush=True,
         )
-    pd.DataFrame(rows).to_csv(HERE / "zone_real.csv", index=False, float_format="%.5g")
+    write_split(pd.DataFrame(rows), "zone_real.csv", "%.5g")
 
 
 if __name__ == "__main__":

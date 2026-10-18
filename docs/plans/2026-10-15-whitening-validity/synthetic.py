@@ -3,9 +3,14 @@
 Profiles of known age are made with the forward model (implicit scheme, grid from
 `forster.grid.choose_grid`) on three real geometries (point positions only):
 
-- "KS 29 pts": KS20-527_2-transect-1, 29 points 10 um apart (round robin);
-- "paper 17 pts": GCB1A R31_MP_Ol5_prof_2, 17 points 2.9 um apart (Towbin and Plank 2026);
-- "SH63 298 pts": SH63olv066-1, 298 points 0.5 um apart (round robin, two steps).
+- "29-point profile, 10 um spacing": a round robin profile, 29 points 10 um apart;
+- "17-point paper profile, 2.9 um spacing": GCB1A R31_MP_Ol5_prof_2 (Towbin and Plank
+  2026), 17 points 2.9 um apart;
+- "298-point profile, 0.5 um spacing": a round robin profile with two steps, 298 points
+  0.5 um apart.
+
+The round robin profiles are private: this script reads them from the submodule when it
+is checked out, and only the synthetic results are written here.
 
 The true time is the fit to that profile's data on the chosen grid. Noise of a known
 kind is added (cases below) and each synthetic profile is fitted with the unchanged
@@ -65,9 +70,9 @@ CLIP_Z = 4.0
 
 GEOMETRIES = {
     # name: (source, run name, white noise sd as Fo fraction)
-    "KS 29 pts (10 um)": ("round_robin", "KS20-527_2-transect-1", 0.002),
-    "paper 17 pts (2.9 um)": ("paper", "GCB1A R31_MP_Ol5_prof_2", 0.001),
-    "SH63 298 pts (0.5 um)": ("round_robin", "SH63olv066-1", 0.006),
+    "29-point profile, 10 um spacing": ("round_robin", "KS20-527_2-transect-1", 0.002),
+    "17-point paper profile, 2.9 um spacing": ("paper", "GCB1A R31_MP_Ol5_prof_2", 0.001),
+    "298-point profile, 0.5 um spacing": ("round_robin", "SH63olv066-1", 0.006),
 }
 
 # Case name -> (generator kind, parameters). "misfit" draws a stationary Gaussian
@@ -86,7 +91,7 @@ CASES = {
     "Matern 3/2 L=30": ("misfit", {"kernel": "matern32", "L": 30.0}),
     "near-step sq-exp L=3": ("envelope", {"kernel": "sqexp", "L": 3.0}),
     "near-step sq-exp L=10": ("envelope", {"kernel": "sqexp", "L": 10.0}),
-    # 3x the amplitude (1.2 mol% Fo at the step): near/far scatter like the real SH63 data
+    # 3x the amplitude (1.2 mol% Fo at the step): near/far scatter like the dense real data
     "strong near-step L=3": ("envelope", {"kernel": "sqexp", "L": 3.0, "amp": 3 * AMP}),
     "strong near-step L=10": ("envelope", {"kernel": "sqexp", "L": 10.0, "amp": 3 * AMP}),
     "Student-t3 white": ("student", {}),
@@ -120,7 +125,8 @@ def build_geometries():
             # The true time: the default fit to this profile with its own grid, moved to
             # the nearest step of the chosen grid (implicit scheme, choose_grid at that
             # time). A blank GridRequest would need a coarse fit to estimate the time,
-            # which on SH63 exceeds the curve-memory limit, so the time is passed in.
+            # which on the 298-point profile exceeds the curve-memory limit, so the time
+            # is passed in.
             own = forster.fit_run(run, profiles)
             from forster.io import _profile
 

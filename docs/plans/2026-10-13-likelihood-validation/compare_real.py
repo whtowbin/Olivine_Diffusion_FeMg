@@ -6,7 +6,8 @@ the Bayesian posterior with the noise scale integrated out; and a scan of the st
 position over +-6 um in 1 um steps (`forster.scan`), with its profile-likelihood and
 marginal ranges. Times in days.
 
-Writes real_methods.csv next to this file. Run from the repo root:
+Writes real_methods.csv next to this file (paper rows only; the full table, with the
+round robin rows, goes to the private round robin submodule). Run from the repo root:
     uv run python docs/plans/2026-10-13-likelihood-validation/compare_real.py
 """
 
@@ -32,6 +33,23 @@ from forster import RunDefaults, fit_run, read_profiles, read_runs  # noqa: E402
 from forster.model import Profile  # noqa: E402
 from forster.scan import scan_initial_conditions, step_offsets  # noqa: E402
 from forster.uncertainty import delta_chi2_interval, posterior_interval  # noqa: E402
+
+PRIVATE = (
+    HERE.parents[2]
+    / "Diffusion Round Robin"
+    / "outputs"
+    / "public_tree_moved"
+    / HERE.relative_to(HERE.parents[2])
+)
+
+
+def write_table(table, name, **kwargs):
+    """The round robin rows are private (other labs' data): the full table goes to the
+    round robin submodule, the public copy next to this file keeps the paper rows."""
+    PRIVATE.mkdir(parents=True, exist_ok=True)
+    table.to_csv(PRIVATE / name, index=False, **kwargs)
+    table[table["set"] != "round robin"].to_csv(HERE / name, index=False, **kwargs)
+
 
 DAY = 86400.0
 PICKS = {
@@ -105,6 +123,6 @@ for label, (runs, profiles) in SETS.items():
         print(f"{name}: best step {scan.best_initial.steps_um} (nominal {run.initial.steps_um})")
 
 table = pd.DataFrame(rows)
-table.to_csv(HERE / "real_methods.csv", index=False, float_format="%.4g")
+write_table(table, "real_methods.csv", float_format="%.4g")
 pd.set_option("display.width", 200)
 print(table.round(2).to_string(index=False))

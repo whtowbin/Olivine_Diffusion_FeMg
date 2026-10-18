@@ -43,7 +43,7 @@ Out of scope: partitioning boundary conditions, multicomponent coupling beyond D
    - `fit_joint` with Fo alone equals `fit_profile`'s correlated fit; with Fo and Ni made at one time, the joint range is no wider than the narrower single range.
    - Stability: a dt unstable for the element (not for Fo) is an error naming the species.
    - Input errors: unknown element, a diffusivity for the wrong element, two steps without a plateau, duplicate elements in a joint fit.
-4. Real-data check (reported, not asserted): Fo, Ni, Mn and Ca fits on the AZ18 example and a KS20 round robin profile, with times compared across elements.
+4. Real-data check (reported, not asserted): Fo, Ni, Mn and Ca fits on the AZ18 example and a round robin profile, with times compared across elements.
 
 Verify: `uv run pytest -n 8`, ruff, ty, complexipy.
 
@@ -68,21 +68,22 @@ Physics checks (all in `tests/test_elements.py`):
   at the paper's, so Ni can limit the time step. Ca is 0.25-0.41x.
 
 Real profiles, element edge and core taken as the means of the first 3 and last 5
-points in the domain, steps at Fo's (not fitted; times are illustrative):
+points in the domain, steps at Fo's (not fitted; times are illustrative). A round
+robin profile (1200 C) was fitted the same way; the round robin data belong to other
+labs, so its times are private and it is described in words only:
 
 | Profile | Fo | Ni | Mn | Ca | Joint (all four) |
 |---|---|---|---|---|---|
 | AZ18 WHT01_Ol_63 (1250 C) | 5.10 (4.20-6.19) | 0.00: NiO contrast 0.012 wt%, within noise | 19.4 (9.3-40.2) | 4.2 (1.8-11.4) | 5.39 (4.49-6.46) |
-| KS20-527_2-transect-1 (1200 C) | 42.2 (34.4-50.4) | 6.7 (4.2-11.5) | 16.4 (7.3-39.5) | 46.9 (17.9-125) | 38.1 (31.0-45.6) |
 
 Days, 1-sigma ranges. Findings:
 
-- Ca agrees with Fo on both profiles; Mn does not on either; Ni on KS20 is 6x
-  shorter than Fo. On KS20 the plot shows the guessed Ni rim value (0.248) above the
-  measured rim (0.228-0.240) and the 50-90 um points below the model, so Ni's
+- Ca agrees with Fo on both profiles; Mn does not on either. On the round robin
+  profile Ni gives a much shorter time than Fo, and the plot shows the guessed Ni rim
+  value above the measured rim and the points further in below the model, so Ni's
   initial condition, not only its diffusivity, is in question.
-- The joint fit hides disagreement: Fo + Ni on KS20 gives 39.4 d, near Fo's 42.2,
-  although Ni alone gives 6.7. A joint fit needs a consistency check before its
+- The joint fit hides disagreement: on the round robin profile Fo + Ni gives a time
+  close to Fo's, although Ni alone gives a much shorter one. A joint fit needs a consistency check before its
   range means anything (for example each species' chi-squared rise at the joint best
   fit against its own minimum, or a test of a common time).
 - A profile without resolvable zoning (AZ18 Ni) fits at time zero. It should be
@@ -107,21 +108,22 @@ Built:
 - Fix found on real data: Fo was not advanced when the only element was Ca (Fo-
   independent D) even when Fo itself was fitted. `coupled_model(advance_fo=...)`.
 
-Real profiles with fitted concentrations (days, 1-sigma):
+Real profiles with fitted concentrations (days, 1-sigma; the round robin profile's
+results are private and are described below the table):
 
-| | AZ18 WHT01_Ol_63 (1250 C) | KS20-527_2-transect-1 (1200 C) |
-|---|---|---|
-| Fo | 5.10 (4.20-6.19) | 42.2 (34.4-50.4) |
-| Ni | unconstrained (best at 0; NiO contrast ~0.02 wt%) | 15.5 (10.7-22.2), fitted rim 0.216 |
-| Mn | 19.9 (5.4-200, range reaches the run end) | 18.2 (10.0-33.8) |
-| Ca | 3.8 (1.4-17.2) | 64.1 (31.5-126) |
-| Fo+Ni, p | 0.016 (Ni unconstrained, should not be joined) | 0.008: Ni disagrees |
-| Fo+Mn, p | 0.26 | 0.17 |
-| Fo+Ca, p | 0.81 | 0.53 |
+| | AZ18 WHT01_Ol_63 (1250 C) |
+|---|---|
+| Fo | 5.10 (4.20-6.19) |
+| Ni | unconstrained (best at 0; NiO contrast ~0.02 wt%) |
+| Mn | 19.9 (5.4-200, range reaches the run end) |
+| Ca | 3.8 (1.4-17.2) |
+| Fo+Ni, p | 0.016 (Ni unconstrained, should not be joined) |
+| Fo+Mn, p | 0.26 |
+| Fo+Ca, p | 0.81 |
 
-Fitting the Ni rim moved KS20's Ni time from 6.7 to 15.5 d, but it still disagrees
-with Fo (42 d). Ca agrees with Fo on both profiles; Mn is too weakly constrained to
-disagree.
+On the round robin profile, fitting the Ni rim lengthened the Ni time, but Ni still
+disagreed with Fo (the consistency test warned). Ca agrees with Fo on both profiles;
+Mn is too weakly constrained to disagree.
 
 Sources (reviews by subagents, checked where it mattered):
 

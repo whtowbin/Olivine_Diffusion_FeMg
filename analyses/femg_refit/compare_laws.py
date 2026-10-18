@@ -101,8 +101,8 @@ for name, col in cands.items():
 # plotted, with either Fo90 (the caption) or Fo86 (how Chakraborty's are plotted).
 fig7b = pd.read_csv(F.Path(__file__).parent / "data" / "dohmen_chakraborty2007_fig7b_extracted.csv")
 mei = fig7b[fig7b["series"].str.contains("Mei", case=False)]
-ks20 = F._conditions()["KS20, 1200 C"]
-print(f"\nMeissner (2000), {len(mei)} points from DC07 Fig. 7b: KS20 vs default, without -> with")
+rr1200 = F._conditions()["RR1200, 1200 C"]
+print(f"\nMeissner (2000), {len(mei)} points from DC07 Fig. 7b: RR1200 vs default, without -> with")
 for x_fo in (0.90, 0.86):
     add = pd.DataFrame(
         {
@@ -124,5 +124,5 @@ for x_fo in (0.90, 0.86):
         shifts = []
         for data in (df, both):
             fit = F.fit_ls(f, data, weighted=False)
-            shifts.append(F.predict(f, fit["beta"], fit["cov"], ks20)[0] - F._dc07_preset(ks20))
+            shifts.append(F.predict(f, fit["beta"], fit["cov"], rr1200)[0] - F._dc07_preset(rr1200))
         print(f"  Fo{x_fo * 100:.0f} {name:12s}: {shifts[0]:+.3f} -> {shifts[1]:+.3f}")

@@ -89,12 +89,36 @@ sh_curves = sh_fit.curves[: 3 * sh_k].copy()
 
 GEOMETRIES = {
     # name: (curves, model_x, x positions, k_true, white sigma Fo fraction)
-    "KS 6 pts (50 um)": (ks_curves, ks_fit.model_x_um, ks_x_meas[::5], k_true, 0.002),
-    "KS 10 pts (30 um)": (ks_curves, ks_fit.model_x_um, ks_x_meas[::3], k_true, 0.002),
-    "KS 29 pts (10 um, measured)": (ks_curves, ks_fit.model_x_um, ks_x_meas, k_true, 0.002),
-    "KS 100 pts (3 um)": (ks_curves, ks_fit.model_x_um, np.arange(1.5, 299, 3.0), k_true, 0.004),
-    "KS 300 pts (1 um)": (ks_curves, ks_fit.model_x_um, np.arange(0.5, 299.5, 1.0), k_true, 0.006),
-    "SH63 298 pts (0.5 um, measured)": (
+    "6-point profile, 50 um spacing": (ks_curves, ks_fit.model_x_um, ks_x_meas[::5], k_true, 0.002),
+    "10-point profile, 30 um spacing": (
+        ks_curves,
+        ks_fit.model_x_um,
+        ks_x_meas[::3],
+        k_true,
+        0.002,
+    ),
+    "29-point profile, 10 um spacing (measured positions)": (
+        ks_curves,
+        ks_fit.model_x_um,
+        ks_x_meas,
+        k_true,
+        0.002,
+    ),
+    "100-point profile, 3 um spacing": (
+        ks_curves,
+        ks_fit.model_x_um,
+        np.arange(1.5, 299, 3.0),
+        k_true,
+        0.004,
+    ),
+    "300-point profile, 1 um spacing": (
+        ks_curves,
+        ks_fit.model_x_um,
+        np.arange(0.5, 299.5, 1.0),
+        k_true,
+        0.006,
+    ),
+    "298-point profile, 0.5 um spacing (measured positions)": (
         sh_curves,
         sh_fit.model_x_um,
         sh_fit.fit_x_um,
@@ -111,7 +135,7 @@ NOISE = {
     "smooth misfit, L = 30 um": (0.004, 30.0),
 }
 
-# Systematic initial-condition errors on the KS profile: the data come from a model
+# Systematic initial-condition errors on the 29-point profile: the data come from a model
 # with a shifted step or edge, the fit uses the nominal one.
 ks_init = ks.initial
 SYSTEMATIC = {
@@ -227,7 +251,10 @@ for name, shifted_initial in SYSTEMATIC.items():
         if np.allclose(c.steps_um, shifted_initial.steps_um)
         and np.isclose(c.edge_fo, shifted_initial.edge_fo)
     )
-    for geometry in ("KS 29 pts (10 um, measured)", "KS 300 pts (1 um)"):
+    for geometry in (
+        "29-point profile, 10 um spacing (measured positions)",
+        "300-point profile, 1 um spacing",
+    ):
         x = GEOMETRIES[geometry][2]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")

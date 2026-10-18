@@ -1,6 +1,6 @@
 """Figures for the melt-contact analysis (docs/references/melt-contact-diffusion.md).
 
-fig1_bowties.png: Arrhenius bowties of the dc07_free random-study fit at the KS20
+fig1_bowties.png: Arrhenius bowties of the dc07_free random-study fit at the RR1200
 conditions (fO2 1.4e-3 Pa, Fo85, 42 MPa, [001]), drawn as log D minus the default law
 (Dohmen & Chakraborty 2007) so differences of 0.1 log show: (a) as the femg_refit2026
 preset, melt contact inside the between-study spread; (b) a melt term for Spandler and
@@ -51,14 +51,14 @@ SHEA_SIGMA = 0.3  # log10: Shea et al.'s error bars span 0.6 log units
 STYLE = {**F.STUDY_STYLE, SHEA: ("#000000", "P", "Shea et al. 2023 (8 profiles with a known axis)")}
 SOLID, MELT, BASE = "#0072B2", "#882255", "0.45"
 T_GRID = np.linspace(700, 1600, 91)
-KS20 = B.PANELS["b"][1:]  # log10 fO2 (Pa), X_Fo, P (Pa)
+RR1200 = B.PANELS["b"][1:]  # log10 fO2 (Pa), X_Fo, P (Pa)
 AT_1200 = {"T_K": 1473.15, "X_Fo": 0.9, "P_Pa": 1e5, "axis": "[001]"}
 PANELS = {
     "a": ("baseline", (), "previous preset: melt inside the lab spread"),
     "b": ("melt_fixed_spandler", (M.SPANDLER,), "melt term: Spandler"),
     "c": ("melt_fixed_both", (M.SPANDLER, SHEA), "melt term: Spandler + Shea"),
 }
-RR_BELOW_KS20 = 0.9  # log units: the round robin runs reach 0.9 below KS20 (fo2_figures)
+RR_BELOW_RR1200 = 0.9  # log: the round robin runs reach 0.9 below the RR1200 fO2 (fo2_figures)
 NEAR = 0.5  # log units either side of that span counted as "near our fO2"
 FORM_NAME = {"dc07_free": "DC07 form: ", "mutch_x6": "Mutch form: "}
 FORM_LEGEND = {"dc07_free": "DC07 form", "mutch_x6": "Mutch form, 6x", "study's own": "one study"}
@@ -150,15 +150,15 @@ def melt_title(rows: list[dict]) -> str:
     a, b = rows[0], rows[1]
     return (
         f"A melt term takes melt contact out of the lab spread: τ {a['tau_log10']:.2f} → "
-        f"{b['tau_log10']:.2f} log, and the solid-contact law at KS20, 1200 °C moves from "
-        f"{a['KS20_1200C_vs_dc07']:+.2f} to {b['KS20_1200C_vs_dc07']:+.2f} log above DC07"
+        f"{b['tau_log10']:.2f} log, and the solid-contact law at RR1200, 1200 °C moves from "
+        f"{a['RR1200_1200C_vs_dc07']:+.2f} to {b['RR1200_1200C_vs_dc07']:+.2f} log above DC07"
     )
 
 
 def fig_bowties(both, sigma, panels, rng, path=None, title=melt_title, style=None) -> pd.DataFrame:
     form = F.FORMS["dc07_free"]
     n = len(form.params)
-    log_fo2, x_fo, p_pa = KS20
+    log_fo2, x_fo, p_pa = RR1200
     v = B._grid(T_GRID, log_fo2, x_fo, p_pa)
     x = 1e4 / (T_GRID + 273.15)
     dc07 = B._published("dohmen_chakraborty2007", T_GRID, log_fo2, x_fo, p_pa)
@@ -186,7 +186,7 @@ def fig_bowties(both, sigma, panels, rng, path=None, title=melt_title, style=Non
             "panel": key,
             "variant": variant,
             "tau_log10": tau,
-            "KS20_1200C_vs_dc07": best[i1200] - dc07[i1200],
+            "RR1200_1200C_vs_dc07": best[i1200] - dc07[i1200],
             "band68_1200C": half[i1200],
             "new_lab68_1200C": new_lab[i1200],
         }
@@ -213,8 +213,9 @@ def fig_bowties(both, sigma, panels, rng, path=None, title=melt_title, style=Non
         ax.axhline(0, color="0.2", lw=0.9, ls=":", label="DC07 (default law)")
         ax.axvline(x[i1200], color="0.6", lw=0.7, ls=":")
         ax.set_title(
-            f"({key}) {panel['title']}\nτ {tau:.2f}; at 1200 °C {row['KS20_1200C_vs_dc07']:+.2f}, "
-            f"±{half[i1200]:.2f} law, ±{new_lab[i1200]:.2f} new lab{melt_txt}",
+            f"({key}) {panel['title']}\nτ {tau:.2f}; at 1200 °C "
+            f"{row['RR1200_1200C_vs_dc07']:+.2f}, ±{half[i1200]:.2f} law, "
+            f"±{new_lab[i1200]:.2f} new lab{melt_txt}",
             loc="left",
         )
         ax.set_xlabel("10⁴ / T (1/K)")
@@ -225,7 +226,7 @@ def fig_bowties(both, sigma, panels, rng, path=None, title=melt_title, style=Non
         top.set_xticks([1e4 / (c + 273.15) for c in marks], [str(c) for c in marks])
         top.set_xlabel("T (°C)")
         rows.append(row)
-    axes[0].set_ylabel("log10 D[001] minus DC07 at the KS20 conditions")
+    axes[0].set_ylabel("log10 D[001] minus DC07 at the RR1200 conditions")
     handles, labels = axes[2].get_legend_handles_labels()
     fig.legend(handles, labels, loc="outside lower center", ncol=6, fontsize=7, frameon=False)
     fig.suptitle(title(rows), fontsize=10)
@@ -262,8 +263,8 @@ def fig_fo2(base, both, sigma, fit, ex: pd.DataFrame, rng) -> None:
     )
     fo2 = np.linspace(-10, 4, 71)
     v = F.Vars.of(pd.DataFrame({"log10_fO2_Pa": fo2, **AT_1200}))
-    ks20, paper = FO.CONDITIONS_FO2["KS20"], FO.CONDITIONS_FO2["Paper"]
-    lo_rr, hi_rr = min(ks20, paper) - RR_BELOW_KS20, max(ks20, paper)
+    rr1200, paper = FO.CONDITIONS_FO2["RR1200"], FO.CONDITIONS_FO2["Paper"]
+    lo_rr, hi_rr = min(rr1200, paper) - RR_BELOW_RR1200, max(rr1200, paper)
     a.axvspan(lo_rr, hi_rr, color="0.9", lw=0, zorder=0)
     a.text(
         (lo_rr + hi_rr) / 2,

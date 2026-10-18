@@ -349,10 +349,12 @@ def fit_loso(form: Form, df: pd.DataFrame) -> dict[str, dict]:
 
 
 CONDITIONS = {
-    # T_C, P_Pa, log10 fO2 (Pa), X_Fo: round robin KS20 (1200 C) and SH63 (1102 C),
-    # and the Towbin and Plank (2026) xenoliths (1250 C, QFM+0.3).
-    "KS20, 1200 C": (1200.0, 4.2e7, math.log10(0.00138), 0.85),
-    "SH63, 1102 C": (1102.0, None, None, 0.70),
+    # T_C, P_Pa, log10 fO2 (Pa), X_Fo. RR1200 and RR1102 are the round robin experimental
+    # conditions at 1200 C and 1102 C (law predictions there, not results from the round
+    # robin profiles); RR1102's P and fO2 come from the private round robin table when it
+    # is present. Paper: the Towbin and Plank (2026) xenoliths (1250 C, QFM+0.3).
+    "RR1200, 1200 C": (1200.0, 4.2e7, math.log10(0.00138), 0.85),
+    "RR1102, 1102 C": (1102.0, None, None, 0.70),
     "Paper, 1250 C": (1250.0, 5e8, math.log10(8.3e-3), 0.90),
 }
 
@@ -368,11 +370,11 @@ def _conditions() -> dict[str, Vars]:
             / "Round_Robin_Olivine_Profile_Diffusion_Modeling_Parameters_DB.xlsx"
         )
     }
-    sh63 = runs["SH63olv084"].conditions
+    rr1102 = runs["SH63olv084"].conditions  # the round robin run at 1102 C
     out = {}
     for name, (t, p, f, x) in CONDITIONS.items():
         if p is None:
-            p, f = sh63.P_Pa, math.log10(sh63.fO2_Pa)
+            p, f = rr1102.P_Pa, math.log10(rr1102.fO2_Pa)
         out[name] = Vars(*(np.array([val]) for val in (f, x, t + 273.15, p, 0.0, 0.0)))
     return out
 

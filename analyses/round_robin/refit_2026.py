@@ -96,7 +96,16 @@ DATA = RR / "Diffusion Round Robin Data Reorg.xlsx"
 OUT = RR / "outputs" / "refit_2026"
 CACHE = OUT / "cache"
 SUBMITTED = OUT / "submitted_results.csv"  # transcribed from "Round Robin_Sample Times version 2"
-FIX_EFFECT = ROOT / "docs" / "plans" / "2026-10-11-engine-fix" / "round_robin_fix_effect.csv"
+# The engine-fix table of the round robin runs (moved out of the public tree 2026-10-17).
+FIX_EFFECT = (
+    RR
+    / "outputs"
+    / "public_tree_moved"
+    / "docs"
+    / "plans"
+    / "2026-10-11-engine-fix"
+    / "round_robin_fix_effect.csv"
+)
 
 LAW = "dipra"
 LAWS = tuple(FE_MG_CHOICES)  # dipra, refit, dfens_tamed, dfens_global
@@ -125,7 +134,7 @@ VARIANTS = {
 FO_SIGMA_BRIEF = BRIEF["fo_sigma"]  # the brief's Fo uncertainty
 # The legacy (kriged-grid) fit of the restructure plan's table: the batch loop's kriging,
 # the table's grid (dx 1 um, dt 120 s), the explicit central scheme. 40 days covers the
-# SH63 minimum (about 10 days) without the batch loop's 2-year run.
+# minimum of the SH63olv066 runs without the batch loop's 2-year run.
 BATCH_KRIGING = KrigingSettings(
     variogram_model="gaussian",
     variogram_parameters={"sill": (10 / 100) ** 2, "range": 25, "nugget": (0.2 / 100) ** 2},

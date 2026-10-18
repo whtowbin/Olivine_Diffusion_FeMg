@@ -18,7 +18,7 @@ combined by the profile's angles to each axis.
 - **Above about 1150 C, newer solid-source experiments find faster diffusion
   along [010]** and higher activation energies, which they read as the start of a
   change in diffusion mechanism (Sio et al. 2018; Oeser et al. 2026; consistent
-  with Tachibana et al. 2013 at 1400-1600 C). The round robin samples 1-3 (1200 C)
+  with Tachibana et al. 2013 at 1400-1600 C). The round robin samples at 1200 C
   and the paper profiles (1250 C) are in this range.
 - **With melt present, Fe-Mg diffusion was about 10x faster** than the
   solid-source calibrations at 1200-1255 C (Shea et al. 2023, agreeing with two
@@ -33,8 +33,8 @@ Size of each effect on a fitted time (time multiplier; time scales as 1/D):
 | Effect | Applies to | Time multiplier | Source |
 |---|---|---|---|
 | Regression calibration instead of DC07, TaMED / Global | all profiles | x0.52 / x0.78 at 1200 C; x0.66 / x0.91 at 1102 C | Mutch et al. 2019 (this note's calculation) |
-| [010] at least 0.5 log faster, [100] and [001] unchanged | profiles at >= 1150 C | median x0.88 (round robin), x0.90 (paper); down to x0.35 for traverses near [010] | Oeser et al. 2026 (this note's calculation) |
-| Sio et al. multipliers ([100] x1.1, [010] x4.5, [001] x1.9) | 1200-1400 C | median x0.48 (round robin), x0.53 (paper); range x0.24-x0.86 | Sio et al. 2018 (this note's calculation) |
+| [010] at least 0.5 log faster, [100] and [001] unchanged | profiles at >= 1150 C | median x0.90 (paper profiles); down to x0.35 for traverses near [010] | Oeser et al. 2026 (this note's calculation) |
+| Sio et al. multipliers ([100] x1.1, [010] x4.5, [001] x1.9) | 1200-1400 C | median x0.53 (paper profiles); range x0.24-x0.86 | Sio et al. 2018 (this note's calculation) |
 | Melt in contact with the olivine | melt-olivine interfaces | x0.05-x0.2 (Fe-Mg), about x0.1 typical | Shea et al. 2023 |
 | Parameter uncertainty of the calibration (1 sigma, with covariance) | all | x0.78-x1.29 at 1200 C | Mutch et al. 2019 covariance |
 
@@ -98,8 +98,8 @@ earlier expressions to that level.
   covariance and reports that this narrows timescale uncertainty 2-3x compared
   with treating them as independent. At 1200 C the calibration term is x0.78 to
   x1.29 (1 sigma); with T +-30 C, P +-10 MPa and fO2 +-0.2 log as well, x0.64 to
-  x1.59. Varying E alone with the pre-factor fixed (the round robin Monte Carlo)
-  gives x0.48 to x2.11 once its unit and quantile errors are fixed.
+  x1.59. Varying E alone with the pre-factor fixed, as the round robin Monte Carlo
+  did, gives a much wider range once its unit and quantile errors are fixed.
 - The published matrices are rounded to 3 significant figures and are
   numerically singular (smallest eigenvalue about 0); use the deposited
   full-precision values if this is implemented.
@@ -145,11 +145,11 @@ a multicomponent model. Against DC07 at fO2 1e-5 Pa:
   regression.
 
 Effect on forster fits if D[010] is raised by 0.5 log units (the lower bound)
-with D[100] and D[001] unchanged, using each run's angles: round robin runs at
-1200 C (12 runs) median x0.88, range x0.37-x0.94; paper runs at 1250 C (18 runs)
-median x0.90, range x0.35-x1.00. Traverses close to [010] (for example
-KS20-527_5, beta = 166 deg; several paper overgrowth profiles) move most. The
-SH63 runs (1102 C) are below the transition.
+with D[100] and D[001] unchanged, using each run's angles: paper runs at 1250 C
+(18 runs) median x0.90, range x0.35-x1.00. The round robin runs at 1200 C were checked
+the same way (their angles are private). Traverses close to [010] (several paper overgrowth
+profiles, and one of the round robin transects) move most. The round robin runs at
+1102 C are below the transition.
 
 **Data now transcribed (2026-10-14).** `analyses/femg_refit/data/oeser2026.csv` holds 54
 profiles from Tables 1-3 (the PDF's text, not figures), written by
@@ -182,7 +182,8 @@ The composition is Fo91.5. A first look (`oeser_first_look.py`, not a fit; numbe
   be partly a measurement effect. Flag these rows in any fit.
 
 **Fitted with the compilation (2026-10-14).** See `docs/plans/2026-10-14-oeser-additive.md`.
-The depth-profile runs leave the refit's level at KS20 unchanged (+0.01) and narrow its
+The depth-profile runs leave the refit's level at RR1200 (D[001] at the round robin 1200 C
+conditions: fO2 1.4e-3 Pa, Fo85, 42 MPa) unchanged (+0.01) and narrow its
 1 sigma from 0.12 to 0.10. A two-mechanism law fits the PED points too, but changes
 nothing at our fO2 and does not reproduce the steepening.
 
@@ -235,7 +236,7 @@ Wasserstein distance.
 - **It is natural, melt-bearing olivine with no laboratory interface**, which answers
   whether the melt-contact rates apply to magmas: they do, at least here.
 - **It sits below the ~1150 C transition Oeser report** (lake at about 1090-1150 C), so
-  their [010] effect cannot explain it, and it is near the SH63 conditions (1102 C).
+  their [010] effect cannot explain it, and it is near the round robin 1102 C conditions.
 - **It is a population constraint, not a measured D.** Its fO2 is in the supplement, so
   it enters as a bound on a melt term, not as data in the refit.
 
@@ -256,10 +257,10 @@ Wasserstein distance.
 
 ## What this means for forster results (equation unchanged)
 
-1. **Below about 1150 C** (the SH63 runs), DC07 is supported; the main
+1. **Below about 1150 C** (the round robin runs at 1102 C), DC07 is supported; the main
    uncertainty is the calibration's, best propagated with covariance. The choice
    between DC07 and the Mutch regressions moves times by x0.66 to x0.91.
-2. **Above about 1150 C** (round robin samples 1-3, the paper), times from DC07
+2. **Above about 1150 C** (the round robin samples at 1200 C, the paper), times from DC07
    are more likely too long than too short: every newer result points to faster
    diffusion. For most profiles the [010] effect is 10% or less; for traverses
    near [010] it can be 2-4x.

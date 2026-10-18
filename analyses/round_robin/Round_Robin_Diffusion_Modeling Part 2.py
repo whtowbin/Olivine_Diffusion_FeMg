@@ -632,9 +632,9 @@ ol_param_db = pd.read_excel(
     engine="openpyxl",
 )
 
-# sample_name = "KS20-527_2-transect-4"  #0.0013
-sample_name = "KS20-527_5-transect-2"  # 0.0008
-sample_name = "KS20-527-8_transect-1"  # 0.0005
+# sample_name = "KS20-527_2-transect-4"
+sample_name = "KS20-527_5-transect-2"
+sample_name = "KS20-527-8_transect-1"
 
 sample_name = "SH63olv066-1"
 # sample_name = "SH63olv084"

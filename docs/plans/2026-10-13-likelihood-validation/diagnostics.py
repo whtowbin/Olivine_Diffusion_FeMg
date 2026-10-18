@@ -10,7 +10,8 @@ For each run fitted with the default (correlated) method:
   against N(0, 1) (if the error model is adequate, z looks like white noise);
 - best fit and 1-sigma range, against the white-noise (rho = 0) best fit.
 
-Writes real_profiles.csv next to this file. Run from the repo root:
+Writes real_profiles.csv next to this file (paper rows only; the full table, with the
+round robin rows, goes to the private round robin submodule). Run from the repo root:
     uv run python docs/plans/2026-10-13-likelihood-validation/diagnostics.py
 """
 
@@ -36,9 +37,26 @@ from conftest import (  # noqa: E402
 from forster import RunDefaults, fit_run, read_profiles, read_runs  # noqa: E402
 from forster.uncertainty import chi2_per_step, interpolation_matrix  # noqa: E402
 
+PRIVATE = (
+    HERE.parents[2]
+    / "Diffusion Round Robin"
+    / "outputs"
+    / "public_tree_moved"
+    / HERE.relative_to(HERE.parents[2])
+)
+
+
+def write_table(table, name, **kwargs):
+    """The round robin rows are private (other labs' data): the full table goes to the
+    round robin submodule, the public copy next to this file keeps the paper rows."""
+    PRIVATE.mkdir(parents=True, exist_ok=True)
+    table.to_csv(PRIVATE / name, index=False, **kwargs)
+    table[table["set"] != "round robin"].to_csv(HERE / name, index=False, **kwargs)
+
+
 DAY = 86400.0
 SETS = {
-    # The round robin batch modelled up to 2 years (several fits pass 200 days).
+    # The round robin batch modelled up to 2 years.
     "round robin": (
         read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(max_time_days=730)),
         read_profiles(ROUND_ROBIN_DATA),
@@ -99,6 +117,6 @@ for label, (runs, profiles) in SETS.items():
         del r
 
 table = pd.DataFrame(rows)
-table.to_csv(HERE / "real_profiles.csv", index=False, float_format="%.4g")
+write_table(table, "real_profiles.csv", float_format="%.4g")
 pd.set_option("display.width", 250)
 print(table.drop(columns="warnings").round(3).to_string(index=False))

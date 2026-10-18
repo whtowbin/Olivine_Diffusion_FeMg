@@ -93,7 +93,7 @@ Coefficients (OLS, 1-sigma OLS / run bootstrap):
 | V (cm3/mol, 1250 C) | 7 fixed | 7 fixed | 7.9 (0.8 / 1.1) | 7 (DC07); 7.5 (Mutch) |
 | [001]/[100], [001]/[010] | 6, 6 fixed | 6.2, 5.1 (+-1.0) | 6.5, 5.3 | 6 |
 
-log10 D[001] at the round robin KS20 conditions (1200 C, fO2 1.4e-3 Pa, Fo85),
+log10 D[001] at RR1200 (the round robin 1200 C conditions: fO2 1.4e-3 Pa, Fo85),
 minus the current default (time multiplier = 10^-difference):
 
 | Form | OLS | weighted | ODR | run bootstrap 1-sigma |
@@ -138,8 +138,9 @@ What the fits show:
    excluded as anomalous) and Spandler's two off-axis values (ends of a fit against
    angle).
 6. **Leaving one study out** (OLS, change in log D at our conditions): without
-   Chakraborty (1997), the only data below Fo85, SH63 (Fo ~0.70) moves by -0.75 to
-   -0.79 log in the Mutch forms and -0.37 in the free DC07 form (KS20 by -0.18 to
+   Chakraborty (1997), the only data below Fo85, RR1102 (the round robin 1102 C
+   conditions, Fo ~0.70) moves by -0.75 to
+   -0.79 log in the Mutch forms and -0.37 in the free DC07 form (RR1200 by -0.18 to
    -0.20 and -0.10); without Holzapfel
    the free DC07 form moves +0.25 to +0.36; without Spandler and O'Neill the Mutch
    forms move -0.11 to -0.17. Every other single study moves any prediction by
@@ -176,12 +177,12 @@ Residuals (observed - law, log10 D) against the 135 TaMED points, `compare_laws.
   point-defect model, its pre-factor from a subset of data).
 - **The laws diverge only away from the data**, mostly in fO2: our DC07-form refit
   minus the published DC07 averages +0.01 log at the data's own conditions (range
-  -0.35 to +0.49), but +0.15 at the KS20 conditions.
+  -0.35 to +0.49), but +0.15 at the RR1200 conditions.
 - **Missing terms (F tests on the Mutch form with fitted anisotropy):** an fO2 x 1/T
   interaction is significant (F = 7.3, p = 0.008), consistent with Dohmen et al.
   (2007)'s observation that the fO2 exponent falls at low temperature; added as form
   `mutch_fT`: g = -459 +- 170 (bootstrap +-227); effective E 216 kJ/mol at 1e-7 Pa and
-  252 at the KS20 fO2; at KS20 it predicts +0.39 against +0.37 without it, so it does
+  252 at the RR1200 fO2; at RR1200 it predicts +0.39 against +0.37 without it, so it does
   not explain the spread there. X_Fo x 1/T (p = 0.76), (ln fO2)^2 (p = 0.10) and
   X_Fo^2 (p = 0.54) are not supported.
 - **Study offsets are significant** (F = 5.9, p = 0.0002): the studies disagree with
@@ -214,7 +215,7 @@ log D -16.48 to -18.14 as plotted. They sit -0.10 +- 0.21 log from the DC07 equa
 log below Chakraborty (1997) at the same temperatures.
 
 Adding them to our fits (as plotted, at fO2 1e-7 Pa and either Fo90 or Fo86, [001],
-1 atm) moves D at the KS20 conditions by at most 0.007 log and E by at most 2 kJ/mol
+1 atm) moves D at the RR1200 conditions by at most 0.007 log and E by at most 2 kJ/mol
 in every form. **The missing Meissner data do not explain why our refits differ
 from the published DC07 law.** That difference comes from how DC07 was built: its
 fO2 and composition terms are fixed by the point-defect model and its pre-factor and
@@ -280,7 +281,7 @@ block covariance, and a study counts for less than its number of points. Its
 covariance is for the law averaged over labs; `se_new_lab` adds tau for what one new
 lab (or, if the spread is real variability, one new crystal) would show.
 
-| Form | sigma within / tau between (95%), log | KS20 vs default: OLS -> random | 1-sigma: OLS -> random (one new lab) |
+| Form | sigma within / tau between (95%), log | RR1200 vs default: OLS -> random | 1-sigma: OLS -> random (one new lab) |
 |---|---|---|---|
 | dc07_fixed | 0.22 / 0.27 (0.12-0.70) | +0.10 -> +0.20 | 0.025 -> 0.124 (0.30) |
 | dc07_free | 0.22 / 0.25 (0.11-0.66) | +0.15 -> +0.27 | 0.029 -> 0.122 (0.28) |
@@ -288,7 +289,7 @@ lab (or, if the spread is real variability, one new crystal) would show.
 | mutch_aniso | 0.22 / 0.26 (0.08-0.75) | +0.37 -> +0.29 | 0.085 -> 0.141 (0.29) |
 | mutch_fT | 0.22 / 0.29 (0.04-0.92) | +0.39 -> +0.30 | 0.083 -> 0.152 (0.32) |
 
-- **The forms converge.** At KS20 they span +0.10 to +0.39 under OLS and +0.20 to
+- **The forms converge.** At RR1200 they span +0.10 to +0.39 under OLS and +0.20 to
   +0.30 with the random offset, and the 1-sigma bars (0.12-0.15) are now as wide as
   that spread. OLS let Chakraborty and Dohmen, 99 of the 135 points and both low,
   set the level; with a random offset each study counts closer to once.
@@ -304,7 +305,7 @@ lab (or, if the spread is real variability, one new crystal) would show.
 - **Shrunken study offsets** (log): Spandler +0.36 to +0.40, Petry -0.02 to +0.09,
   Chakraborty and Dohmen -0.10 to -0.23, Holzapfel +0.07 to -0.23. Spandler stays
   high, so most of its melt-contact offset is absorbed, not all.
-- **The bands no longer widen toward KS20** (0.9-1.0x): the spread between studies
+- **The bands no longer widen toward RR1200** (0.9-1.0x): the spread between studies
   sets the level everywhere and outweighs the fO2 extrapolation.
 - Caveats: tau rests on five studies (95% range roughly 0.1-0.7 log); the model
   assumes offsets unrelated to the conditions, which fails for Holzapfel (alone at

@@ -35,7 +35,7 @@ warnings.simplefilter("ignore")
 HERE = Path(__file__).parent
 LN10 = math.log(10)
 FLOORS = (0.0, 10.0, 20.0)  # C (= K), on each run's T error
-KS20 = V.CONDITIONS["KS20"]
+RR1200 = V.CONDITIONS["RR1200"]
 # V fixed at 7 cm3/mol: the preset's form when this comparison was made (2026-10-14).
 # The comparison is of methods; the form with V fitted is now the preset (fit_verified).
 FORM = V.FORM_V7
@@ -141,14 +141,14 @@ def full_ml(df: pd.DataFrame) -> tuple[np.ndarray, float]:
 
 
 def _row(method: str, floor: float, beta: np.ndarray, tau: float = math.nan) -> dict:
-    mu, _ = F.predict(FORM, beta[:4], np.eye(4), KS20)
+    mu, _ = F.predict(FORM, beta[:4], np.eye(4), RR1200)
     return {
         "method": method,
         "T_error_floor_C": floor,
         "m_fO2": beta[2],
         "E_kJ_mol": beta[1] / 1e3,
         "n_X": beta[3],
-        "KS20_vs_dc07": mu - F._dc07_preset(KS20),
+        "RR1200_vs_dc07": mu - F._dc07_preset(RR1200),
         "tau_log10": tau,
     }
 
@@ -164,7 +164,7 @@ def main() -> pd.DataFrame:
         rows.append(_row("ODR, no study terms", floor, odr(df, floor, False)))
         rows.append(_row("minimum of S (must equal ODR)", floor, _at_floor(floor, min_s, df)))
         row = _row("ODR, fixed study offsets", floor, odr(df, floor, True))
-        row["KS20_vs_dc07"] = math.nan  # relative to one reference study: not comparable
+        row["RR1200_vs_dc07"] = math.nan  # relative to one reference study: not comparable
         rows.append(row)
     tab = pd.DataFrame(rows)
     tab.to_csv(HERE / "results" / "verified" / "odr_check.csv", index=False)

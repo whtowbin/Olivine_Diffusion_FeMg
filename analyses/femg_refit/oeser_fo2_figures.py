@@ -9,7 +9,7 @@ fO2 exponent near the round robin and paper conditions (1e-4 to 1e-2 Pa).
   temperatures at which Oeser varied fO2: Oeser's [001] runs and Dohmen's and Petry's
   points within 30 C, each moved to the panel's temperature by the law fitted without
   Oeser; that law, and the law refitted with Oeser's [001] rows.
-- figures/oeser_fo2/f2_exponents.png: the fO2 exponent and the KS20 level for the law
+- figures/oeser_fo2/f2_exponents.png: the fO2 exponent and the RR1200 level for the law
   without Oeser, with Oeser's [001] rows, and with [001] and [100]; beside each study's
   own exponent (temperature, and axis where needed, removed).
 
@@ -151,21 +151,21 @@ def own_exponents() -> list[tuple[str, float, float]]:
 
 
 def f2(fit_map: dict) -> pd.DataFrame:
-    ks20 = {k.split(",")[0]: c for k, c in F._conditions().items()}["KS20"]
+    rr1200 = {k.split(",")[0]: c for k, c in F._conditions().items()}["RR1200"]
     rows = []
     for name, (fit, n) in fit_map.items():
-        mu, se = F.predict(V.FORM, fit["beta"], fit["cov"], ks20)
+        mu, se = F.predict(V.FORM, fit["beta"], fit["cov"], rr1200)
         rows.append(
             {
                 "label": f"law: {name} (n {n})",
                 "m": fit["beta"][2],
                 "m_se": math.sqrt(fit["cov"][2, 2]),
-                "ks20": mu - F._dc07_preset(ks20),
-                "ks20_se": se,
+                "rr1200": mu - F._dc07_preset(rr1200),
+                "rr1200_se": se,
             }
         )
     rows += [
-        {"label": lab, "m": m, "m_se": se, "ks20": np.nan, "ks20_se": np.nan}
+        {"label": lab, "m": m, "m_se": se, "rr1200": np.nan, "rr1200_se": np.nan}
         for lab, m, se in own_exponents()
     ]
     tab = pd.DataFrame(rows)
@@ -176,19 +176,19 @@ def f2(fit_map: dict) -> pd.DataFrame:
     colours = ["#0072B2" if lab.startswith("law") else "0.35" for lab in tab["label"]]
     for yi, r, c in zip(y, tab.itertuples(), colours, strict=True):
         a.errorbar(r.m, yi, xerr=r.m_se, fmt="o", color=c, ms=5, capsize=0)
-        if not math.isnan(r.ks20):
-            b.errorbar(r.ks20, yi, xerr=r.ks20_se, fmt="o", color=c, ms=5, capsize=0)
+        if not math.isnan(r.rr1200):
+            b.errorbar(r.rr1200, yi, xerr=r.rr1200_se, fmt="o", color=c, ms=5, capsize=0)
     a.axvline(1 / 6, color="0.15", ls=":", lw=1, label="DC07 1/6")
     a.legend(loc="lower right", fontsize=7, frameon=False)
     a.set_yticks(y, tab["label"])
     a.invert_yaxis()
     a.set_xlabel("fO2 exponent, d log D / d log fO2 (±1 sigma)")
     b.axvline(0, color="0.15", ls=":", lw=1)
-    b.set_xlabel("D[001] at KS20 minus DC07 (log), law 1 sigma")
-    m0, m1, k0, k1 = tab.loc[0, "m"], tab.loc[1, "m"], tab.loc[0, "ks20"], tab.loc[1, "ks20"]
+    b.set_xlabel("D[001] at RR1200 minus DC07 (log), law 1 sigma")
+    m0, m1, k0, k1 = tab.loc[0, "m"], tab.loc[1, "m"], tab.loc[0, "rr1200"], tab.loc[1, "rr1200"]
     own = tab.set_index("label").loc["Oeser 2026 [001], own (T removed)"]
     fig.suptitle(
-        f"Adding Oeser's [001] moves the exponent {m0:.3f} → {m1:.3f} and KS20 {k0:+.2f} → "
+        f"Adding Oeser's [001] moves the exponent {m0:.3f} → {m1:.3f} and RR1200 {k0:+.2f} → "
         f"{k1:+.2f}; Oeser's own [001] exponent is {own['m']:.2f} ± {own['m_se']:.2f}",
         fontsize=10,
     )

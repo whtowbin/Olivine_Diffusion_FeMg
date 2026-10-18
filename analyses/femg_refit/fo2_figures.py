@@ -43,8 +43,8 @@ FORM_STYLE = {
     "mutch_fT": ("#56B4E9", "-", "Mutch form + fO2 x 1/T"),
 }
 # Where the conditions' labels go (points), clear of the data, with a leader line.
-LABEL_OFFSET = {"KS20": (-45, 28), "SH63": (-70, -10), "Paper": (30, 26)}
-CONDITIONS_FO2 = {"SH63": None, "KS20": math.log10(0.00138), "Paper": math.log10(8.3e-3)}
+LABEL_OFFSET = {"RR1200": (-45, 28), "RR1102": (-70, -10), "Paper": (30, 26)}
+CONDITIONS_FO2 = {"RR1102": None, "RR1200": math.log10(0.00138), "Paper": math.log10(8.3e-3)}
 
 
 def _moved_log10(df, form, beta, **fixed):
@@ -95,10 +95,10 @@ def fig_fo2(df: pd.DataFrame) -> None:
     fig, (a, b) = plt.subplots(
         1, 2, figsize=(10.5, 4.8), layout="constrained", width_ratios=[1.35, 1]
     )
-    ks20, paper = CONDITIONS_FO2["KS20"], CONDITIONS_FO2["Paper"]
-    a.axvspan(min(ks20, paper) - 0.9, max(ks20, paper), color="0.92", lw=0, zorder=0)
+    rr1200, paper = CONDITIONS_FO2["RR1200"], CONDITIONS_FO2["Paper"]
+    a.axvspan(min(rr1200, paper) - 0.9, max(rr1200, paper), color="0.92", lw=0, zorder=0)
     a.text(
-        ks20 - 0.4,
+        rr1200 - 0.4,
         0.97,
         "round robin and paper fO2",
         transform=a.get_xaxis_transform(),

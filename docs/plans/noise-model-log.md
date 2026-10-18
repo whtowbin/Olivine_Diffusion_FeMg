@@ -46,26 +46,26 @@ model, the ranges or the starting-profile fit change, or a new test is run.
   within about one diffusion length of the steps; warn when it improves AIC by more than
   6 (`near_step_daic` in `summary.csv`).
 - **Found:** it fires on exactly the three paper profiles the study flagged
-  (Xenocryst_ol6_prof_1, WHT06_ol43, WHT06_ol48) and on the four SH63olv066 round robin
-  profiles, and not on well-behaved ones.
+  (Xenocryst_ol6_prof_1, WHT06_ol43, WHT06_ol48) and on the dense round robin profiles
+  of one sample, and not on well-behaved ones.
 - **Details:** commit a3a8adc; [noise-models-guide.md](../references/noise-models-guide.md).
 
 ## 2026-10-16: figures of each kind of misfit
 - **Done:** a synthetic gallery (500 draws per kind of misfit) and real paper profiles
   where each noise model works best.
 - **Found:** 2σ held up on every warned real profile (the near-step model's best fit lay
-  inside it on all 7); misfit about as long as the diffusion length and noise growing
+  inside it on every one); misfit about as long as the diffusion length and noise growing
   toward the rim go undetected.
 - **Details:** [noise-models-guide.md](../references/noise-models-guide.md),
   `docs/references/figures/noise_models/`.
 
 ## 2026-10-16: does whitening dampen the choice of starting profile? (Henry's question)
 - **Question:** misfit near the step is a signal that the starting profile (step
-  positions, edge and plateau Fo) is not tuned to the data, SH63olv066 being the example.
+  positions, edge and plateau Fo) is not tuned to the data, the dense round robin profiles being the example.
   Does whitening dampen that signal during the parameter search? Could the AIC be used in
   the search, or to flag a starting profile that fits badly?
-- **Done:** one-parameter scans of every starting-profile parameter on SH63olv066-1 and
-  the three paper near-step profiles under four scorings (white noise only; noise model
+- **Done:** one-parameter scans of every starting-profile parameter on a dense round
+  robin profile (private) and the three paper near-step profiles under four scorings (white noise only; noise model
   fixed at the nominal starting profile; refitted at the optimum, as FORSTER does; refitted
   for every candidate), joint fits, a synthetic recovery test (200 draws) and costs.
 - **Found:** a noise model fitted at a poor starting profile does flatten the scans
@@ -79,7 +79,8 @@ model, the ranges or the starting-profile fit change, or a new test is run.
   near-step profiles and cleared at the fitted one (WHT06_ol48 only just, −5.4).
   Fitting the starting profile moved the time by −40% (WHT06_ol43), −52% (Xenocryst_ol6,
   not reliable: its first step ended at the edge of its prior, asking for a rim zone a
-  sharp step cannot represent), +6% (WHT06_ol48) and −4% (SH63olv066-1).
+  sharp step cannot represent) and +6% (WHT06_ol48); the round robin profile moved
+  little.
 - **Decided:** no per-candidate noise refit and no ΔAIC in the objective. The near-step
   warning now tells users to fit the starting profile first; the starting-profile fit
   reports `scan_near_step_daic` and warns if misfit near the step remains.

@@ -1,13 +1,20 @@
 """The existing parameter tables, with their own grids: central (old default) vs implicit (new)."""
 import sys, time, warnings
 from dataclasses import replace
+from pathlib import Path
 import pandas as pd
 sys.path.insert(0, "tests"); warnings.simplefilter("ignore")
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
 from forster import RunDefaults, fit_run, read_profiles, read_runs
 sets = [(read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(max_time_days=730)), read_profiles(ROUND_ROBIN_DATA)),
         (read_runs(PAPER_PARAMS), read_profiles(PAPER_DATA, sheet="Olivine"))]
-ref = pd.read_csv(__file__.replace("old_tables.py", "implicit_sweep2.csv")).set_index("run").reference_days
+# The round robin rows of the reference tables are private: read the full copy in the
+# round robin submodule when it is checked out, else the public table (paper rows only).
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+PRIVATE = ROOT / "Diffusion Round Robin" / "outputs" / "public_tree_moved" / HERE.relative_to(ROOT)
+_ref_dir = PRIVATE if (PRIVATE / "implicit_sweep2.csv").exists() else HERE
+ref = pd.read_csv(_ref_dir / "implicit_sweep2.csv").set_index("run").reference_days
 rows = []
 for runs, profiles in sets:
     for run in runs:

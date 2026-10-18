@@ -477,8 +477,16 @@ def main() -> None:
     table.to_csv(OUT / "variants.csv", index=False)
     pd.set_option("display.width", 220)
     print(pd.DataFrame(coef).to_string(index=False))
-    show = ["variant", "n_points", "tau_log10", "m_fO2", "E_kJ_mol", "KS20_vs_dc07", "KS20_se_law"]
-    show += ["KS20_se_new_lab", "SH63_vs_dc07", "Paper_vs_dc07"]
+    show = [
+        "variant",
+        "n_points",
+        "tau_log10",
+        "m_fO2",
+        "E_kJ_mol",
+        "RR1200_vs_dc07",
+        "RR1200_se_law",
+    ]
+    show += ["RR1200_se_new_lab", "RR1102_vs_dc07", "Paper_vs_dc07"]
     print(table[show].round(3).to_string(index=False))
     effects = {k: round(v / LN10, 2) for k, v in preset["study_effects"].items()}
     print("study offsets (the preset):", effects)

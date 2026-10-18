@@ -1,7 +1,7 @@
 """Measurements behind docs/references/law-uncertainty-limits.md.
 
 1. D t scaling: a synthetic Fo profile (made with `femg_refit2026` at the round robin
-   KS20 conditions, 6 days, noise 5e-4) fitted with the law and with D x 10^delta. Where
+   RR1200 conditions, 6 days, noise 5e-4) fitted with the law and with D x 10^delta. Where
    the profile depends on D t only, log10 t moves by exactly -delta.
 2. Linear propagation against a Monte Carlo: log10 D along the profile at Fo 0.85 from
    4000 draws of the preset's covariance, against `log10_sigma` (g' C g).
@@ -32,7 +32,7 @@ from forster.boundary import RimPath, Stage
 HERE = Path(__file__).parent
 DAY = 86400.0
 LAW = DIFFUSIVITY_PRESETS["femg_refit2026"]
-KS20 = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
+RR1200 = Conditions(T_C=1200, P_Pa=4.2e7, fO2_Pa=0.00138)
 ALONG_001 = Orientation(90, 90, 0)
 T_TRUE, DT = 6.0, 0.01 * DAY
 POINTS = np.arange(1.0, 199.0, 2.0)
@@ -48,7 +48,7 @@ def synthetic(initial, **kw):
     x = np.arange(0.0, 200.0)
     dummy = Profile(x, np.full(len(x), 0.88) + 1e-4 * np.sin(x))
     run = fit_profile(
-        dummy, KS20, ALONG_001, initial, Grid(0.5, DT, T_TRUE), None, LAW, stop_early=False, **kw
+        dummy, RR1200, ALONG_001, initial, Grid(0.5, DT, T_TRUE), None, LAW, stop_early=False, **kw
     )
     fo = np.interp(POINTS, run.model_x_um, run.curves[round(T_TRUE * DAY / DT)])
     return Profile(POINTS, fo + np.random.default_rng(2).normal(0, 5e-4, len(POINTS)))
@@ -80,10 +80,10 @@ def dt_scaling() -> pd.DataFrame:
     grid = Grid(0.5, DT, 40)
     for label, (initial, kw) in CASES.items():
         profile = synthetic(initial, **kw)
-        base = fit_profile(profile, KS20, ALONG_001, initial, grid, None, LAW, **kw).time_days
+        base = fit_profile(profile, RR1200, ALONG_001, initial, grid, None, LAW, **kw).time_days
         for delta in (0.122, 0.301):
             t = fit_profile(
-                profile, KS20, ALONG_001, initial, grid, None, shifted(delta), **kw
+                profile, RR1200, ALONG_001, initial, grid, None, shifted(delta), **kw
             ).time_days
             shift = math.log10(t / base)
             rows.append(
@@ -135,7 +135,7 @@ def linear_vs_mc(n=4000) -> pd.DataFrame:
 
     rows = []
     conditions = {
-        "1200 C, 0.042 GPa, KS20 fO2": KS20,
+        "1200 C, 0.042 GPa, RR1200 fO2": RR1200,
         "900 C, 0.1 GPa, 1e-9 Pa": Conditions(900, 1e8, 1e-9),
         "1300 C, 1 atm, 1e-2 Pa": Conditions(1300, 1e5, 1e-2),
     }

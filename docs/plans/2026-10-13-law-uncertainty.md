@@ -64,7 +64,7 @@ Fo fits, see above).
 
 - `log10_sigma` against a hand-computed g' C g for a two-parameter covariance
   (log10_D0_001, E), along [001] and at an angle (anisotropy weights).
-- The preset's sigma at the KS20 conditions, Fo85, [001] equals the refit's
+- The preset's sigma at the RR1200 conditions (the round robin 1200 C conditions), Fo85, [001] equals the refit's
   `se` in `analyses/femg_refit/results/predictions.csv` (0.122) and tau 0.254.
 - `widen_log10`: sigma 0 returns the fit range; known numbers; low end at zero.
 - A real fit with `femg_refit2026`: `time_range_days("law")` contains the fit range

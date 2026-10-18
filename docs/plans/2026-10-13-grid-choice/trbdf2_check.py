@@ -10,6 +10,7 @@ import sys
 import time
 import warnings
 from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,17 @@ from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PAR
 from forster import RunDefaults, fit_profile, read_profiles, read_runs  # noqa: E402
 from forster.model import Profile, _diffusion_model, fe_mg_diffusivity, model_grid  # noqa: E402
 from forster.uncertainty import chi2_per_step, interpolation_matrix, points_in_domain  # noqa: E402
+
+# The round robin rows of the reference tables are private: read the full copy in the
+# round robin submodule when it is checked out, else the public table (paper rows only).
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+PRIVATE = ROOT / "Diffusion Round Robin" / "outputs" / "public_tree_moved" / HERE.relative_to(ROOT)
+
+
+def reference_table(name):
+    return pd.read_csv(PRIVATE / name if (PRIVATE / name).exists() else HERE / name)
+
 
 rr = {r.name: r for r in read_runs(ROUND_ROBIN_PARAMS, defaults=RunDefaults(max_time_days=730))}
 pp = {r.name: r for r in read_runs(PAPER_PARAMS)}
@@ -132,7 +144,7 @@ for run, profiles in cases:
     D, _ = fe_mg_diffusivity(run.diffusivity).functions(run.conditions, run.orientation)
     fos = [ini.edge_fo, ini.core_fo] + ([ini.step_fo] if ini.step_fo else [])
     d_mid = float(D(np.array([np.mean(fos)]))[0])
-    ref = pd.read_csv(__file__.replace("trbdf2_check.py", "implicit_study.csv")).query("run == @run.name").ref_s.iloc[0]
+    ref = reference_table("implicit_study.csv").query("run == @run.name").ref_s.iloc[0]
     ell = np.sqrt(d_mid * ref) * 1e6
     lo_, hi = ini.domain_um[0], min(ini.domain_um[1], m.distance_um.max())
     px, py = points_in_domain(np.array([lo_, hi]), m.distance_um, m.fo)

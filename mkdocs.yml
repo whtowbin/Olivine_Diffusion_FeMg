@@ -6,8 +6,8 @@ repo_name: whtowbin/Olivine_Diffusion_FeMg
 edit_uri: edit/master/docs/site/
 copyright: FORSTER is released under the MIT licence.
 
-# Only this folder is published. docs/plans and docs/references stay on GitHub (some of
-# them hold round robin results that are private until that study is published).
+# Only this folder is published. docs/plans and docs/references (design notes and
+# studies) stay on GitHub.
 docs_dir: docs/site
 
 theme:

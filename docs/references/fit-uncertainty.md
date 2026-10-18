@@ -25,12 +25,13 @@ v2 is kept as `uncertainty="legacy"` and gives results identical to the round
 robin script (`tests/test_differential.py`). Use it to reproduce earlier numbers;
 use v3 for new work.
 
-On the 17 round robin profiles the median 1-sigma width (low to high, as a
-share of the best fit) is 11% under v1, 34% under v2 and 24% under v3 (9% to
-36% by profile). v3 also moves some best-fit times, by -14% to +8%, because it
-weights the measured points rather than the kriged curve. Per profile:
-`docs/plans/2026-10-12-fit-uncertainty/round_robin_versions.csv`, made by
-`compare_versions.py` in the same folder.
+The three versions were compared on the 17 round robin profiles. v1 gave the
+narrowest ranges and v2 the widest, with v3 in between. v3 also moves some
+best-fit times, because it weights the measured points rather than the kriged
+curve. The round robin data belong to other labs, so the per-profile table
+(`round_robin_versions.csv`, made by
+`docs/plans/2026-10-12-fit-uncertainty/compare_versions.py`) is kept in the
+private round robin repository.
 
 ## What was wrong with v1 and v2
 
@@ -51,14 +52,14 @@ weights the measured points rather than the kriged curve. Per profile:
    was far too wide when the model is exact (99.7% instead of 68%) and about
    right only by coincidence when the model misfits.
 3. **The kriging variance was used as a standard deviation.** PyKrige returns the
-   variance (`sigmasq`). With the round robin variogram it is about 4e-6
-   (Fo fraction squared), small next to `uniform_uncert` (0.001) and `sigma_min`
+   variance (`sigmasq`). With the variogram used for the round robin fits it
+   is small next to `uniform_uncert` (0.001) and `sigma_min`
    (1e-4), so every grid point had almost the same weight, about 0.11 Fo. The
    intended down-weighting of gaps between analyses did not happen. Legacy mode
    keeps this behaviour so old results reproduce.
 4. **Hand-set kriging parameters entered the answer.** The variogram, the nugget,
    `uniform_uncert` and the grid spacing all changed the range. They did not
-   change the best fit much (v1 and v2 share it; v3 differs by -14% to +8%).
+   change the best fit much (v1 and v2 share it; v3 moves some best fits).
 
 What was not wrong: varying chi-squared over a grid of times is a sound way to
 fit one parameter (Andrae 2010, sections 3.1 and 3.2). It copes with a nonlinear
@@ -96,16 +97,17 @@ to smooth the data; v3 uses it to describe the residuals.
 
 Cost: the chi-squared is evaluated as c^T A c - 2 b^T c + const with
 A = W^T C^-1 W, so its cost depends on the model grid, not on the number of
-analyses. On KS20-527_2-transect-1 (105,121 steps x 300 grid points, 29 analyses)
-it takes 0.04 s, against 0.14 s for v2's grid chi-squared and 1.9 s for the
-whole fit. On SH63olv066-1 (525,601 x 150, 298 analyses) it takes 0.07 s, against
+analyses. On a round robin profile with 29 analyses (105,121 steps x 300 grid
+points) it takes 0.04 s, against 0.14 s for v2's grid chi-squared and 1.9 s for
+the whole fit. On a dense round robin profile with 298 analyses (525,601 steps x
+150 grid points) it takes 0.07 s, against
 0.34 s for v2's chi-squared plus 0.30 s for kriging, and 8.1 s for the fit.
 Kriging still runs, for plots only.
 
 ## Evidence
 
-Coverage: 300 synthetic profiles at the measured positions of
-KS20-527_2-transect-1, made from the model at a known time plus noise, each fitted
+Coverage: 300 synthetic profiles at the measured positions of a 29-point
+round robin profile, made from the model at a known time plus noise, each fitted
 with every method. A 1-sigma range should contain the true time 68% of the time
 (sampling error about +-3%).
 
@@ -126,10 +128,9 @@ exploratory study (2026-10-11) with a coarser noise-model search;
 `tests/test_uncertainty.py` repeats the coverage test for the implemented method
 (200 profiles per case, seeded).
 
-The real profiles do have smoothly correlated residuals: lag-1 autocorrelation
-0.72 on KS20-527_5-transect-1 and 0.49 on SH63olv066-1. The SH63 analyses scatter
-by 0.6 to 0.7 Fo, not the 0.2 Fo the round robin kriging nugget assumed; v3
-estimates that from the data.
+The real round robin profiles do have smoothly correlated residuals, and the
+analyses on the dense round robin profiles scatter by more than the 0.2 Fo that
+the round robin kriging nugget assumed. v3 estimates the scatter from the data.
 
 ## Not included in the range
 
@@ -157,7 +158,7 @@ Monte Carlo over T, P, fO2 and activation energy:
    spread is too wide.
 2. **33.33% and 66.66% quantiles are labelled +-1 sigma.** They span the middle
    third; 1 sigma is 15.87% to 84.13%. The spread is too narrow.
-3. **`Diffusion_Uncert2` (SH63, 1102 C) uses the 1200 C samples**
+3. **`Diffusion_Uncert2` (the 1102 C round robin sample) uses the 1200 C samples**
    (`Sample_1to3_Diffusivity_array_scale` in both `match` cases).
 4. **Activation energy varied with the pre-factor held fixed.** E = 201 +- 8
    kJ/mol (Dohmen et al. 2007) comes from a fit to experiments at 900-1250 C.
@@ -183,8 +184,8 @@ quadrature.
       percentiles.]
 - [ ] Fix or retire the diffusivity Monte Carlo above, and decide how to treat
       the activation-energy uncertainty (item 4).
-- [ ] KS20-527_2-transect-3 warns that the noise model is at the edge of its grid
-      (correlation length 146 um, half the profile): the misfit is a long-wavelength
+- [ ] One round robin profile warns that the noise model is at the edge of its
+      grid (a very long correlation length): the misfit is a long-wavelength
       trend. Check that profile's initial condition.
 - [ ] Consider putting the D0 Monte Carlo into the package, combined with the v3
       range in log time rather than in quadrature in days.

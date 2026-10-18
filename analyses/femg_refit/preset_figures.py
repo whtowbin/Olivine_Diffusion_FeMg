@@ -2,14 +2,14 @@
 
 figures/presets/
 - p1_bowties.png: log10 D[001] against 1/T at (a) the centre of the data (fO2 1e-7 Pa,
-  Fo90, 1 atm) and (b) the round robin KS20 conditions. femg_refit2026 with its 68% and
+  Fo90, 1 atm) and (b) the RR1200 conditions (round robin, 1200 C). femg_refit2026 with its 68% and
   95% bands and one new laboratory; mutch2019_tamed and mutch2019_global with their
   68% bands (their DFENS covariance); DC07. Points: the preset's data, moved to each
   panel's conditions by the preset; Holzapfel's Au-capsule runs filled, their bars
   including the fO2 sd of 2 log units.
 - p2_residuals.png: the preset's residuals (log10 D minus the preset at each point's
   own conditions and axis) against T, fO2, X_Fo and P, by study.
-- p3_candidates.png: D[001] at KS20, SH63 and the paper conditions, relative to DC07,
+- p3_candidates.png: D[001] at RR1200, RR1102 and the paper conditions, relative to DC07,
   for the candidate fitting methods, built up step by step. A-C fix the activation
   volume V at 7 cm3/mol: REML (least squares with a random offset per laboratory) on
   the verified data (A); with each run's errors in T (at least 10 C), fO2, X_Fo and P
@@ -57,7 +57,7 @@ LAWS = {  # name: (colour, line style, label)
 }
 PANELS = {
     "a": ("centre of the data: fO2 1e-7 Pa, Fo90, 1 atm", -7.0, 0.90, 1e5),
-    "b": ("round robin KS20: fO2 1.4e-3 Pa, Fo85, 42 MPa", math.log10(0.00138), 0.85, 4.2e7),
+    "b": ("round robin RR1200: fO2 1.4e-3 Pa, Fo85, 42 MPa", math.log10(0.00138), 0.85, 4.2e7),
 }
 plt.rcParams.update({"pdf.fonttype": 42, "font.size": 9, "axes.titlesize": 9.5})
 
@@ -165,7 +165,7 @@ def p1(data: pd.DataFrame, fit: dict) -> None:
         for n in LAWS
     }
     fig.suptitle(
-        f"At KS20, 1200 °C, against DC07: femg_refit2026 {rel['femg_refit2026']:+.2f} "
+        f"At RR1200, 1200 °C, against DC07: femg_refit2026 {rel['femg_refit2026']:+.2f} "
         f"± {PRESET.log10_sigma(c, ALONG_001, ks[2]):.2f}, mutch2019_tamed "
         f"{rel['mutch2019_tamed']:+.2f}, mutch2019_global {rel['mutch2019_global']:+.2f}",
         fontsize=10,
@@ -339,7 +339,7 @@ def candidates() -> pd.DataFrame:
 def p3(tab: pd.DataFrame) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), layout="constrained", sharey=True)
     y = np.arange(len(tab))
-    for ax, cond in zip(axes, ("KS20", "SH63", "Paper"), strict=True):
+    for ax, cond in zip(axes, ("RR1200", "RR1102", "Paper"), strict=True):
         for yi, r in enumerate(tab.itertuples()):
             colour = (
                 "#0072B2"
@@ -365,12 +365,12 @@ def p3(tab: pd.DataFrame) -> None:
         ax.set_xlabel("D[001] minus DC07 (log)")
     axes[0].set_yticks(y, tab["candidate"])
     axes[0].invert_yaxis()
-    ks = tab.set_index("candidate")["KS20"]
+    ks = tab.set_index("candidate")["RR1200"]
     odr = ks[ks.index.str.startswith("ODR")]
     fig.suptitle(
-        "log10 D[001] relative to Dohmen and Chakraborty (2007) at the round-robin crystals' "
-        "conditions (KS20 1200 °C, SH63 1102 °C) and the paper's (1250 °C).\n"
-        f"At KS20, step by step: A {ks.iloc[0]:+.2f}, B {ks.iloc[1]:+.2f}, C {ks.iloc[3]:+.2f}, "
+        "log10 D[001] relative to Dohmen and Chakraborty (2007) at the round robin "
+        "conditions (RR1200, 1200 °C; RR1102, 1102 °C) and the paper's (1250 °C).\n"
+        f"At RR1200, step by step: A {ks.iloc[0]:+.2f}, B {ks.iloc[1]:+.2f}, C {ks.iloc[3]:+.2f}, "
         f"D {ks.iloc[4]:+.2f}, E (femg_refit2026, blue) {ks[PRESET_ROW]:+.2f}. ODR without "
         f"laboratory offsets gives {odr.iloc[0]:+.2f} or {odr.iloc[1]:+.2f}, set by the assumed "
         "T error.\nBars: 1 sigma of each fitted equation; squares: bootstrap mean and half its "

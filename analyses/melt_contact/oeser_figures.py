@@ -1,7 +1,7 @@
 """The melt-contact figures again, with Oeser et al. (2026) added.
 
 figures/with_oeser/
-- fig1_bowties.png: bowties at the KS20 conditions, as fig1: (a) the preset's fit, with
+- fig1_bowties.png: bowties at the RR1200 conditions, as fig1: (a) the preset's fit, with
   Oeser's points shown but not fitted; (b) Oeser's depth-profile runs added; (c) those
   plus a melt term for Spandler and O'Neill (2010).
 - fig2_fo2.png: (a) data and laws against fO2 at 1200 C, Fo90, 1 atm, [001], points
@@ -114,9 +114,10 @@ def panels(pts: pd.DataFrame, fit: dict) -> list[dict]:
 def bowtie_title(rows: list[dict]) -> str:
     a, b, c = rows
     return (
-        f"Oeser's depth-profile runs barely move the law at KS20 ({a['KS20_1200C_vs_dc07']:+.2f} → "
-        f"{b['KS20_1200C_vs_dc07']:+.2f} log above DC07) and narrow it (±{a['band68_1200C']:.2f} → "
-        f"±{b['band68_1200C']:.2f});\nwith a melt term the lab spread τ is {c['tau_log10']:.2f}, "
+        f"Oeser's depth-profile runs barely move the law at RR1200 "
+        f"({a['RR1200_1200C_vs_dc07']:+.2f} → {b['RR1200_1200C_vs_dc07']:+.2f} log above DC07) "
+        f"and narrow it (±{a['band68_1200C']:.2f} → ±{b['band68_1200C']:.2f});\n"
+        f"with a melt term the lab spread τ is {c['tau_log10']:.2f}, "
         f"not {a['tau_log10']:.2f}, and melt contact sits {c['melt_log10']:+.2f} above solid"
     )
 
@@ -144,8 +145,8 @@ def fig_fo2(pts, sigma, fit, ex, rng) -> None:
     )
     fo2 = np.linspace(-10, 4, 71)
     v = F.Vars.of(pd.DataFrame({"log10_fO2_Pa": fo2, **MF.AT_1200}))
-    ks20, paper = FO.CONDITIONS_FO2["KS20"], FO.CONDITIONS_FO2["Paper"]
-    lo_rr, hi_rr = min(ks20, paper) - MF.RR_BELOW_KS20, max(ks20, paper)
+    rr1200, paper = FO.CONDITIONS_FO2["RR1200"], FO.CONDITIONS_FO2["Paper"]
+    lo_rr, hi_rr = min(rr1200, paper) - MF.RR_BELOW_RR1200, max(rr1200, paper)
     a.axvspan(lo_rr, hi_rr, color="0.9", lw=0, zorder=0)
     a.text(
         (lo_rr + hi_rr) / 2,

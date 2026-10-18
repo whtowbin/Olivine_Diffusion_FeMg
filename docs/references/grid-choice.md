@@ -75,22 +75,25 @@ stable step.
 
 ### Accuracy against resolution
 
-Six real profiles (three round robin, three from Towbin and Plank 2026),
-each fitted on grids with dx = l / k, dt at ratio 0.4, against a reference
-at k = 60. Error is |t_k / t_60 − 1|, in percent (`calib_grid2.py`, steps
-left where the grid puts them):
+Six real profiles (three from the round robin, three from Towbin and Plank
+2026), each fitted on grids with dx = l / k, dt at ratio 0.4, against a
+reference at k = 60. Error is |t_k / t_60 − 1|, in percent (`calib_grid2.py`,
+steps left where the grid puts them). The round robin data belong to other
+labs, so the round robin profiles are named here only by their geometry and
+their rows in the CSV files of `docs/plans/2026-10-13-grid-choice/` are kept in
+the private round robin repository; the public CSVs hold the paper profiles:
 
 | Profile | k = 12 | 20 | 30 | 40 |
 |---|---|---|---|---|
 | AZ18 WHT01_Ol_63_prof_1 | 1.5 | 0.3 | 0.1 | 0.6 |
 | AZ18 WHT01_bigol1_overgrowth_prof_1 | 1.3 | 0.8 | 0.1 | 0.1 |
-| KS20-527-8_transect-2 | 6.5 | 3.9 | 1.8 | 2.0 |
-| KS20-527_2-transect-1 | 3.5 | 8.1 | 6.5 | 5.7 |
-| SH63olv066-1 | 0.5 | 1.4 | 0.4 | 0.3 |
+| Round robin profile B (29 points, 10 µm apart) | 6.5 | 3.9 | 1.8 | 2.0 |
+| Round robin profile A (30 points, 10 µm apart) | 3.5 | 8.1 | 6.5 | 5.7 |
+| Round robin profile C (298 points, 0.5 µm apart) | 0.5 | 1.4 | 0.4 | 0.3 |
 | Xenocryst_ol6_prof_1 | 4.5 | 2.5 | 1.8 | 0.5 |
 
 Below k = 8 the fits are unreliable (`calib_grid.py`): at k = 1–3 the
-worst error is 34–196% on five of the six profiles (3% on SH63olv066-1), and
+worst error is 34–196% on five of the six profiles (3% on round robin profile C), and
 at k = 5–8 it is up to 24%.
 
 The error falls roughly as 1/k, not 1/k² as the scheme's interior order
@@ -107,18 +110,18 @@ step falls exactly on a node (`aligned` in `calib_grid2.csv`):
 
 | Profile | snapped, k = 20 / 40 | on a node, k = 20 / 40 |
 |---|---|---|
-| KS20-527_2-transect-1 | 8.1 / 5.7 | 1.8 / 1.4 |
-| KS20-527-8_transect-2 | 3.9 / 2.0 | 2.9 / 1.0 |
+| Round robin profile A | 8.1 / 5.7 | 1.8 / 1.4 |
+| Round robin profile B | 3.9 / 2.0 | 2.9 / 1.0 |
 | others | within 0.6 points of each other | |
 
-KS20-527_2-transect-1's large and non-monotonic errors are snapping: its
+The large and non-monotonic errors of round robin profile A are snapping: its
 fitted time moves by a few percent as the step jumps between nodes. The
 grid rule does not remove this; a scheme that puts steps on nodes would.
 
 ### Cost
 
 One fit at k = 12 takes 0.02–0.03 s on five of the profiles (0.5 s on
-SH63olv066-1, the longest); at k = 60, 0.5–2.8 s. The `final` rule
+round robin profile C, the longest); at k = 60, 0.5–2.8 s. The `final` rule
 (k = 65) is therefore about 25× the cost of the `scan` rule, which is why
 scans use the coarser grid.
 
@@ -133,11 +136,13 @@ steps than needed.
 ### Existing grids
 
 The parameter tables use dx = 1 µm (round robin) and 0.5 µm (paper). For the
-six profiles above that is k = 29 and 36 (KS20-527_2-transect-1,
-KS20-527-8_transect-2), 22 and 18 (Ol_63, bigol1), 6 (SH63olv066-1) and 5
-(Xenocryst_ol6_prof_1, whose time is about 7% off its converged value). The
-first four met the scan tolerance by the original 0.65 / k rule, but not the final
-one; by the corrected 2.4 / k rule none meets even the scan tolerance (k = 48).
+three paper profiles above that is k = 22 and 18 (Ol_63, bigol1) and 5
+(Xenocryst_ol6_prof_1, whose time is about 7% off its converged value). The k
+values of the round robin profiles are left out: with dx known, k gives the
+diffusion length, which is a round robin result. Ol_63, bigol1 and round robin
+profiles A and B met the scan tolerance by the original 0.65 / k rule, but not
+the final one; by the corrected 2.4 / k rule none of the six meets even the
+scan tolerance (k = 48).
 
 ## The implicit scheme
 
@@ -166,8 +171,8 @@ profiles above, with the explicit stable dt so only dx matters
 
 Either change alone helps somewhat but leaves errors of 2–25%: averaging the
 start keeps the first-order error of the ghost rim, and a rim on a node keeps
-the snapping noise. The largest errors are on the round robin profiles
-(KS20-527_2-transect-1 and KS20-527-8_transect-2). Together the
+the snapping noise. The largest errors are on round robin profiles A
+and B. Together the
 error falls as about 0.2 (dx / l)², which `forster.grid` uses.
 
 ### Time
@@ -189,7 +194,9 @@ profiles, with 400 steps 0.3%.
 ### All 35 real profiles
 
 Each fitted with the chosen `final` grid in both schemes, against an implicit
-reference with dx / 3 and dt / 2 (`implicit_sweep.py`, `implicit_sweep2.csv`):
+reference with dx / 3 and dt / 2 (`implicit_sweep.py`, `implicit_sweep2.csv`;
+the 17 round robin rows of that table are private, so the public file holds
+the 18 paper profiles):
 
 | | explicit (central) | implicit |
 |---|---|---|
@@ -216,7 +223,8 @@ results identical).
 
 The round robin and paper parameter tables give their own grids (dx = 1 and
 0.5 µm, dt = 600 and 60 s). Refitting them with both schemes on those grids,
-against the same converged references (`old_tables.py`, `old_tables.csv`):
+against the same converged references (`old_tables.py`, `old_tables.csv`,
+whose round robin rows are private as well):
 
 | | central (old default) | implicit (new default) |
 |---|---|---|

@@ -88,7 +88,11 @@ orientation are not recoverable.
   writes `results/`: `coefficients.csv` (every form, method and parameter with
   its 1-sigma), `cov_<form>_<method>.csv` (parameter covariances) and
   `predictions.csv` (log10 D[001] at the round robin and paper conditions, and its
-  difference from the current default law).
+  difference from the current default law). The round robin conditions are labelled
+  RR1200 (the round robin 1200 C conditions: fO2 1.4e-3 Pa, Fo85, 42 MPa) and RR1102
+  (the round robin 1102 C conditions, Fo70, with P and fO2 from the private round robin
+  table). These are the law evaluated at those conditions, not results from the round
+  robin profiles.
 - `figures.py`: the four comparison figures below, from `results/` and the data.
   `uv run --with odrpack python analyses/femg_refit/figures.py`.
 - `bowties.py`: an Arrhenius plot with confidence bands for every form and method
@@ -152,7 +156,7 @@ Measurement errors (1 sigma) for `wls` and `odr`; stated in the paper or assumed
 
 ## Figures (`figures/`)
 
-1. `fig1_predictions.png`: log10 D[001] at the round robin (KS20, 1200 C; SH63,
+1. `fig1_predictions.png`: log10 D[001] at the round robin (RR1200, 1200 C; RR1102,
    1102 C) and paper (1250 C) conditions from every form and method, minus the
    current default (`dohmen_chakraborty2007`), with 1-sigma bars (the bootstrap
    rows use the OLS estimate with the bootstrap spread; the random study rows add a
@@ -192,7 +196,7 @@ One figure per law form and method, in the style of `odr_bootstrap`'s
 log D over the bootstrap resamples, or over 4000 draws from the fit's covariance),
 the data with their log D error bars, and the published Dohmen & Chakraborty (2007)
 and Mutch et al. (2019, TaMED) laws. Panel (a) is at the centre of the data (fO2
-1e-7 Pa, Fo90, 1 atm, [001]); panel (b) at the round robin KS20 conditions (fO2
+1e-7 Pa, Fo90, 1 atm, [001]); panel (b) at the round robin RR1200 conditions (fO2
 1.4e-3 Pa, Fo85, 42 MPa, [001]). The points are moved to each panel's conditions by
 that fit itself, so their scatter about the line is the fit's own residual. That
 move has its own uncertainty, sqrt(dG' C dG) for the change dG in the design row and
@@ -207,7 +211,7 @@ points sit less certainly in (b), not extra error to add to the band. Under
 each figure a paragraph says what is particular to that form and method, with its
 fitted numbers.
 
-| Figure | Form | Method | D at 1200 C, KS20, vs default (log) | 68% band at the data's centre | 68% band at KS20 fO2 |
+| Figure | Form | Method | D at 1200 C, RR1200, vs default (log) | 68% band at the data's centre | 68% band at RR1200 fO2 |
 |---|---|---|---|---|---|
 | [mutch_x6__ols.png](figures/bowties/mutch_x6__ols.png) | mutch_x6 | ols | +0.37 | +-0.03 | +-0.08 |
 | [mutch_x6__wls.png](figures/bowties/mutch_x6__wls.png) | mutch_x6 | wls | +0.53 | +-0.02 | +-0.16 |
@@ -236,7 +240,7 @@ fitted numbers.
 | [dc07_free__random.png](figures/bowties/dc07_free__random.png) | dc07_free | random study | +0.27 | +-0.14 | +-0.12 |
 
 Reading them: `dc07_fixed`, which holds the fO2 exponent at the point-defect value,
-keeps the band the same width at the KS20 fO2 as at the data's centre, because the
+keeps the band the same width at the RR1200 fO2 as at the data's centre, because the
 model, not the data, sets how D scales with fO2 (its band is conditional on that
 model). Forms that fit the exponent widen when extrapolated there: the Mutch forms
 2.2-7.3x; `dc07_free` 3.0-3.4x when weighted or by ODR, but not by OLS or the run

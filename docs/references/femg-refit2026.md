@@ -61,11 +61,11 @@ To check an implementation. D along [001], Fo85:
 
 | Conditions | log10 D (m²/s) | 1 sigma |
 |---|---|---|
-| 1200 C, 42 MPa, fO2 1.38e-3 Pa (round-robin crystal KS20) | -15.330 | 0.132 |
+| 1200 C, 42 MPa, fO2 1.38e-3 Pa (RR1200: the round robin 1200 C conditions) | -15.330 | 0.132 |
 | 1100 C, 1 atm, fO2 1e-4 Pa | -16.105 | 0.106 |
 | 900 C, 0.1 GPa, fO2 1e-9 Pa | -18.574 | 0.088 |
 
-At the KS20 conditions this is 0.18 log10 units (a factor of 1.5) faster than Dohmen and Chakraborty (2007), so Fe-Mg diffusion times come out about 1.5 times shorter.
+At the RR1200 conditions this is 0.18 log10 units (a factor of 1.5) faster than Dohmen and Chakraborty (2007), so Fe-Mg diffusion times come out about 1.5 times shorter.
 
 ## What it was fitted to
 
@@ -88,4 +88,4 @@ Least squares (restricted maximum likelihood) on log D, in `analyses/femg_refit/
 - an offset per experiment (0.14 log), shared by the values from one experiment, so that each of Chakraborty's diffusion couples, read at 3-9 compositions, counts once for the temperature dependence;
 - an offset per laboratory (tau, 0.072 log).
 
-Checks behind the choice of fitting method (`unconfirmed-data.md`, section "The preset"): a bootstrap that resamples whole experiments gives a spread no wider than this uncertainty for any parameter; fitting the form of Mutch et al. (2019) instead gives the same D (+0.180 against +0.177 at KS20); and orthogonal distance regression without laboratory offsets is not used, because its answer depends on the temperature error assumed.
+Checks behind the choice of fitting method (`unconfirmed-data.md`, section "The preset"): a bootstrap that resamples whole experiments gives a spread no wider than this uncertainty for any parameter; fitting the form of Mutch et al. (2019) instead gives the same D (+0.180 against +0.177 at RR1200); and orthogonal distance regression without laboratory offsets is not used, because its answer depends on the temperature error assumed.

@@ -1,7 +1,7 @@
 """Figures for the whitening-validity study. Reads coverage.csv, real_kernels.csv and
 real_profiles.csv; writes fig1_coverage.png, fig2_aic.png, fig3_whitened.png here.
-No measured profile is plotted (the round robin data are private): only fit
-statistics. Run from the repo root:
+No measured profile is plotted: only fit statistics, for the paper profiles and the
+example (the round robin rows are private and not in these CSVs). Run from the repo root:
 
     uv run python docs/plans/2026-10-15-whitening-validity/figures.py
 """
@@ -95,7 +95,7 @@ def fig_coverage():
             ax.set_xlim(*xlim)
             ax.set_ylim(-0.7, len(cases) - 0.3)
             if row == 0:
-                ax.set_title(gname, fontsize=8)
+                ax.set_title(gname.replace(", ", "\n"), fontsize=8)
             ax.set_xlabel(f"{'1' if lvl == '1s' else '2'}-sigma coverage (%)")
         axes[row][0].set_yticks(y, cases)
     n = int(cov.trials.min())
@@ -117,9 +117,8 @@ def fig_aic():
     p = k.pivot(index="run", columns="kernel", values="aic")
     d = p.sub(p.min(axis=1), axis=0)
     d = d.sort_values("white")
-    src = k.drop_duplicates("run").set_index("run").source.loc[d.index]
     y = np.arange(len(d))
-    fig, ax = plt.subplots(figsize=(6.0, 7.0), layout="constrained")
+    fig, ax = plt.subplots(figsize=(6.0, 1.6 + 0.2 * len(d)), layout="constrained")
     ax.axvspan(0, 2, color="0.88", lw=0)
     styles = {
         "white": ("white only", "x", OKABE[0]),
@@ -142,11 +141,7 @@ def fig_aic():
         )
     ax.set_xscale("symlog", linthresh=1)
     ax.set_xlim(-0.2, 300)
-    names = [
-        n.replace("AZ18 ", "") + (" (RR)" if s == "round_robin" else "")
-        for n, s in zip(d.index, src, strict=True)
-    ]
-    ax.set_yticks(y, names, fontsize=6)
+    ax.set_yticks(y, [n.replace("AZ18 ", "") for n in d.index], fontsize=6)
     ax.set_ylim(-0.7, len(d) - 0.3)
     ax.set_xlabel("AIC above the best of the four noise models (0 = best; grey: within 2)")
     n_fam = int((np.minimum(d.white, d.sqexp) <= 2).sum())
@@ -176,8 +171,8 @@ def fig_whitened():
         1, 2, figsize=(7.2, 3.4), layout="constrained", width_ratios=(2.3, 1)
     )
     rng = np.random.default_rng(0)
-    colours = {"round_robin": OKABE[6], "paper": OKABE[5], "example": OKABE[3]}
-    labels = {"round_robin": "round robin", "paper": "Towbin & Plank 2026", "example": "example"}
+    colours = {"paper": OKABE[5], "example": OKABE[3]}
+    labels = {"paper": "Towbin & Plank 2026", "example": "example"}
     for i, col in enumerate(tests):
         for src, g in r.groupby("source"):
             v = g[col].dropna()

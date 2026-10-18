@@ -19,7 +19,7 @@ run a point belongs to, and how the plotted values were normalised.
 -   **File:** `analyses/femg_refit/data/dohmen_chakraborty2007_fig7b_extracted.csv`.
 -   **Series:** Chakraborty 1997 (48), Dohmen et al. 2007 Part I (14 at fO2 > 1e-10 Pa, 9 below), Petry et al. 2004 (17), Holzapfel et al. 2007 (14), Meissner 2000 (7, unpublished).
 -   **Method:** pdfplumber, PDF page 17; axis map from 8 x and 5 y labelled ticks, residual < 4e-4 units.
--   **Used in:** `analyses/femg_refit/compare_laws.py`; the Meissner sensitivity test in `docs/plans/2026-10-13-femg-refit.md` (adding the 7 points moves D at KS20 by at most 0.007 log).
+-   **Used in:** `analyses/femg_refit/compare_laws.py`; the Meissner sensitivity test in `docs/plans/2026-10-13-femg-refit.md` (adding the 7 points moves D at RR1200, the round robin 1200 C conditions, by at most 0.007 log).
 -   **To confirm:**
     -   Meissner's 7 points against Meissner (2000), Bayreuth dissertation (TEM-EDX). It is unpublished, so this may not be possible; Meissner et al. (1998, Am Mineral 83, 546-552) may hold some of them.
     -   The other series against the tables already transcribed. The figure plots them normalised (to fO2 1e-7 Pa and Fo90 or Fo86 by the caption), and the refit plan records that the normalisation is not consistent between series.

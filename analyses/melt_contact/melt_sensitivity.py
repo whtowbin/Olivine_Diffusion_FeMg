@@ -249,7 +249,7 @@ def main() -> None:
     pd.set_option("display.width", 200)
     print(resid.round(2).to_string(index=False))
     cols = ["form", "variant", "n", "tau_log10", "fO2_exponent", "E_kJ_mol", "melt_log10"]
-    cols += ["melt_se", "KS20_vs_dc07", "KS20_se_law", "KS20_se_new_lab", "Paper_vs_dc07"]
+    cols += ["melt_se", "RR1200_vs_dc07", "RR1200_se_law", "RR1200_se_new_lab", "Paper_vs_dc07"]
     print(table[cols].round(3).to_string(index=False))
     print(table.filter(like="effect_").assign(v=table["variant"]).round(2).to_string(index=False))
     print(offsets.round(2).to_string(index=False))

@@ -21,9 +21,9 @@ errors), as the femg_refit2026 preset:
 Control: the input-error slopes by central differences (used for the Mutch forms) must
 equal the closed form on the preset's form.
 
-figures/presets/p4_mutch_forms.png: (a) log10 D[001] minus DC07 against T at KS20,
+figures/presets/p4_mutch_forms.png: (a) log10 D[001] minus DC07 against T at RR1200,
 (b) log10 D[001] against P at 1400 C, Fo97, Ni-NiO, with Holzapfel's runs, (c) the levels
-at KS20, SH63 and the paper conditions.
+at RR1200, RR1102 and the paper conditions.
 
 Run: uv run python analyses/femg_refit/fit_mutch.py
 Writes results/verified/mutch_forms.csv.
@@ -180,7 +180,7 @@ def _law_curve(name: str, t_c, log_fo2, x_fo: float, p_pa) -> np.ndarray:
 
 
 def panel_a(ax, fits: dict) -> None:
-    ks = V.CONDITIONS["KS20"]
+    ks = V.CONDITIONS["RR1200"]
     log_fo2, x_fo, p_pa = float(ks.log_fo2_pa[0]), float(ks.x_fo[0]), float(ks.P[0])
     t = np.linspace(800, 1450, 66)
     dc = np.array([F.preset_log10_d("dohmen_chakraborty2007", tt, p_pa, log_fo2, x_fo) for tt in t])
@@ -202,8 +202,8 @@ def panel_a(ax, fits: dict) -> None:
     ax.axhline(0, color="0.2", lw=0.8, ls=":")
     ax.axvline(1200, color="0.6", lw=0.6)
     ax.set_xlabel("T (°C)")
-    ax.set_ylabel("log10 D[001] minus DC07, at KS20 fO2, Fo85, 42 MPa")
-    ax.set_title("(a) against T at the KS20 conditions", loc="left")
+    ax.set_ylabel("log10 D[001] minus DC07, at RR1200 fO2, Fo85, 42 MPa")
+    ax.set_title("(a) against T at the RR1200 conditions", loc="left")
 
 
 def panel_b(ax, fits: dict, df: pd.DataFrame) -> None:
@@ -243,7 +243,7 @@ def panel_b(ax, fits: dict, df: pd.DataFrame) -> None:
 
 def panel_c(ax_row, tab: pd.DataFrame) -> None:
     y = np.arange(len(tab))
-    for ax, cond in zip(ax_row, ("KS20", "SH63", "Paper"), strict=True):
+    for ax, cond in zip(ax_row, ("RR1200", "RR1102", "Paper"), strict=True):
         for yi, r in enumerate(tab.itertuples()):
             key = r.form.split(" (")[0] if "DFENS" in r.form else r.form
             colour = STYLE[key][0]
@@ -274,11 +274,11 @@ def figure(fits: dict, tab: pd.DataFrame, df: pd.DataFrame) -> None:
     top.legend(handles, labels, loc="outside lower center", ncol=3, fontsize=7, frameon=False)
     panel_c(bottom.subplots(1, 3, sharey=True), tab)
     t = tab.set_index("form")
-    k = t["KS20_vs_dc07"]
+    k = t["RR1200_vs_dc07"]
     mx6 = t.loc["mutch_x6"]
     dv = t.loc["dc07_x6_V (the preset)"]
     fig.suptitle(
-        f"The preset fits V ({dv['V_cm3_mol']:.1f} ± {dv['V_se_cm3_mol']:.1f} cm³/mol): KS20 "
+        f"The preset fits V ({dv['V_cm3_mol']:.1f} ± {dv['V_se_cm3_mol']:.1f} cm³/mol): RR1200 "
         f"{k['dc07_x6_V (the preset)']:+.2f}, against {k['dc07_x6, V fixed at 7']:+.2f} with V "
         f"fixed at 7; the Mutch forms add nothing to that ({k['mutch_x6']:+.2f} at 6x, "
         f"{k['mutch_aniso']:+.2f} with fitted anisotropy).\nThe 6x Mutch refit: fO2 exponent "
@@ -321,10 +321,10 @@ def main() -> None:
         "V_se_cm3_mol",
         "j_log10_per_GPa",
         "j_se",
-        "KS20_vs_dc07",
-        "KS20_se_law",
-        "KS20_se_new_lab",
-        "SH63_vs_dc07",
+        "RR1200_vs_dc07",
+        "RR1200_se_law",
+        "RR1200_se_new_lab",
+        "RR1102_vs_dc07",
         "Paper_vs_dc07",
     ]
     print(tab[[c for c in cols if c in tab]].round(3).to_string(index=False))

@@ -17,8 +17,9 @@ For the 35 real profiles of the grid-choice study (17 round robin, 18 Towbin and
    with the scatter elsewhere.
 
 Writes real_kernels.csv (one row per profile x kernel x residual set) and
-real_profiles.csv (one row per profile). Round robin profiles are private: only
-diagnostic numbers are written, never their data. Run from the repo root:
+real_profiles.csv (one row per profile). Round robin profiles are private: their rows
+go only to the private submodule (`common.PRIVATE`); the CSVs here hold the paper
+profiles and the example. Run from the repo root:
 
     uv run python docs/plans/2026-10-15-whitening-validity/real_profiles.py
 """
@@ -32,7 +33,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from common import HERE, KERNELS, fit_kernel, whiten, whiteness
+from common import KERNELS, fit_kernel, whiten, whiteness, write_split
 from synthetic import loo_z
 from references import load
 from scipy import stats
@@ -222,8 +223,8 @@ def main():
             f"max|z| {row['boot_p_max_abs_z']:.3f}",
             flush=True,
         )
-    pd.DataFrame(rows).to_csv(HERE / "real_profiles.csv", index=False, float_format="%.5g")
-    pd.DataFrame(kern).to_csv(HERE / "real_kernels.csv", index=False, float_format="%.6g")
+    write_split(pd.DataFrame(rows), "real_profiles.csv", "%.5g")
+    write_split(pd.DataFrame(kern), "real_kernels.csv", "%.6g")
     print(f"done in {time.perf_counter() - t0:.1f}s")
 
 

@@ -36,6 +36,17 @@ KERNEL_LABELS = {
 }
 N_PARAMS = {"white": 1, "sqexp": 3, "exp": 3, "matern32": 3}
 
+# Round robin rows (other laboratories' profiles) are written only to the private
+# submodule; the CSVs here keep the paper and example rows.
+PRIVATE = REPO / "Diffusion Round Robin" / "outputs" / "whitening_validity"
+
+
+def write_split(df, name: str, float_format: str) -> None:
+    """Write every row to PRIVATE/name and the rows that are not round robin to HERE/name."""
+    PRIVATE.mkdir(parents=True, exist_ok=True)
+    df.to_csv(PRIVATE / name, index=False, float_format=float_format)
+    df[df.source != "round_robin"].to_csv(HERE / name, index=False, float_format=float_format)
+
 
 def kernel_matrix(kind: str, x: np.ndarray, length: float) -> np.ndarray:
     """Correlation matrix K_L (unit diagonal) for points x (um)."""

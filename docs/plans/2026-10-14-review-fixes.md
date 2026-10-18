@@ -24,7 +24,7 @@ Taken with `femg_refit2026` as first exported; it was refitted to the verified d
 in 1278566 and `law_limits.py` rerun (current numbers in the limits note; the D t
 fractions are unchanged).
 
-- D t scaling (synthetic profile, `femg_refit2026`, KS20 conditions, fit with D and
+- D t scaling (synthetic profile, `femg_refit2026`, RR1200 conditions (the round robin 1200 C conditions), fit with D and
   with D x 10^delta; expected shift -delta in log10 t):
 
   | case | delta 0.122 | delta 0.301 |

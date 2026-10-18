@@ -1,21 +1,4 @@
 set,run,two_steps,same_best,low_diff_s,high_diff_s,same_noise,same_warnings,time_days,modelled_days_full,modelled_days_early,seconds_full,seconds_early
-round robin,KS20-527_2-transect-1,False,True,0,0,True,True,42.2292,730,94.9722,1.70937,0.236808
-round robin,KS20-527_2-transect-2,False,True,0,0,True,True,38.0347,730,94.9722,1.75348,0.23161
-round robin,KS20-527_2-transect-3,False,True,0,0,True,True,23.6667,730,73.0556,1.74088,0.176484
-round robin,KS20-527_2-transect-4,False,True,0,0,True,True,21.8125,730,65.75,1.74573,0.16279
-round robin,KS20-527_5-transect-1,False,True,0,0,True,True,369.625,730,730,1.53215,1.55417
-round robin,KS20-527_5-transect-2,False,True,0,0,True,True,239.736,730,496.778,1.53864,1.06221
-round robin,KS20-527_5-transect-3,False,True,0,0,True,True,178.056,730,365.278,1.59234,0.799856
-round robin,KS20-527-8_transect-1,True,True,0,0,True,True,74.9097,730,153.417,1.73232,0.380988
-round robin,KS20-527-8_transect-2,True,True,0,0,True,True,71.3819,730,146.111,1.72031,0.346016
-round robin,KS20-527-8_transect-3,True,True,0,0,True,True,35.3958,730,73.0556,1.68389,0.173394
-round robin,KS20-527-8_transect-4,True,True,0,0,True,True,65.3403,730,131.5,1.68012,0.312665
-round robin,KS20-527-8_transect-5,True,True,0,0,True,True,50.2778,730,102.278,1.72696,0.247082
-round robin,SH63olv066-1,True,True,0,0,True,True,10.4444,730,36.5,8.02798,0.821822
-round robin,SH63olv066-2,True,True,0,0,True,True,10.6194,730,43.8,8.02767,0.895202
-round robin,SH63olv066-3,True,True,0,0,True,True,10.7653,730,43.8,8.00867,0.936635
-round robin,SH63olv066-4,True,True,0,0,True,True,9.93472,730,43.8,7.86947,0.922844
-round robin,SH63olv084,False,True,0,0,True,True,441.083,730,730,1.93115,1.91924
 Towbin and Plank 2026,GCB1A R31_MP_Ol5_prof_1,True,True,0,0,True,True,9.06806,200,20,3.78488,0.386573
 Towbin and Plank 2026,GCB1A R31_MP_Ol5_prof_2,True,True,0,0,True,True,12.6562,200,26,3.871,0.518274
 Towbin and Plank 2026,AZ18 WHT06_ol_overgrowth2_prof_1,False,True,0,0,True,True,15.2556,200,50,3.89196,0.942901

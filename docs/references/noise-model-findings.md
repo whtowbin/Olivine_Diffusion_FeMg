@@ -108,7 +108,7 @@ to 61%; the near-step noise model restores 74%.
 **Figure B.** The three paper profiles where the near-step check fires. Blue: the default
 noise model; orange: the near-step model. The residuals are largest in the yellow zone
 near the steps. In two of three the near-step best fit lies outside the default 1σ range;
-in all three (and the four round robin profiles that warn) it lies inside the default 2σ
+in all three (and in the round robin profiles that warn) it lies inside the default 2σ
 range.
 
 **Meaning:** the near-step check was built to catch the one real failure (commit a3a8adc).
@@ -118,7 +118,7 @@ The rest of this document asks what the misfit near the step is telling us.
 
 **Asked (Henry):** misfit near the step is often a signal that the starting profile (step
 positions, edge Fo, plateau levels) or the assumption of pure diffusion is not right.
-SH63olv066's near-edge feature needs several parameters tuned together. Does whitening
+The near-edge feature of one round robin sample needs several parameters tuned together. Does whitening
 dampen the signal used to choose between starting profiles? Could the near-step ΔAIC be
 used in the parameter search, or to flag a starting profile that fits badly?
 
@@ -131,8 +131,9 @@ that profile's misfit, so smooth residual patterns cost little for every candida
 the differences between candidates shrink.
 
 **Done** (scripts in `figures/noise_findings/`):
-- One-parameter scans of every starting-profile parameter on SH63olv066-1 and the three
-  paper near-step profiles, each scored four ways: (a) white noise only; (b) the noise
+- One-parameter scans of every starting-profile parameter on a dense round robin profile
+  (298 points, 0.5 µm apart; its data and results are private) and the three paper
+  near-step profiles, each scored four ways: (a) white noise only; (b) the noise
   model fixed at the nominal starting profile; (c) refitted at the best (b) value, as
   FORSTER does; (d) refitted for every candidate.
 - Joint fits of all parameters with FORSTER's method and with (d).
@@ -154,17 +155,15 @@ to 18-40% once there is real smooth misfit.
 **Found:**
 - **The first-pass flattening is real but FORSTER's refit removes it.** On the paper
   profiles the noise model fixed at the nominal profile widened the parameter intervals
-  1.0-1.7× relative to the refit; on SH63olv066-1, where the nominal profile is poorest
-  (misfit 0.77 mol% over 7.7 µm, against 0.25 mol% over 0.5 µm at the fitted profile),
-  more. After the refit, intervals are honest on synthetic profiles (66% coverage for the
+  1.0-1.7× relative to the refit; on the round robin profile, where the nominal profile
+  is poorest, more. After the refit, intervals are honest on synthetic profiles (66% coverage for the
   step position, target 68%).
 - **The joint fit finds the combination of parameters the near-edge feature needs.**
   FORSTER and the per-candidate refit (d) landed on the same starting profile, within
-  0.1 µm and 0.1 mol%, on all three profiles fitted jointly. On SH63olv066-1 that profile
-  moved step 2 from 21 to 18.2 µm and the edge Fo from 67.0 to 69.6 mol%, and the near-step
-  ΔAIC went from −30.6 to −4.3.
+  0.1 µm and 0.1 mol%, on all three profiles fitted jointly. On the round robin profile
+  the fit moved a step and the edge Fo together, and the near-step warning cleared.
 - **Refitting the noise for every candidate is not worth adding.** It took 7× the time
-  (122 s against 17 s on SH63olv066-1) for the same optimum, and it has failure modes of
+  (122 s against 17 s on the dense round robin profile) for the same optimum, and it has failure modes of
   its own: the noise model absorbs misfit from a wrong core or plateau level (those come
   out 3-5× less certain), its correlation length runs to half the profile, and on a
   15-point profile it fitted the diffusion profile itself as misfit (time 3× too short).
@@ -214,7 +213,7 @@ while the real uncertainty does not.
 - **Real profiles with long measured plateaus.** The six paper profiles whose data run
   furthest onto the plateau: WHT06_ol43, WHT01_Ol_180, WHT01_Ol_181_prof_2,
   Xenocryst_ol23, WHT01_Ol_191 and WHT01_Ol_193 (6-21 diffusion lengths of plateau), and
-  the round robin profile SH63olv066-1 (not plotted here). Five of the six published runs
+  the dense round robin profile (private, not plotted here). Five of the six published runs
   end their model domain short of the data (WHT06_ol43 at 80 µm with data to 132 µm); the
   plateaus beyond are flat, so each domain was extended to the end of the data.
   - **Where the plateau starts** is read from the data: the first point past the step
@@ -250,19 +249,18 @@ diffusion length into the plateau, the time moves 4%.
 - **Once the data reach the plateau, plateau length does not move the time.** With at
   least 1 diffusion length of plateau kept (about 3 past the step), every profile stayed
   within 4% of its full-profile time, both as FORSTER runs it and with the full-length
-  model. SH63olv066-1 stays at 10.8-10.9 d from 22 down to 3 diffusion lengths past the
-  step.
+  model. The round robin profile behaved the same way.
 - **Data that stop at the plateau's start or on the slope move it.** Ending where the
   plateau starts moved the time by −15% (WHT06_ol43), +5%, −15%, −7%, +1% and +22%; ending
-  1 diffusion length before it by −63% (WHT06_ol43), +11%, +8%, +16% (SH63olv066-1) and
-  off the scale (91 d and 63 d) on two others. The full-length model barely moves at the
+  1 diffusion length before it by −63% (WHT06_ol43), +11% and +8%, and off the scale
+  (91 d and 63 d) on two others; the round robin profile also moved. The full-length model barely moves at the
   same cuts, so it is the held core Fo at the end of the model, not the loss of points,
   that moves the time.
 - **A longer plateau makes the range narrower and the near-step warning stronger when the
   misfit sits near the step.** WHT06_ol43 with every point (132 µm): 1σ 1.68-2.24 d and
   near-step ΔAIC −18.3; at the published domain end (80 µm): 1.53-2.38 d and −8.6; with
-  2 diffusion lengths of plateau: −3.0, no warning. SH63olv066-1: −30.6 with the full
-  plateau, −4.2 with 2 diffusion lengths. Profiles without near-step misfit show neither
+  2 diffusion lengths of plateau: −3.0, no warning. The round robin profile showed the
+  same pattern. Profiles without near-step misfit show neither
   effect.
 
 ![Plateau length, synthetic](figures/noise_findings/fig3_plateau_synthetic.png)

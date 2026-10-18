@@ -15,7 +15,7 @@ input errors), as fit_models.fit_bootstrap did for the full compilation.
 Run: uv run python analyses/femg_refit/bootstrap_preset.py
 Writes results/verified/bootstrap_draws.csv (every draw) and bootstrap.csv (summary:
 the full-data fit, the law's 1 sigma, the bootstrap sd and its 2.5, 16, 84 and 97.5
-percentiles for log10 D[001] at KS20, SH63 and the paper conditions minus DC07, the fO2
+percentiles for log10 D[001] at RR1200, RR1102 and the paper conditions minus DC07, the fO2
 exponent, E and V).
 """
 

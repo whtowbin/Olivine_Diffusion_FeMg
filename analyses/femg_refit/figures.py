@@ -125,7 +125,7 @@ def fig_predictions(pred: pd.DataFrame) -> None:
     fig.suptitle(
         f"Refitted laws put Fe-Mg diffusion {lo:+.2f} to {hi:+.2f} log units from the default "
         "(DC07) at these conditions.\nWith a random offset per study (+; light bars: one new lab) "
-        f"the forms agree at KS20 ({ks.minus_dc07_preset.min():+.2f} to "
+        f"the forms agree at RR1200 ({ks.minus_dc07_preset.min():+.2f} to "
         f"{ks.minus_dc07_preset.max():+.2f}),\nand their 1-sigma bars "
         f"(+-{ks.se.min():.2f}-{ks.se.max():.2f}) are as wide as the spread between forms",
         fontsize=10,

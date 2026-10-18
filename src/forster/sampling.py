@@ -88,8 +88,9 @@ METHODS = ("auto", "laplace", "nested")
 DEFAULT_SAMPLES = 1024
 DEFAULT_NLIVE = 200
 # Below this effective sample size per sample, "auto" falls back to nested sampling. On
-# 35 real profiles x 2 priors against a nested-sampling reference (nlive 1000;
-# analyses/ic_sampling/references.csv), every case Laplace kept at a threshold of
+# 35 real profiles x 2 priors against a nested-sampling reference (nlive 1000; 18 paper
+# runs, whose rows are in analyses/ic_sampling/references.csv, and 17 private round robin
+# runs), every case Laplace kept at a threshold of
 # 0.15-0.40 was within 0.81% on p16/50/84; the six cases more than 2% off all had 0.11
 # or less, and the next case above 0.25 had 0.26 (0.6% off).
 ESS_FALLBACK = 0.25
