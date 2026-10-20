@@ -12,6 +12,7 @@ import argparse
 import multiprocessing
 import os
 import sys
+import traceback
 from pathlib import Path
 
 
@@ -59,7 +60,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.self_test is not None:
         args.self_test.mkdir(parents=True, exist_ok=True)
-        return selftest.self_test(args.self_test)
+        try:
+            return selftest.self_test(args.self_test)
+        except Exception:
+            # Printed and returned as a failure: an unhandled exception in a windowed
+            # Windows build opens an error dialog that no one closes on a headless runner,
+            # so the self-test hung until its 20-minute timeout (2026-10-20).
+            traceback.print_exc()
+            return 1
     window = MainWindow()
     window.show()
     if args.folder:

@@ -24,8 +24,18 @@ a = Analysis(
     ["run_gui.py"],
     pathex=[SPECPATH],  # noqa: F821 (defined by PyInstaller)
     datas=datas,
-    # Imported inside a try block in forster.compiled, or only when the app starts.
-    hiddenimports=["forster._kernels", "forster.gui.app", "forster.gui.selftest"],
+    hiddenimports=[
+        # Imported inside a try block in forster.compiled, or only when the app starts.
+        "forster._kernels",
+        "forster.gui.app",
+        "forster.gui.selftest",
+        # matplotlib loads a backend by name when a figure is saved, so PyInstaller does
+        # not see it: PDF export (the app's own) and the plot toolbar's SVG and EPS/PS.
+        # Missing, the bundle failed its first self-test on PDF export (2026-10-20).
+        "matplotlib.backends.backend_pdf",
+        "matplotlib.backends.backend_svg",
+        "matplotlib.backends.backend_ps",
+    ],
     excludes=[
         # Present in a development environment, never used by the app.
         "tkinter",
