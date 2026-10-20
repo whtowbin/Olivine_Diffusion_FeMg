@@ -50,6 +50,9 @@ a = Analysis(
         "great_tables",
         "PyQt5",
         "PyQt6",
+        # Kriging is only for the legacy uncertainty method, which the app refuses
+        # (forster.gui.state.app_refusal): the app never loads pykrige.
+        "pykrige",
     ],
     noarchive=False,
 )

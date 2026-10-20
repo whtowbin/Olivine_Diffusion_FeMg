@@ -864,6 +864,19 @@ def time_view(project: Project, name: str, mode: str) -> TimeView | str:
     return result, posterior, mc
 
 
+def app_refusal(run: Run) -> str | None:
+    """Why the app will not fit ``run`` (None if it will). The app never krigs (Henry,
+    2026-10-16): the legacy uncertainty method fits a kriged profile, so a table that
+    asks for it is fitted by the command line, not silently with another method."""
+    if run.uncertainty == "legacy":
+        return (
+            "uses the legacy uncertainty method, which needs kriging and is not "
+            "available in the app; fit it with `forster fit`, or set its uncertainty "
+            "to correlated"
+        )
+    return None
+
+
 def law_tasks(project: Project, name: str) -> list[FitTask]:
     """The run fitted under its own equation and each other offered Fe-Mg equation, as
     tasks (`Project.variant_task`), the run's own first."""

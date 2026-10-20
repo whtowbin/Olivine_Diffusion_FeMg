@@ -1,0 +1,306 @@
+{
+ "sequence": [
+  {
+   "label": "0 interpreter start (psutil, threading only)",
+   "rss_mb": 63.6,
+   "threads_py": 1,
+   "threads_os": 1,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 0,
+   "modules": 425,
+   "pykrige": false,
+   "elapsed_s": 0.2,
+   "rss_all": [
+    63.8,
+    63.6,
+    63.6
+   ]
+  },
+  {
+   "label": "1 after import forster.gui.app",
+   "rss_mb": 222.0,
+   "threads_py": 1,
+   "threads_os": 3,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 0,
+   "modules": 1625,
+   "pykrige": false,
+   "elapsed_s": 1.0,
+   "seconds": 0.8,
+   "rss_all": [
+    222.0,
+    221.8,
+    222.0
+   ]
+  },
+  {
+   "label": "2 window open, first fit settled",
+   "rss_mb": 315.5,
+   "threads_py": 1,
+   "threads_os": 10,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 1.5,
+   "rss_all": [
+    314.4,
+    315.5,
+    315.5
+   ]
+  },
+  {
+   "label": "3 after refit following a drag",
+   "rss_mb": 317.9,
+   "threads_py": 1,
+   "threads_os": 10,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 1.8,
+   "rss_all": [
+    317.9,
+    317.9,
+    321.2
+   ]
+  },
+  {
+   "label": "4 after starting-profile fit (scan)",
+   "rss_mb": 332.6,
+   "threads_py": 1,
+   "threads_os": 16,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 2.3,
+   "rss_all": [
+    332.6,
+    332.1,
+    339.9
+   ]
+  },
+  {
+   "label": "5 after Monte Carlo (200 draws)",
+   "rss_mb": 332.8,
+   "threads_py": 1,
+   "threads_os": 17,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 2.5,
+   "rss_all": [
+    332.8,
+    332.4,
+    340.0
+   ]
+  },
+  {
+   "label": "6 after Law comparison drawn",
+   "rss_mb": 335.6,
+   "threads_py": 1,
+   "threads_os": 18,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 2.8,
+   "rss_all": [
+    335.6,
+    335.6,
+    342.4
+   ]
+  },
+  {
+   "label": "7 after Time distribution drawn",
+   "rss_mb": 339.3,
+   "threads_py": 1,
+   "threads_os": 18,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 2.9,
+   "rss_all": [
+    339.3,
+    338.4,
+    345.2
+   ]
+  },
+  {
+   "label": "7b after importing 2 profiles (A, B) and fitting A",
+   "rss_mb": 353.4,
+   "threads_py": 1,
+   "threads_os": 18,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 3.2,
+   "rss_all": [
+    353.4,
+    352.9,
+    360.0
+   ]
+  },
+  {
+   "label": "8 after opening/closing ImportDialog x20",
+   "rss_mb": 419.6,
+   "threads_py": 1,
+   "threads_os": 18,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 3.5,
+   "dialog_children": 20,
+   "rss_all": [
+    419.6,
+    419.1,
+    426.3
+   ]
+  },
+  {
+   "label": "9 after switching all centre views and side tabs x20",
+   "rss_mb": 440.0,
+   "threads_py": 1,
+   "threads_os": 18,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 5.0,
+   "rss_all": [
+    439.6,
+    440.0,
+    441.7
+   ]
+  },
+  {
+   "label": "10 after window.close() + processEvents + gc",
+   "rss_mb": 439.8,
+   "threads_py": 1,
+   "threads_os": 14,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 5.1,
+   "rss_all": [
+    439.4,
+    439.8,
+    441.5
+   ]
+  },
+  {
+   "label": "10b after deleteLater + del references + gc",
+   "rss_mb": 439.8,
+   "threads_py": 1,
+   "threads_os": 14,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 5.2,
+   "rss_all": [
+    439.4,
+    439.8,
+    441.5
+   ]
+  },
+  {
+   "label": "10c 32 s later (idle pool threads expired?)",
+   "rss_mb": 439.0,
+   "threads_py": 1,
+   "threads_os": 3,
+   "pool_threads": 0,
+   "pyplot_figs": 0,
+   "live_figures": 3,
+   "modules": 1716,
+   "pykrige": false,
+   "elapsed_s": 37.3,
+   "rss_all": [
+    439.0,
+    343.9,
+    441.1
+   ]
+  }
+ ],
+ "scale": {
+  "1": [
+   {
+    "label": "1 runs, all fitted",
+    "rss_mb": 372.3,
+    "threads_py": 1,
+    "threads_os": 10,
+    "pool_threads": 0,
+    "pyplot_figs": 0,
+    "live_figures": 3,
+    "modules": 1715,
+    "pykrige": false,
+    "elapsed_s": 1.4,
+    "runs": 1,
+    "rss_all": [
+     372.3,
+     372.0,
+     373.2
+    ]
+   }
+  ],
+  "5": [
+   {
+    "label": "5 runs, all fitted",
+    "rss_mb": 371.5,
+    "threads_py": 1,
+    "threads_os": 10,
+    "pool_threads": 0,
+    "pyplot_figs": 0,
+    "live_figures": 3,
+    "modules": 1715,
+    "pykrige": false,
+    "elapsed_s": 1.5,
+    "runs": 5,
+    "rss_all": [
+     370.7,
+     371.5,
+     372.3
+    ]
+   }
+  ],
+  "10": [
+   {
+    "label": "10 runs, all fitted",
+    "rss_mb": 373.5,
+    "threads_py": 1,
+    "threads_os": 10,
+    "pool_threads": 0,
+    "pyplot_figs": 0,
+    "live_figures": 3,
+    "modules": 1715,
+    "pykrige": false,
+    "elapsed_s": 1.7,
+    "runs": 10,
+    "rss_all": [
+     373.0,
+     373.5,
+     374.2
+    ]
+   }
+  ]
+ }
+}

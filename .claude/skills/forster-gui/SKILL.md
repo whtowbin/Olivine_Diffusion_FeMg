@@ -51,8 +51,13 @@ core must use `notes.warn`, or the app will not see them.
   per view; on closing anything: cancel and wait for its worker, disconnect signals,
   `deleteLater()`, close its matplotlib figures, drop its arrays and caches.
 - **No kriging in the app:** it must never load pykrige (only the legacy uncertainty
-  method krigs; the command line and API keep it). pykrige is imported lazily; the
-  installer spec should exclude it (not done yet).
+  method krigs; the command line and API keep it). `state.app_refusal` refuses legacy
+  runs at every fit entry point (fit, starting-profile fit, Monte Carlo, law view), the
+  installer spec excludes pykrige, and `tests/test_gui.py` checks kriging is never
+  reached. A new entry point that fits a run must call `app_refusal` too.
+- Measured (analyses/gui_memory, 2026-10-20): 440 MB peak over a session, 252 MB before
+  the first fit shows; views 0.2-3.7 MB, runs 0.1 MB each. Dialogs parented to the window
+  must be `deleteLater()`ed after use (the import dialog leaked 3 MB per open).
 
 ## Installers
 Built only in GitHub CI (`gui-installers.yml`, manual or `v*` tags), never locally (the

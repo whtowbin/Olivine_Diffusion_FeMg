@@ -59,6 +59,7 @@ from .state import (
     RESULT_COLUMNS,
     RESULT_TITLES,
     RunEditor,
+    app_refusal,
     copy_settings,
     law_tasks,
     new_run,
@@ -676,16 +677,17 @@ class MainWindow(QMainWindow):
             self._refuse("Cannot read that file", exc)
             return
         dialog = ImportDialog(path, table, self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        name, flip, offset = dialog.options()
+        try:
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            name, flip, offset = dialog.options()
+            template, add_runs = dialog.template(), dialog.add_runs.isChecked()
+        finally:
+            # Parented to the window, a closed dialog stayed alive (about 3 MB per
+            # import; analyses/gui_memory, 2026-10-20).
+            dialog.deleteLater()
         self.import_table(
-            table,
-            dialog.template(),
-            name=name,
-            flip=flip,
-            offset_um=offset,
-            add_runs=dialog.add_runs.isChecked(),
+            table, template, name=name, flip=flip, offset_um=offset, add_runs=add_runs
         )
 
     def import_table(
@@ -864,6 +866,11 @@ class MainWindow(QMainWindow):
         in a worker first."""
         assert self.project is not None and self.current is not None
         name = self.current
+        refusal = app_refusal(self.project.run(name))
+        if refusal is not None:
+            self.law_page.key = None
+            self.law_page.show_message(f"{name} {refusal}.")
+            return
         tasks = law_tasks(self.project, name)
         key = tuple(t.key for t in tasks)
         if self.law_page.key == key and self.law_page.drawn:
@@ -930,6 +937,14 @@ class MainWindow(QMainWindow):
                 break
         else:
             return
+        refusal = app_refusal(self.project.run(name))
+        if refusal is not None:
+            self.last_error = self.fit_errors[name] = refusal
+            self.statusBar().showMessage(f"Not fitted: {name} {refusal}")
+            if name == self.current:
+                self._redraw()
+            self._start_fit()
+            return
         task = self.project.fit_task(name)
         job = Job(lambda _job: task.run_collecting(), (self.serial, task))
         job.signals.done.connect(self._fit_done)
@@ -978,6 +993,10 @@ class MainWindow(QMainWindow):
         if self.project is None or self.editor is None or self.scan_job is not None:
             return False
         name = self.editor.name
+        refusal = app_refusal(self.project.run(name))
+        if refusal is not None:
+            tab.error.show_errors([f"{name} {refusal}."])
+            return False
         if not self.project.run(name).uncertainties:
             tab.error.show_errors(
                 ["Give a ± for at least one step (here) or segment Fo (Segments tab) first."]
@@ -1096,6 +1115,10 @@ class MainWindow(QMainWindow):
         if self.project is None or self.editor is None or self.mc_job is not None:
             return False
         name = self.editor.name
+        refusal = app_refusal(self.project.run(name))
+        if refusal is not None:
+            tab.mc_error.show_errors([f"{name} {refusal}."])
+            return False
         try:
             task = self.project.mc_task(name)
         except ValueError as exc:

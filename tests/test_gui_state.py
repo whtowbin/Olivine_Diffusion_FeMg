@@ -7,6 +7,7 @@ from forster import Uncertainty
 from forster.gui.state import (
     RunEditor,
     SegmentRow,
+    app_refusal,
     initial_of,
     new_run,
     result_rows,
@@ -189,3 +190,11 @@ def test_new_runs_and_the_results_table(project):
     table = summary_table(project)
     assert table.run.tolist() == [EXAMPLE]
     assert {"profile", "time_days", "warnings"} <= set(table.columns)
+
+
+def test_the_app_refuses_the_legacy_method_which_needs_kriging(project):
+    run = project.run(EXAMPLE)
+    assert app_refusal(run) is None
+    legacy = project.update_run(EXAMPLE, uncertainty="legacy", scheme="central")
+    message = app_refusal(legacy)
+    assert message is not None and "kriging" in message and "forster fit" in message

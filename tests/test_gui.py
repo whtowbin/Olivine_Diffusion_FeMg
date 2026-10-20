@@ -14,7 +14,7 @@ import pytest
 pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEventLoop, QPoint, Qt
+from PySide6.QtCore import QEvent, QEventLoop, QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -351,3 +351,51 @@ def test_the_installers_self_test_passes_in_a_checkout(app, tmp_path):
 
     assert self_test(tmp_path) == 0
     assert (tmp_path / "project.zip").exists() and (tmp_path / "laws.png").exists()
+
+
+def test_the_import_dialog_is_freed_after_each_import(app, tmp_path, monkeypatch):
+    """A dialog parented to the window stayed alive after closing (about 3 MB per
+    import, analyses/gui_memory): opening it 20 times must leave none behind."""
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        path = lab_csv(tmp_path / "lab.csv")
+        monkeypatch.setattr(
+            "forster.gui.app.QFileDialog.getOpenFileName", lambda *a, **k: (str(path), "")
+        )
+        monkeypatch.setattr(ImportDialog, "exec", lambda self: 0)  # the user cancels
+        for _ in range(20):
+            window._choose_import()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        app.processEvents()
+        assert window.findChildren(ImportDialog) == []
+    finally:
+        window.close()
+
+
+def test_the_app_refuses_a_legacy_run_and_never_krigs(app, tmp_path, monkeypatch):
+    """The legacy uncertainty method fits a kriged profile; the app never loads pykrige
+    (Henry, 2026-10-16), so a table asking for it is refused with a pointer to the CLI."""
+
+    def no_kriging(*args, **kwargs):
+        raise AssertionError("the app reached kriging")
+
+    monkeypatch.setattr("forster.engine._kriging_model", no_kriging)
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        project = window.project
+        assert project is not None
+        wait(app, lambda: project.result(EXAMPLE) is not None and settled(window), "first fit")
+        project.update_run(EXAMPLE, uncertainty="legacy", scheme="central")
+        window._after_run_change(EXAMPLE)
+        wait(app, lambda: EXAMPLE in window.fit_errors and settled(window), "refusal")
+        assert "forster fit" in window.fit_errors[EXAMPLE]
+        assert project.result(EXAMPLE) is None
+        assert not window.start_scan()
+        window.show_centre("Law comparison")
+        assert window.law_job is None and not window.law_page.drawn
+    finally:
+        window.close()
