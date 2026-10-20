@@ -418,7 +418,7 @@ def run_candidates(
         raise ValueError(f"candidates must share the model domain, got {sorted(domains)}")
     diffusivity = fe_mg_diffusivity(diffusivity)
     if len({c.centre_um for c in candidates}) != 1:
-        raise ValueError("candidates must share the crystal centre (centre_um)")
+        raise ValueError("candidates must share the crystal center (centre_um)")
     measured_x, measured_fo = measured_points(profile, candidates[0])
     step_x, dx_um, (low, high) = initial_grid(scheme, measured_x, grid, candidates[0])
     model_x = step_x[low : high + 1]
@@ -546,7 +546,7 @@ def fit_candidates(
                 limit = f"{NORMAL_SPAN:g} sigma" if u.kind == "normal" else "the range given"
                 notes.warn(
                     f"the best {name} ({v:.4g}) is at {limit} from its nominal value; the "
-                    "data favour values beyond the scan, so the ranges may be cut short",
+                    "data favor values beyond the scan, so the ranges may be cut short",
                     stacklevel=2,
                 )
     threshold = interval_threshold(len(x), 1 + n_free, level)

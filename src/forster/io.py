@@ -866,7 +866,7 @@ def read_runs(
             f"{label} needs {sorted(required - columns)}" for label, required, _, _ in LAYOUTS
         )
         raise ValueError(
-            f"{path}: not a recognised parameter table (see `forster template`). {needs}"
+            f"{path}: not a recognized parameter table (see `forster template`). {needs}"
         )
     label, _, name_column, make_run = layout
     if label == "Template layout":
@@ -1338,7 +1338,7 @@ def _cancellable(
 
     def report(i: int, n: int) -> None:
         if cancel():
-            raise Cancelled("the initial-condition scan was cancelled")
+            raise Cancelled("the initial-condition scan was canceled")
         if progress is not None:
             progress(i, n)
 

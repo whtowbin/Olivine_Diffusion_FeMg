@@ -1063,7 +1063,7 @@ class MainWindow(QMainWindow):
     def _scan_cancelled(self, tag: tuple[int, ScanTask]) -> None:
         self._finish(tag)
         self.scan_job = None
-        self._scan_busy(False, "Cancelled.")
+        self._scan_busy(False, "Canceled.")
 
     def _show_scan(self, record: ScanRecord | None, seconds: float | None = None) -> None:
         tab = self.panel.uncertainties
@@ -1159,7 +1159,7 @@ class MainWindow(QMainWindow):
     def _mc_cancelled(self, tag: tuple[int, McTask]) -> None:
         self._finish(tag)
         self.mc_job = None
-        self._mc_busy(False, "Cancelled.")
+        self._mc_busy(False, "Canceled.")
 
     def _show_mc(self, record: McRecord | None, seconds: float | None = None) -> None:
         self.mc_record = record

@@ -225,7 +225,7 @@ class JointLikelihood(PriorLikelihood):
         out = []
         for part, initial in zip(self.parts, initials, strict=True):
             if self.cancel is not None and self.cancel():
-                raise Cancelled("the joint fit was cancelled")
+                raise Cancelled("the joint fit was canceled")
             self.runs += 1
             out.append(part.predict(initial, theta))
         return out
@@ -614,7 +614,7 @@ def _check_agreement(fits: Mapping[str, FitResult], crystal: str | None) -> bool
         notes.warn(
             f"the profiles of crystal {crystal or '(unnamed)'} do not agree on one time: the "
             f"2-sigma ranges of {pairs} do not overlap (individual fits: {listed}). Check the "
-            "orientations, whether a profile is off the crystal's centre, or a 3D effect near "
+            "orientations, whether a profile is off the crystal's center, or a 3D effect near "
             "a corner, before trusting the joint fit",
             stacklevel=3,
         )
@@ -659,7 +659,7 @@ def _warn_best(like: JointLikelihood, z: np.ndarray) -> dict[str, float]:
     at_edge = at_prior_edge(like, z)
     if at_edge:
         notes.warn(
-            f"the best {', '.join(at_edge)} is at the edge of its prior; the data favour "
+            f"the best {', '.join(at_edge)} is at the edge of its prior; the data favor "
             "values beyond it, so the range may be cut short",
             stacklevel=3,
         )

@@ -293,7 +293,7 @@ def _guess_column(header: str, values: pd.Series) -> ColumnMap:
         unit = _unit_in(header)
         note = "element header" + ("" if unit else "; give its unit (wt% or ppm)")
         return ColumnMap(header, "element", element, unit, note)
-    return ColumnMap(header, "ignore", note="not recognised")
+    return ColumnMap(header, "ignore", note="not recognized")
 
 
 def guess(df: pd.DataFrame, name: str = "") -> ImportTemplate:
@@ -304,7 +304,7 @@ def guess(df: pd.DataFrame, name: str = "") -> ImportTemplate:
     for role, keys in (("profile", PROFILE_KEYS), ("position", POSITION_KEYS), ("fo", FO_KEYS)):
         maps = _keep_best(maps, role, keys, notes)
     if not [m for m in maps if m.role == "position"]:
-        notes.append("no position column recognised: map one by hand")
+        notes.append("no position column recognized: map one by hand")
     return ImportTemplate(tuple(maps), name=name, notes=tuple(notes))
 
 

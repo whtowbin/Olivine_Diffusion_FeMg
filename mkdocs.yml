@@ -4,7 +4,7 @@ site_url: https://forster.readthedocs.io/
 repo_url: https://github.com/whtowbin/Olivine_Diffusion_FeMg
 repo_name: whtowbin/Olivine_Diffusion_FeMg
 edit_uri: edit/master/docs/site/
-copyright: FORSTER is released under the MIT licence.
+copyright: FORSTER is released under the MIT license.
 
 # Only this folder is published. docs/plans and docs/references (design notes and
 # studies) stay on GitHub.

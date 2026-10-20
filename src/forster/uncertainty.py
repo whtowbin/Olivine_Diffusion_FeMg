@@ -204,7 +204,7 @@ def delta_chi2_interval(
         high = float(hi_row)
         if end_is_limit:
             notes.warn(
-                "1-sigma range reaches the last modelled time step; increase max_time_days",
+                "1-sigma range reaches the last modeled time step; increase max_time_days",
                 stacklevel=2,
             )
     return Interval(best=best, low=float(low), high=float(high), low_row=lo_row, high_row=hi_row)

@@ -256,7 +256,7 @@ class ICLikelihood(PriorLikelihood):
     def at_points(self, initial: InitialCondition) -> np.ndarray:
         """The model at the measured points, (time steps + 1, points)."""
         if self.cancel is not None and self.cancel():
-            raise Cancelled("the initial-condition fit was cancelled")
+            raise Cancelled("the initial-condition fit was canceled")
         self.runs += 1
         return model_at_points(
             self.scheme,
@@ -718,7 +718,7 @@ def fit_initial_condition(
     at_edge = at_prior_edge(like, z)
     if at_edge:
         notes.warn(
-            f"the best {', '.join(at_edge)} is at the edge of its prior; the data favour "
+            f"the best {', '.join(at_edge)} is at the edge of its prior; the data favor "
             "values beyond it, so the range may be cut short",
             stacklevel=2,
         )

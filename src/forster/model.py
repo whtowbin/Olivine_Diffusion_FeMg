@@ -574,7 +574,7 @@ def initial_grid(
     if initial.centre_um is None:
         return scheme_grid(scheme, x_um, grid, (lo, initial.domain_um[1]), rims_um)
     if scheme != "implicit":
-        raise ValueError('a crystal centre (centre_um) needs scheme="implicit"')
+        raise ValueError('a crystal center (centre_um) needs scheme="implicit"')
     return scheme_grid(scheme, x_um, grid, (lo, initial.centre_um), rims_um, to_end=True)
 
 
@@ -1023,7 +1023,7 @@ def _check_options(
     if rim_fo is not None and not is_fixed(rim_fo) and scheme != "implicit":
         raise ValueError('a rim value that changes in time needs scheme="implicit"')
     if initial is not None and initial.centre_um is not None and stages:
-        raise ValueError("a crystal centre (centre_um) with growth stages is not supported yet")
+        raise ValueError("a crystal center (centre_um) with growth stages is not supported yet")
 
 
 def fit_profile(
@@ -1409,8 +1409,8 @@ def _core_end_lengths(
             "about 2 diffusion lengths past the step). The model holds the core Fo at the "
             "last measured point, and data that stop on the slope move the fit. Measure "
             "until the data have been flat for at least one more diffusion length, and do "
-            "not trim plateau points. If the profile already reaches the crystal's centre, "
-            "the fixed core boundary is the problem, not the data (modelling the whole "
+            "not trim plateau points. If the profile already reaches the crystal's center, "
+            "the fixed core boundary is the problem, not the data (modeling the whole "
             "crystal, rim to rim with a free core, is not available yet; "
             "docs/guide/practical-advice.md)",
             stacklevel=3,

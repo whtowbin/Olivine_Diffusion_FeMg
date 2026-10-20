@@ -1,19 +1,19 @@
 # Preparing data
 
-This page covers getting measured profiles into FORSTER and, before that, collecting
-profiles that FORSTER can fit well.
+This page covers how to get measured profiles into FORSTER and, before you go to the
+microprobe, how to collect profiles that FORSTER can fit well.
 
 ## The profiles table
 
-FORSTER reads measured points from a table with one row per analysis point
-(`profiles.csv`, or an Excel sheet):
+FORSTER reads measured profiles from a table (`profiles.csv`, or an Excel sheet) with
+one row per analysis point.
 
 | Column | Unit | Meaning |
 |---|---|---|
 | `profile` | | Profile name. The `profile` column of `parameters.csv` refers to it. Many profiles can share one table. |
 | `distance_um` | µm | Distance of the analysis from the crystal edge. |
 | `fo` | fraction | Forsterite content, Mg/(Mg + Fe) in moles, as a fraction: 0.895, not 89.5. |
-| `Marked_bad` | | Optional. `bad` leaves the point out of the fits (the desktop app's masked points). |
+| `Marked_bad` | | Optional. A point marked `bad` is left out of the fits (these are the points masked in the desktop app). |
 
 ```text
 profile,distance_um,fo
@@ -23,21 +23,22 @@ ol12 prof 1,5.0,0.8601
 ...
 ```
 
-Points are sorted by distance when read, so their order does not matter. A profile
-needs at least 3 points (a name with fewer is skipped with a warning). Extra columns
-are ignored, so you can keep oxide data, totals and notes in the same table.
+FORSTER sorts the points by distance as it reads them, so the row order does not
+matter. A profile needs at least 3 points, and a name with fewer is skipped with a
+warning. Extra columns are ignored, so oxide data, totals and notes can stay in the
+same table.
 
 **Distance from which edge?** Distances are measured from **edge 1**, the end of the
-profile where the model holds Fo (usually the crystal rim). If your traverse runs from
-the core outward, flip it (the app's Data tab and the import step both do this).
-Points do not have to start at zero: the model domain (`domain_start_um`,
-`domain_end_um`) says which part of the profile is modelled.
+profile where the model holds Fo. This is usually the crystal rim. If your traverse ran
+from the core outward, flip it (the app's Data tab and the import step can both do
+this). The first point does not have to sit at zero. The model domain
+(`domain_start_um`, `domain_end_um`) sets which part of the profile is modeled.
 
 ## Importing other spreadsheet layouts
 
-A spreadsheet straight from the microprobe has its own column names and units.
-`forster import` converts it in two steps, so nothing is converted without you
-checking it first.
+A spreadsheet straight off the microprobe has its own column names and units.
+`forster import` converts it in two steps, and you check the mapping before anything
+is converted.
 
 **Step 1: propose a mapping.**
 
@@ -45,9 +46,9 @@ checking it first.
 forster import probe_session.xlsx
 ```
 
-FORSTER guesses what each column holds from its header and values: the profile name,
-the distance (µm or mm), Fo (fraction or percent), each oxide or element (wt% or ppm),
-the analytical total, stage coordinates, or exclusion columns (`Marked_bad`,
+FORSTER reads each column's header and values and guesses what it holds: the profile
+name, the distance (µm or mm), Fo (fraction or percent), each oxide or element (wt% or
+ppm), the analytical total, stage coordinates, or exclusion columns (`Marked_bad`,
 `Ignore`, ...). It writes the guess to `probe_session.import.json` and stops. Open
 that file, check every column and correct anything it got wrong.
 
@@ -57,23 +58,23 @@ that file, check every column and correct anything it got wrong.
 forster import probe_session.xlsx --template probe_session.import.json
 ```
 
-writes `probe_session_profiles.csv` in the layout above. On the way:
+This writes `probe_session_profiles.csv` in the layout above. Along the way:
 
-- **Fo from oxides.** Without an Fo column, Fo is computed in moles from MgO and FeO
-  in wt%: Fo = (MgO/40.3044) / (MgO/40.3044 + FeO/71.8444), with all iron as Fe²⁺
-  (FeO is total iron). Mg and Fe as elements (wt% or ppm) work the same way.
-- **Flagged totals.** Points whose analytical total lies outside 98.5-101.5 wt% are
-  flagged in a `total_ok` column and listed, **not** dropped: a low total is a reason
-  to look at a point, not proof that it is bad. Change the window with
-  `--total-window 98 102`.
+- **Fo from oxides.** If there is no Fo column, Fo is computed in moles from MgO and
+  FeO in wt%: Fo = (MgO/40.3044) / (MgO/40.3044 + FeO/71.8444), taking all iron as
+  Fe²⁺ (FeO is total iron). Mg and Fe given as elements (wt% or ppm) work the same way.
+- **Flagged totals.** Points with an analytical total outside 98.5-101.5 wt% are
+  flagged in a `total_ok` column and listed, but **not** dropped. A low total is a
+  reason to look at a point again. It does not prove the point is bad. Change the
+  window with `--total-window 98 102`.
 - **Excluded rows.** Rows marked in an exclusion column (`bad`, `yes`, `x`, `1`, ...)
   are left out.
 
-The confirmed `.import.json` is an **import template**: later files with the same
-columns import with it directly. A file with columns the template does not know, or
-without ones it needs, stops with a message rather than being imported wrongly.
-(An import template is a column mapping; it is unrelated to the `forster template`
-command, which writes the parameter tables.)
+Once confirmed, the `.import.json` file is an **import template**, and later files with
+the same columns import with it directly. If a file has columns the template does not
+know, or lacks ones it needs, the import stops with a message so that nothing is
+imported wrongly. (An import template is only a column mapping. It has nothing to do
+with the `forster template` command, which writes the parameter tables.)
 
 | Option | Does |
 |---|---|
@@ -85,46 +86,47 @@ command, which writes the parameter tables.)
 
 The desktop app's **Import profiles...** dialog uses the same mapping and reads and
 writes the same import templates ([The desktop app](app.md#importing-profiles)). From
-Python: `forster.imports.guess`, `ImportTemplate` and `apply` ([Python
+Python, use `forster.imports.guess`, `ImportTemplate` and `apply` ([Python
 API](api.md#importing-spreadsheets-forsterimports)).
 
-Parameter and profile tables in two older layouts (the tables of Towbin and Plank
-2026, and the lab layout with `Profile_Name`, `Distance µm`, `Fo#` in percent) are
-read too.
+FORSTER also reads parameter and profile tables in two older layouts: the tables of
+Towbin and Plank (2026), and the lab layout with `Profile_Name`, `Distance µm` and
+`Fo#` in percent.
 
 ## Collecting profiles
 
-This advice comes from tests on synthetic profiles of known age and on the published
-profiles of Towbin and Plank (2026). Two terms first:
+The advice below comes from tests on synthetic profiles of known age and on the
+published profiles of Towbin and Plank (2026). It uses two terms.
 
-- The **diffusion length** l = √(D t) is roughly how far a step has spread: on a
-  fitted profile it is about half the width of the smoothed step. D is the
-  diffusivity (how fast Fe and Mg exchange, in m²/s) and t the time. FORSTER reports
-  the fitted time, so l at your conditions follows from it; `core_end_diffusion_lengths`
-  in `summary.csv` gives distances in units of l.
-- The **plateau** (or core) is the flat part of the profile beyond the smoothed
-  step, which diffusion has not yet reached.
+- The **diffusion length**, l = √(D t), is roughly how far a step has spread. On a
+  fitted profile it is about half the width of the smoothed step. D is the diffusivity
+  (how fast Fe and Mg exchange, in m²/s) and t is the time. FORSTER reports the fitted
+  time, so l at your conditions follows from it. `core_end_diffusion_lengths` in
+  `summary.csv` gives distances in units of l.
+- The **plateau** (or core) is the flat part of the profile beyond the smoothed step,
+  which diffusion has not yet reached.
 
 | Advice | Why |
 |---|---|
-| **Measure until the profile has been flat for at least one more diffusion length past where it flattens.** More is better. | FORSTER ends the model at the last measured point and holds the core Fo there. On real profiles the plateau starts about 2 diffusion lengths past the step. Data that stopped where it starts moved the time by -15% to +22%; data that stopped on the slope by -63% or more. With 1 diffusion length of plateau or more, every profile tested stayed within 4%. FORSTER warns when the data end within 3 diffusion lengths of the step. |
-| If the profile ends at the centre of a small crystal, treat that warning with care. | There the data cannot go further. Diffusion from both rims meets at the centre, so the centre's Fo falls once diffusion arrives, which a fixed core Fo does not allow. Model the whole crystal instead (`centre_um`, [Setting up a run](setup.md#whole-crystals-centre_um)). |
-| **Do not worry about plateaus being longer on some profiles than others.** | Once the data reach the plateau, its length does not move the time (within 4% on six real profiles with 1 to 21 diffusion lengths of plateau). |
-| **Never trim plateau points** to tighten a range or remove a warning. | Trimming does not move the time; it only hides misfit near the step. On one paper profile the near-step check went from a clear warning with the full plateau to silence with 2 diffusion lengths, while the range stayed too narrow. |
-| **Set the model domain to include the whole measured plateau.** | Points beyond the domain's end are not fitted (`points_outside_domain` counts them). A longer plateau makes the near-step check more reliable. |
-| **Put at least about 13 analyses within two diffusion lengths of each step.** | The near-step check (does the misfit pile up near the step?) depends on the points there: with 7-12 it catches only 10-60% of such misfit, with 13 or more 87-97% (`near_step_points` in `summary.csv`). |
-| **Aim for 25 or more points across the smoothed zone and its plateaus.** | On 15-17-point profiles the near-step check catches only 14-37% of strong near-step misfit (94% on 30 points), and a smooth misfit can mimic the profile itself. |
-| **Record your analytical precision.** | Compare it with the fitted scatter (`white_sigma_fo`): much larger means unmodelled scatter or outliers. |
-| **Note analyses that may be bad** (cracks, inclusions, poor totals, beam overlap with the rim or the matrix). | Remove a point only for a known fault, then refit. Outliers inflate the fitted scatter, so they are hard to spot from the diagnostics. Rim analyses that are noisier make the 1σ range too narrow (it then covers about 63% instead of 68%). |
-| **Measure the orientation** (EBSD, or optically). | Fe-Mg diffusion is about six times faster along [001] than along [100] or [010], so the same profile gives times up to six times apart depending on its direction ([Setting up a run](setup.md#orientation)). |
+| **Keep measuring for at least one diffusion length after the profile goes flat.** More is better. | FORSTER ends the model at the last measured point and holds the core Fo there. On real profiles the plateau starts about 2 diffusion lengths past the step. Data that stopped right where the plateau starts moved the time by -15% to +22%, and data that stopped on the slope moved it by -63% or more. With 1 diffusion length of plateau or more, every profile tested stayed within 4%. FORSTER warns when the data end within 3 diffusion lengths of the step. |
+| Take care with that warning when the profile ends at the center of a small crystal. | Here the data cannot go any further. Diffusion from both rims meets at the center, and once it arrives the center's Fo falls. A fixed core Fo cannot follow that change. Model the whole crystal instead (`centre_um`, [Setting up a run](setup.md#whole-crystals-center_um)). |
+| **Plateaus of different lengths on different profiles are fine.** | Once the data reach the plateau, its length does not move the time (within 4% on six real profiles with 1 to 21 diffusion lengths of plateau). |
+| **Never trim plateau points** to tighten a range or remove a warning. | Trimming does not move the time. It only hides misfit near the step. On one published profile the near-step check gave a clear warning with the full plateau and none with the plateau cut to 2 diffusion lengths, although the range was still too narrow. |
+| **Set the model domain to include the whole measured plateau.** | Points past the end of the domain are not fitted (`points_outside_domain` counts them). A longer plateau makes the near-step check more reliable. |
+| **Place about 13 or more analyses within two diffusion lengths of each step.** | The near-step check asks whether the misfit piles up near the step, so it depends on the points there. With 7-12 points it catches only 10-60% of such misfit, and with 13 or more it catches 87-97% (`near_step_points` in `summary.csv`). |
+| **Aim for 25 or more points across the smoothed zone and its plateaus.** | On profiles of 15-17 points the near-step check catches only 14-37% of strong near-step misfit (94% on 30 points), and a smooth misfit can look like the profile itself. |
+| **Record your analytical precision.** | Compare it with the fitted scatter (`white_sigma_fo`). A fitted scatter much larger than your precision means scatter the model does not describe, or outliers. |
+| **Note analyses that may be bad** (cracks, inclusions, poor totals, beam overlap with the rim or the matrix). | Remove a point only for a known fault, then refit. Outliers inflate the fitted scatter, which makes them hard to spot in the diagnostics. If the rim analyses are noisier than the rest, the 1σ range is too narrow (it covers about 63% instead of 68%). |
+| **Measure the orientation** (EBSD, or optically). | Fe-Mg diffusion is about six times faster along [001] than along [100] or [010], so the same profile can give times up to six times apart depending on its direction in the crystal ([Setting up a run](setup.md#orientation)). |
 
 ![Data that stop on the slope](images/short-plateau.png)
 
 *Why the data must reach the plateau. A published profile (WHT06_ol43, Towbin and
-Plank 2026) fitted with every point (blue), cut one diffusion length into the plateau
-(green: the time moves 4%), and cut on the slope (pink). The cut model ends at its last
-point and holds the core Fo there, where the measured profile is still about 1 mol%
-lower; that steepens the modelled step and the time falls 63%.*
+Plank 2026) is fitted with every point (blue), cut one diffusion length into the
+plateau (green, the time moves 4%), and cut on the slope (pink). The model cut on the
+slope ends at its last point and holds the core Fo there, although the measured
+profile is still about 1 mol% lower at that point. This steepens the modeled step,
+and the time falls 63%.*
 
 The evidence behind each item is in
 [practical-advice.md](https://github.com/whtowbin/Olivine_Diffusion_FeMg/blob/master/docs/guide/practical-advice.md)

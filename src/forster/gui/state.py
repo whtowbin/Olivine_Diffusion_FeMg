@@ -385,7 +385,7 @@ class RunEditor:
     def set_centre(self, text: str) -> bool:
         """The crystal centre (blank: a half profile, its far end held)."""
         try:
-            value = number(text, "Crystal centre", optional=True)
+            value = number(text, "Crystal center", optional=True)
         except ValueError as error:
             self.errors["centre"] = str(error)
             return False

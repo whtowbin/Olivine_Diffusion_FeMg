@@ -534,7 +534,7 @@ def _warn_if_unconstrained(name: str, interval: Any, n_rows: int) -> None:
     if interval.best == 0 or flat:
         warnings.warn(
             f"{name}: the profile does not constrain a diffusion time (the best fit is at "
-            "time zero or the 1-sigma range spans every modelled time: zoning within the "
+            "time zero or the 1-sigma range spans every modeled time: zoning within the "
             "noise, or the initial condition is wrong)",
             stacklevel=3,
         )

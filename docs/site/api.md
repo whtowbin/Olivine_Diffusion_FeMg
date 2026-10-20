@@ -1,9 +1,10 @@
 # Python API
 
-Everything the command line and the desktop app do is available from Python.
-`import forster` gives the names below (the headings show the module each one is
-defined in; `forster.fit_profile` and `forster.model.fit_profile` are the same
-function). This page is generated from the docstrings in the code.
+Everything the command line and the desktop app do can also be done from Python.
+`import forster` gives you the names below. Each heading shows the module that defines
+the name, but the short name works too: `forster.fit_profile` and
+`forster.model.fit_profile` are the same function. This page is generated from the
+docstrings in the code.
 
 Units follow the tables: distances in µm, Fo as a fraction (0-1), temperature in °C,
 pressure and fO2 in Pa, times in seconds inside the model and in days in results
@@ -124,7 +125,7 @@ pressure and fO2 in Pa, times in seconds inside the model and in days in results
 
 ## Project folders: `forster.project.Project`
 
-The desktop app's project folder (see [Advanced](advanced.md#project-folders)).
+The project folder used by the desktop app (see [Advanced](advanced.md#project-folders)).
 
 ::: forster.project.Project
     options:

@@ -6,13 +6,18 @@
 [![Tests](https://github.com/whtowbin/Olivine_Diffusion_FeMg/actions/workflows/tests.yml/badge.svg)](https://github.com/whtowbin/Olivine_Diffusion_FeMg/actions/workflows/tests.yml)
 [![Documentation](https://img.shields.io/badge/docs-forster.readthedocs.io-blue)](https://forster.readthedocs.io)
 
-FORSTER fits Fe-Mg diffusion times to forsterite (Fo) profiles measured across zoned
-olivine. Sharp growth zoning is smoothed by Fe-Mg exchange while a crystal sits in hot
-magma; the wider the smoothed step, the longer it sat. Give FORSTER the measured
-profile, the temperature, pressure and oxygen fugacity, the profile's direction in the
-crystal and a step-shaped starting profile; it reports the best-fit time with 1σ and
-2σ ranges, can fit the starting profile itself, and propagates the uncertainty of the
-conditions and of the diffusion law into the time.
+Olivine that grows in a changing magma records the change as zoning: a rim with a
+different forsterite content (Fo) from its core. While the crystal sits in hot magma,
+Fe and Mg exchange across that boundary and the sharp step relaxes into a smooth
+profile. The wider the profile, the longer the crystal stayed hot. FORSTER estimates
+that time by fitting a model of Fe-Mg diffusion to Fo profiles measured across zoned
+olivine.
+
+You give it the measured profile, the temperature, pressure and oxygen fugacity, the
+profile's direction in the crystal, and a step-shaped starting profile (your estimate
+of the zoning before diffusion began). It reports the best-fit time with 1σ and 2σ
+ranges. It can also fit the starting profile itself, and carry the uncertainty in the
+conditions and in the diffusion equation into the time.
 
 ![The FORSTER desktop app with a fitted profile](https://raw.githubusercontent.com/whtowbin/Olivine_Diffusion_FeMg/master/docs/site/images/app-monte-carlo.png)
 
@@ -74,7 +79,7 @@ print(result.time_days, result.time_range_days())
   checks that warn when the range is probably too narrow (misfit concentrated near a
   step, a profile that ends before its plateau).
 - Starting profiles of any number of segments, fitted with their uncertainties by
-  optimisation and importance sampling; growth stages; a Monte Carlo over the
+  optimization and importance sampling; growth stages; a Monte Carlo over the
   conditions and the law; joint fits of several profiles of one crystal (Python).
 
 ## Development

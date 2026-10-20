@@ -172,8 +172,8 @@ class SegmentsTab(Tab):
         self.centre = QLineEdit()
         self.centre.setPlaceholderText("half profile: far end held")
         self.centre.setToolTip(
-            "Distance of the crystal's centre (centre_um). Given, the profile is mirrored "
-            "there, so no Fo crosses the centre and the core is free to change (a whole "
+            "Distance of the crystal's center (centre_um). Given, the profile is mirrored "
+            "there, so no Fo crosses the center and the core is free to change (a whole "
             "crystal; implicit scheme, no growth stages). Blank: the far end is held at "
             "the last segment's Fo."
         )
@@ -181,7 +181,7 @@ class SegmentsTab(Tab):
             lambda: self.apply(lambda e: e.set_centre(self.centre.text()))
         )
         form.addRow("Edge 1 Fo (mol%)", self.edge1)
-        form.addRow("Crystal centre (µm)", self.centre)
+        form.addRow("Crystal center (µm)", self.centre)
         layout.addLayout(form)
         self.error = ErrorLabel()
         layout.addWidget(self.error)
@@ -657,7 +657,7 @@ class ProfileDataTab(Tab):
         layout.addWidget(
             _note(
                 "Untick a point (or shift-click it on the plot) to mask it: it stays in the "
-                "project, drawn as a grey cross, and is left out of every fit of this profile "
+                "project, drawn as a gray cross, and is left out of every fit of this profile "
                 "(profiles.csv marks it Marked_bad, so forster fit leaves it out too)."
             )
         )

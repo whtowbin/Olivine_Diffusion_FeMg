@@ -96,7 +96,7 @@ def test_a_fit_collected_in_a_worker_thread_matches_the_warnings_and_result_issu
         plain = fit_run(run, project.profiles)
     expected = tuple(dict.fromkeys(str(w.message) for w in issued))
     assert any("diffusion lengths past the last step" in m for m in expected)
-    assert any("last modelled time step" in m for m in expected)
+    assert any("last modeled time step" in m for m in expected)
 
     answer = {}
 

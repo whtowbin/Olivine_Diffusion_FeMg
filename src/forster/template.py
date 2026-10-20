@@ -109,8 +109,8 @@ PARAMETER_COLUMNS = (
         "centre_um",
         "µm",
         "optional",
-        "Distance of the crystal's centre, to model the whole crystal: the model runs to "
-        "the centre (beyond the measured points if needed) and mirrors there, so no Fo "
+        "Distance of the crystal's center, to model the whole crystal: the model runs to "
+        "the center (beyond the measured points if needed) and mirrors there, so no Fo "
         "crosses it and the core is free to change. Empty: a half profile, its far end held "
         "at the core's Fo. Needs the implicit scheme and no growth stages.",
     ),
@@ -171,7 +171,7 @@ PARAMETER_COLUMNS = (
         "max_time_days",
         "days",
         "optional",
-        "Longest time modelled (default 200; with dx_um or dt_s empty, 3x a quick estimate "
+        "Longest time modeled (default 200; with dx_um or dt_s empty, 3x a quick estimate "
         "of the time).",
     ),
     Column(

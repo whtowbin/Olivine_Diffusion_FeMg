@@ -78,7 +78,7 @@ def test_interval_ends_are_interpolated_crossings():
 
 def test_interval_at_the_last_time_step_warns():
     chi2 = np.linspace(10.0, 9.0, 50)  # still falling at the last step
-    with pytest.warns(UserWarning, match="last modelled time step"):
+    with pytest.warns(UserWarning, match="last modeled time step"):
         span = delta_chi2_interval(chi2)
     assert span.high == 49
 
