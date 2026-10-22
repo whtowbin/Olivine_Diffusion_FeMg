@@ -32,7 +32,7 @@ INTRO = """\
 
 Every column FORSTER reads or writes, generated from the code
 (`forster.template`). `forster template` writes the same tables into your folder as
-`COLUMNS.md`. Fo is a fraction throughout (0.895, not 89.5); the desktop app shows
+`COLUMNS.md`. Fo is a fraction throughout (0.895, not 89.5). The desktop app shows
 it in mol% and converts.
 
 **Needed** says whether a column must be filled: *required*, *optional*, or *one
@@ -59,9 +59,10 @@ def columns_page() -> str:
         "## parameters.csv\n\nOne row per model run (one fit of one profile).",
         column_table(PARAMETER_COLUMNS),
         "## diffusivities.csv\n\n"
-        "Optional: your own diffusivity equations, one row per equation, named in the "
-        "`diffusivity` column of parameters.csv and passed to `forster fit` with "
-        "`--diffusivities`. For each crystal axis i ([100], [010], [001]):\n\n"
+        "Optional. Use it for your own diffusivity equations, one row per equation. Name an "
+        "equation in the `diffusivity` column of parameters.csv and pass the table to "
+        "`forster fit` with `--diffusivities`. For each crystal axis i ([100], [010], "
+        "[001]):\n\n"
         f"`{DIFFUSIVITY_EQUATION}`\n\n"
         "with T in K, P and fO2 in Pa and R = 8.3145 J/mol/K. Along the profile, D is "
         "the sum of D_i cos²(angle to axis i). The table `forster template` writes "
@@ -69,10 +70,10 @@ def columns_page() -> str:
         "values.",
         column_table(DIFFUSIVITY_COLUMNS),
         "## summary.csv\n\n"
-        "Written by `forster fit` (and by the app's Export): one row per fitted run, "
+        "Written by `forster fit` and by the app's Export. It has one row per fitted run, "
         "with `run`, `profile`, the results below and every parameter column above "
-        "(fO2 in Pa, orientation as angles), so it can be read back as a parameter "
-        "table to repeat the fits.",
+        "(fO2 in Pa, orientation as angles). You can read it back as a parameter table "
+        "to repeat the fits.",
         column_table(SUMMARY_COLUMNS),
     ]
     return "\n\n".join(parts) + "\n"

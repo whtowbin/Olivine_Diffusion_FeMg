@@ -29,7 +29,7 @@ with commas and put the cell in quotes (for example `"5, 12"`):
 | Column | Meaning |
 |---|---|
 | `stage_days` | When each stage starts, in days after the start of the run. |
-| `stage_rim_um` | The rim position from that stage on: at or below the previous rim (`domain_start_um` before the first stage). |
+| `stage_rim_um` | The rim position from that stage on. The crystal grows outward, so it is at most the previous rim's (`domain_start_um` before the first stage). |
 | `stage_zone_fo` | Fo of the zone the stage adds between the old and the new rim. |
 | `stage_rim_fo` | Optional: Fo held at the rim from that stage on (default: the new zone's Fo). |
 

@@ -51,12 +51,23 @@ private round robin repository.
    models: the number of degrees of freedom is unknown. In the coverage tests, v2
    was far too wide when the model is exact (99.7% instead of 68%) and about
    right only by coincidence when the model misfits.
+   Where they came from (Henry, 2026-10-21): the aim was the Numerical Recipes rule
+   (Press et al. 2007, §15.6), but applied to reduced chi-squared, while the book's
+   Δχ² = 1 applies to chi-squared itself, scaled to the chi-squared distribution. The
+   Wikipedia articles "Reduced chi-squared statistic", "Chi-squared test" and
+   "Goodness of fit" were the other sources consulted.
 3. **The kriging variance was used as a standard deviation.** PyKrige returns the
    variance (`sigmasq`). With the variogram used for the round robin fits it
    is small next to `uniform_uncert` (0.001) and `sigma_min`
    (1e-4), so every grid point had almost the same weight, about 0.11 Fo. The
    intended down-weighting of gaps between analyses did not happen. Legacy mode
-   keeps this behaviour so old results reproduce.
+   keeps this behaviour so old results reproduce. The intent (Henry, 2026-10-21) was
+   that points far from a measurement, with a larger kriging uncertainty, would count
+   for less in chi-squared. Even with the standard deviation used correctly, that
+   would not have removed the overcounting of point 1: a weight scales each point
+   independently, while kriged points near one analysis are near-copies of it and
+   still count as separate evidence. Correlated points need the full covariance
+   between them, which is what v3's noise model supplies on the measured points.
 4. **Hand-set kriging parameters entered the answer.** The variogram, the nugget,
    `uniform_uncert` and the grid spacing all changed the range. They did not
    change the best fit much (v1 and v2 share it; v3 moves some best fits).
