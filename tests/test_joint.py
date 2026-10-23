@@ -122,6 +122,7 @@ def with_offsets(crystal):
     return fit_crystal(runs, profiles, fits=fits)
 
 
+@pytest.mark.needs_numba
 def test_a_crystal_of_one_profile_is_its_starting_profile_fit(template):
     """Same likelihood, optimiser and seed: the same best values and noise model, and the
     range within sampling error (the joint fit refines the Laplace proposal)."""
@@ -172,6 +173,7 @@ def _width(r):
     return r[1] - r[0]
 
 
+@pytest.mark.needs_numba
 def test_two_profiles_recover_the_time_and_the_shared_fo(crystal, plain):
     """The joint 2-sigma range covers the true time and the shared segments come back. On
     one noise draw the joint range need not be narrower than the narrower individual one
@@ -211,6 +213,7 @@ def test_fixed_joint_range_is_narrower_than_either_profiles_fit_over_draws(templ
     assert np.median(ratios) < 1.0
 
 
+@pytest.mark.needs_numba
 def test_the_offsets_widen_the_shared_fo_but_keep_the_time(plain, with_offsets):
     assert with_offsets.median_days == pytest.approx(plain.median_days, rel=0.02)
     for label in "ab":
@@ -221,6 +224,7 @@ def test_the_offsets_widen_the_shared_fo_but_keep_the_time(plain, with_offsets):
     assert offsets == {"B:fo_offset"} and with_offsets.fo_offset["A"] == 0.0
 
 
+@pytest.mark.needs_numba
 def test_a_drift_is_fitted_by_the_fo_offset(template, crystal):
     """A 0.15 mol% offset on profile B. With the Fo offsets on, the time stays where the
     undrifted crystal puts it and the offsets differ by about the drift (with A as the
@@ -247,6 +251,7 @@ def test_a_drift_is_fitted_by_the_fo_offset(template, crystal):
     )
 
 
+@pytest.mark.needs_numba
 def test_a_shifted_profile_is_fitted_by_the_edge_offset(template):
     """B's distances reported 2 um too large: its fitted edge offset is about 2 um, A's
     about 0. Steps held: a free step absorbs most of a shift (it is nearly the same
@@ -261,6 +266,7 @@ def test_a_shifted_profile_is_fitted_by_the_edge_offset(template):
     print(f"edge offsets: B {b:.2f} +- {joint.sd['B:edge1_offset_um']:.2f} um, A {a:.2f}")
 
 
+@pytest.mark.needs_numba
 def test_seeded_runs_reproduce_exactly(crystal, with_offsets):
     runs, profiles, fits = crystal
     again = fit_crystal(runs, profiles, fits=fits)
@@ -271,6 +277,7 @@ def test_seeded_runs_reproduce_exactly(crystal, with_offsets):
     assert again.model_runs == with_offsets.model_runs
 
 
+@pytest.mark.needs_numba
 def test_nested_sampling_runs_on_the_joint_likelihood(crystal, plain):
     runs, profiles, fits = crystal
     nested = fit_crystal(
@@ -348,6 +355,7 @@ def test_a_label_for_different_zones_warns(crystal):
         J._check_shared([fixed_a, three], {})
 
 
+@pytest.mark.needs_numba
 def test_every_fo_offset_free_without_a_reference(crystal):
     """``fo_reference=None`` keeps both profiles' Fo offsets (only their difference is
     fixed by the data); a named reference picks that run."""

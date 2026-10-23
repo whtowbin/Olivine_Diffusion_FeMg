@@ -64,6 +64,7 @@ def laplace(example):
     return fit_initial_condition(*_args(run, profile, grid, TWO), method="laplace", seed=3)
 
 
+@pytest.mark.needs_numba
 def test_laplace_and_nested_match_a_dense_grid_on_the_same_likelihood(example, laplace):
     run, profile, grid = example
     like = S.ICLikelihood(*_args(run, profile, grid, TWO))
@@ -108,6 +109,7 @@ def _synthetic(example):
     return Profile(x, fo, name="synthetic"), truth, 60 * grid.dt_s / 86400
 
 
+@pytest.mark.needs_numba
 def test_a_prior_centred_off_the_data_does_not_inflate_the_noise_model(example):
     """A tight prior centred 2 sd from the truth: the first noise model is fitted at a
     data-driven best fit and refitted until stable, so the correlated term stays as with
@@ -129,6 +131,7 @@ def test_a_prior_centred_off_the_data_does_not_inflate_the_noise_model(example):
     assert post.low_days <= true_days <= post.high_days
 
 
+@pytest.mark.needs_numba
 def test_best_fit_recovers_a_known_initial_condition(example):
     """A profile made from a known step and edge at a known time (plus noise): starting
     3 um and 0.004 Fo off, the best fit finds them and the range covers the time."""
@@ -163,6 +166,7 @@ def test_best_fit_recovers_a_known_initial_condition(example):
     assert post.best_initial.steps_um[0] == post.best_values["step1_um"]
 
 
+@pytest.mark.needs_numba
 def test_the_same_seed_gives_the_same_result(example, laplace):
     run, profile, grid = example
     again = fit_initial_condition(*_args(run, profile, grid, TWO), method="laplace", seed=3)
@@ -175,6 +179,7 @@ def test_the_same_seed_gives_the_same_result(example, laplace):
     assert other.median_days == pytest.approx(laplace.median_days, rel=0.01)
 
 
+@pytest.mark.needs_numba
 def test_variance_split_adds_up(example, laplace):
     """E[Var(t | IC)] + Var(E[t | IC]) is the variance of the marginal posterior of time."""
     days, density = laplace.days, laplace.density
@@ -201,6 +206,7 @@ def test_variance_split_adds_up(example, laplace):
     assert summary["ic_share"] == pytest.approx(between / total, rel=1e-9)
 
 
+@pytest.mark.needs_numba
 def test_auto_falls_back_to_nested_when_the_proposal_is_poor(example):
     run, profile, grid = example
     post = fit_initial_condition(*_args(run, profile, grid, TWO), ess_fallback=1.01, nlive=60)
@@ -217,6 +223,7 @@ def test_unknown_parameters_are_errors(example):
         S.ICLikelihood(*_args(run, profile, grid, {}))
 
 
+@pytest.mark.needs_numba
 def test_table_runs_default_to_auto_and_the_summary_refits(tmp_path):
     write_template(tmp_path / "t")
     params = pd.read_csv(tmp_path / "t" / "parameters.csv").assign(
@@ -263,6 +270,7 @@ def test_proposal_density_matches_scipy():
     np.testing.assert_allclose(got, expected, rtol=0, atol=1e-12)
 
 
+@pytest.mark.needs_numba
 def test_a_cancel_hook_that_never_fires_leaves_the_result_unchanged(example, laplace):
     run, profile, grid = example
     calls = []
@@ -313,6 +321,7 @@ def test_cancel_stops_the_sampler_and_the_grid_scan(example):
     assert stages == ["best fit"]
 
 
+@pytest.mark.needs_numba
 def test_a_conflicting_prior_is_reported_in_prior_sd_and_warned(example):
     """The data put the edge at 0.912; a Gaussian prior 0.9165 +- 0.002 then holds the
     best value about 2.2 sd from its nominal (inside the 2.5 sd edge): a warning says

@@ -55,3 +55,16 @@ def pytest_configure(config):
     except BlockingIOError:
         print(f"waiting for another FORSTER test run to finish ({_LOCK})", file=sys.stderr)
         fcntl.flock(_lock_file, fcntl.LOCK_EX)
+
+
+def pytest_collection_modifyitems(config, items):
+    """The CI job that runs the NumPy steppers (FORSTER_NO_NUMBA=1) skips the tests marked
+    ``needs_numba``: sampling and joint-fit tests that take 2 to 12 minutes each on CI
+    with the NumPy steppers (--durations, 2026-10-23) and do not test the steppers. They
+    still run wherever Numba is on."""
+    if os.environ.get("FORSTER_NO_NUMBA") != "1":
+        return
+    skip = pytest.mark.skip(reason="needs_numba: too slow on the NumPy steppers; runs with Numba")
+    for item in items:
+        if "needs_numba" in item.keywords:
+            item.add_marker(skip)

@@ -75,7 +75,9 @@ def test_unknown_scheme_is_an_error():
         )
 
 
-@pytest.mark.parametrize("scheme", ["implicit", "central"])
+@pytest.mark.parametrize(
+    "scheme", ["implicit", pytest.param("central", marks=pytest.mark.needs_numba)]
+)
 def test_a_lean_fit_equals_a_fit_that_keeps_every_row(scheme, tmp_path):
     """The default keeps the model at the points plus a few full profiles; the rows it
     rebuilds from its checkpoints are bit-identical to a run that kept every row."""

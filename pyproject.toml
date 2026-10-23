@@ -92,6 +92,9 @@ only-include = ["src/forster", "README.md", "LICENSE", "pyproject.toml"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"
+markers = [
+    "needs_numba: heavy sampling and joint-fit tests that do not test the NumPy steppers; skipped when FORSTER_NO_NUMBA=1 (the NumPy-only CI job), run with Numba",
+]
 
 [tool.ruff]
 line-length = 100
