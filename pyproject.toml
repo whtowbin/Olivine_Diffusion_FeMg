@@ -74,11 +74,11 @@ docs = [
     "ruff>=0.14",
 ]
 
+# exclude-newer: a supply-chain cooldown, resolving only versions published at least a
+# week ago (matches Dependabot's 7 days for the GitHub Actions). Needs uv 0.9.17 or newer.
 [tool.uv]
-default-groups = ["dev", "analysis"]
-# Supply-chain cooldown: resolve only versions published at least a week ago (matches
-# Dependabot's 7 days for the GitHub Actions). Needs uv 0.9.17 or newer.
 exclude-newer = "7 days"
+default-groups = ["dev", "analysis"]
 
 [build-system]
 requires = ["hatchling"]
