@@ -46,13 +46,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from forster.imports import ImportTemplate
+from forster.imports import ImportTemplate, list_profile_files
 from forster.model import FitResult
 from forster.plotting import SIGMA, plot_fit
 from forster.project import FitOutcome, FitTask, McRecord, McTask, Project, ScanRecord, ScanTask
 
 from .dialogs import CopySettingsDialog, ImportDialog
-from .importing import Imported, add_imported, import_table, read_columns
+from .importing import Imported, add_imported, import_files, import_table, read_columns
 from .panels import ERROR_COLOR, SidePanel
 from .plot import ProfileCanvas
 from .state import (
@@ -167,7 +167,18 @@ class MainWindow(QMainWindow):
             ("Open…", self._choose_open, QKeySequence.StandardKey.Open, None),
             ("Save", self.save, QKeySequence.StandardKey.Save, None),
             ("Save as…", self._choose_save_as, QKeySequence.StandardKey.SaveAs, None),
-            ("Import profiles…", self._choose_import, None, "CSV or Excel, with a column mapping"),
+            (
+                "Import profiles…",
+                self._choose_import,
+                None,
+                "One or several CSV or Excel files, with a column mapping",
+            ),
+            (
+                "Import folder…",
+                self._choose_import_folder,
+                None,
+                "Every CSV or Excel file in a folder, with one column mapping",
+            ),
             ("Copy settings…", self._choose_copy, None, "Copy the selected run's settings"),
             ("Fit all", self.fit_all, None, "Fit every run not fitted yet"),
         ):
@@ -666,17 +677,40 @@ class MainWindow(QMainWindow):
     def _choose_import(self) -> None:
         if self.project is None:
             return
-        path, _ = QFileDialog.getOpenFileName(
+        names, _ = QFileDialog.getOpenFileNames(
             self, "Import profiles", str(self.project.folder), "Tables (*.csv *.xlsx *.xlsm)"
         )
-        if not path:
+        self._import_paths([Path(n) for n in names])
+
+    def _choose_import_folder(self) -> None:
+        if self.project is None:
+            return
+        folder = QFileDialog.getExistingDirectory(
+            self, "Import every table in a folder", str(self.project.folder)
+        )
+        if not folder:
             return
         try:
-            table = read_columns(path)
+            paths = list_profile_files(folder)
+        except (OSError, ValueError) as exc:
+            self._refuse("Cannot read that folder", exc)
+            return
+        if not paths:
+            self._refuse("Nothing to import", ValueError("no .csv, .xlsx or .xlsm file there"))
+            return
+        self._import_paths(paths)
+
+    def _import_paths(self, paths: list[Path]) -> None:
+        """Import the files: the mapping dialog opens once, for the first file, and its
+        mapping, flip and offset apply to all of them."""
+        if self.project is None or not paths:
+            return
+        try:
+            table = read_columns(paths[0])
         except (OSError, ValueError) as exc:
             self._refuse("Cannot read that file", exc)
             return
-        dialog = ImportDialog(path, table, self)
+        dialog = ImportDialog(paths[0], table, self, paths=paths)
         try:
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return
@@ -686,8 +720,33 @@ class MainWindow(QMainWindow):
             # Parented to the window, a closed dialog stayed alive (about 3 MB per
             # import; analyses/gui_memory, 2026-10-20).
             dialog.deleteLater()
-        self.import_table(
-            table, template, name=name, flip=flip, offset_um=offset, add_runs=add_runs
+        if len(paths) == 1:
+            self.import_table(
+                table, template, name=name, flip=flip, offset_um=offset, add_runs=add_runs
+            )
+        else:
+            self.import_paths(paths, template, flip=flip, offset_um=offset, add_runs=add_runs)
+
+    def import_paths(
+        self,
+        paths: list[Path],
+        template: ImportTemplate,
+        *,
+        flip: bool = False,
+        offset_um: float | None = 0.0,
+        add_runs: bool = True,
+    ) -> bool:
+        """`import_table` for several files with one template
+        (`forster.gui.importing.import_files`); the status line says how many files and
+        profiles came in and names the files that did not match."""
+        if self.project is None:
+            return False
+        try:
+            imported, problems = import_files(paths, template, flip=flip, offset_um=offset_um)
+        except ValueError as exc:
+            return self._refuse("Cannot import", exc)
+        return self._add_imported(
+            imported, add_runs, files=len(paths) - len(problems), problems=problems
         )
 
     def import_table(
@@ -697,7 +756,7 @@ class MainWindow(QMainWindow):
         *,
         name: str = "profile",
         flip: bool = False,
-        offset_um: float = 0.0,
+        offset_um: float | None = 0.0,
         add_runs: bool = True,
     ) -> bool:
         """Add the profiles a table and an import template give
@@ -708,6 +767,22 @@ class MainWindow(QMainWindow):
             return False
         try:
             imported = import_table(table, template, name=name, flip=flip, offset_um=offset_um)
+        except ValueError as exc:
+            return self._refuse("Cannot import", exc)
+        return self._add_imported(imported, add_runs)
+
+    def _add_imported(
+        self,
+        imported: Imported,
+        add_runs: bool,
+        *,
+        files: int = 1,
+        problems: dict[Path, str] | None = None,
+    ) -> bool:
+        """Add the imported profiles to the project, a run on each with ``add_runs``;
+        the first new run is selected."""
+        assert self.project is not None
+        try:
             names = add_imported(self.project, imported)
         except ValueError as exc:
             return self._refuse("Cannot import", exc)
@@ -723,11 +798,16 @@ class MainWindow(QMainWindow):
                 self._refuse(f"Imported {profile}, but cannot add a run on it", exc)
                 continue
             added.append(run_name)
-        self.statusBar().showMessage(
-            f"Imported {len(names)} profile(s)"
-            + (f"; {'; '.join(imported.notes)}" if imported.notes else ""),
-            8000,
-        )
+        text = f"Imported {len(names)} profile(s)"
+        if files > 1 or problems:
+            text += f" from {files} file(s)"
+        notes = list(imported.notes)
+        if problems:
+            notes.append(
+                f"{len(problems)} file(s) did not match and were not imported: "
+                + "; ".join(f"{p.name} ({why})" for p, why in problems.items())
+            )
+        self.statusBar().showMessage(text + (f"; {'; '.join(notes)}" if notes else ""), 8000)
         self._after_run_change(added[0] if added else self.current)
         return True
 

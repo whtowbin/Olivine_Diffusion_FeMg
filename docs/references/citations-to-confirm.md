@@ -1,94 +1,77 @@
 # Citations to confirm before the 0.1.0 release
 
-Every source FORSTER cites in its docs, README or code, where the right reference is
-not yet certain. Each item says what the code does, where, my current best guess,
-and what I need from you. Answer inline (write under **Answer**) or tell me in chat;
-I will then update the README "Citing" section, the docstrings and
-`docs/plans/2026-10-11-restructure.md` ("Science and citations").
+**Status (2026-10-22): all 14 answered** (Henry's answers in chat, references checked against the PDFs on disk and Crossref, Zenodo or the publisher). They are applied to the README's Citing section and the documentation's Citing page.
 
-Collected 2026-10-15 from the restructure plan's citation table and the open items
-in `docs/references/numerical-methods.md`, plus the libraries added this week.
+Every source FORSTER cites in its docs, README or code, where the right reference is not yet certain. Each item says what the code does, where, my current best guess, and what I need from you. Answer inline (write under **Answer**) or tell me in chat; I will then update the README "Citing" section, the docstrings and `docs/plans/2026-10-11-restructure.md` ("Science and citations").
+
+Collected 2026-10-15 from the restructure plan's citation table and the open items in `docs/references/numerical-methods.md`, plus the libraries added this week.
 
 ## A. Diffusion equations (how fast each element diffuses)
 
-A diffusion equation here gives the diffusivity D (m²/s) from temperature, pressure,
-oxygen fugacity, olivine composition and direction in the crystal. The default
-Fe-Mg equation is the one the DIPRA program uses; the fitted time scales as 1/D, so
-the source matters for every result.
+A diffusion equation here gives the diffusivity D (m²/s) from temperature, pressure, oxygen fugacity, olivine composition and direction in the crystal. The default Fe-Mg equation is the one the DIPRA program uses; the fitted time scales as 1/D, so the source matters for every result.
 
-1. **Default Fe-Mg equation** (`dohmen_chakraborty2007`, called "Classic DIPRA").
-   - Code: D[001] = 10^-9.21 (fO2 / 10^-7 Pa)^(1/6) 10^(3 (0.9 - X_Fo)) exp(-(201 kJ/mol + (P - 10^5 Pa) 7 cm³/mol) / RT); [100] and [010] six times slower. `src/forster/diffusivity.py` (`DOHMEN_CHAKRABORTY_2007`), `engine.D_Fo`.
-   - Best guess: Dohmen, R. and Chakraborty, S. (2007), Fe-Mg diffusion in olivine II: point defect chemistry, change of diffusion mechanisms and a model for calculation of diffusion coefficients in natural olivine, *Phys. Chem. Minerals* 34, 409-430, with their erratum (2007, *PCM* 34, 597-598). The numbers match DIPRA's Table 1 (Girona and Costa 2013) exactly.
-   - Need: confirm, and whether to cite the erratum separately.
-   - **Answer:**
-
-2. **The ± 8 kJ/mol on the activation energy** (201 ± 8 kJ/mol, used by the paper-era Monte Carlo and quoted in docs).
-   - Code comment says "Dohmen et al. 2007". Two candidates: Dohmen, Becker and Chakraborty (2007), Fe-Mg diffusion in olivine I: experimental determination between 700 and 1,200 °C as a function of composition, crystal orientation and oxygen fugacity, *PCM* 34, 389-407 (the experiments, where the uncertainty would come from); or Dohmen and Chakraborty (2007) part II (item 1).
-   - Need: which paper the ± 8 comes from (part I, I expect).
-   - **Answer:**
-
-3. **Ni equation** (`girona_costa2013_ni`, the default for Ni fits).
-   - Code: 3.84×10^-9 (fO2 / 10^-6 Pa)^(1/4.25) 10^(1.5 (0.9 - X_Fo)) exp(-(220 kJ/mol + PV)/RT), anisotropy as Fe-Mg. Identical to DIPRA Table 1, which pairs Petry's pre-factor with the activation energy of a different fit (`petry2004_ni` is Petry's own consistent pair; CHANGELOG 2026-10-13).
-   - Best guess: Petry, C., Chakraborty, S. and Palme, H. (2004), Experimental determination of Ni diffusion coefficients in olivine and their dependence on temperature, composition, oxygen fugacity, and crystallographic orientation, *Geochim. Cosmochim. Acta* 68, 4179-4188.
-   - Need: confirm; and whether the README should say outright that DIPRA's Ni pairing is inconsistent (it does now, in one sentence).
-   - **Answer:**
-
-4. **Ca equation** (`girona_costa2013_ca`).
-   - Code: separate D along [100], [010], [001] (pre-factors 16.59, 34.67, 95.49 ×10^-12 m²/s; E = 193, 201, 207 kJ/mol), (fO2 / 10^-7 Pa)^0.3. Identical to DIPRA Table 1.
-   - Best guess: Coogan, L. A., Hain, A., Stahl, S. and Chakraborty, S. (2005), Experimental determination of the diffusion coefficient for calcium in olivine between 900 °C and 1500 °C, *Geochim. Cosmochim. Acta* 69, 3683-3694.
-   - Need: confirm.
-   - **Answer:**
-
-5. **Mn equation** (`girona_costa2013_mn`): the Fe-Mg form with E = 201 kJ/mol, as in DIPRA Table 1.
-   - DIPRA cites Dohmen and Chakraborty (2007a, b), Chakraborty (2010), Dohmen et al. (2007) and Holzapfel et al. (2007) for the composition dependence, but no single primary Mn source.
-   - Need: which paper to cite for Mn (or "cite DIPRA Table 1 only").
-   - **Answer:**
+1.  **Default Fe-Mg equation** (`dohmen_chakraborty2007`, called "Classic DIPRA").
+    -   Code: D\[001\] = 10\^-9.21 (fO2 / 10\^-7 Pa)\^(1/6) 10\^(3 (0.9 - X_Fo)) exp(-(201 kJ/mol + (P - 10\^5 Pa) 7 cm³/mol) / RT); \[100\] and \[010\] six times slower. `src/forster/diffusivity.py` (`DOHMEN_CHAKRABORTY_2007`), `engine.D_Fo`.
+    -   Best guess: Dohmen, R. and Chakraborty, S. (2007), Fe-Mg diffusion in olivine II: point defect chemistry, change of diffusion mechanisms and a model for calculation of diffusion coefficients in natural olivine, *Phys. Chem. Minerals* 34, 409-430, with their erratum (2007, *PCM* 34, 597-598). The numbers match DIPRA's Table 1 (Girona and Costa 2013) exactly.
+    -   Need: confirm, and whether to cite the erratum separately.
+    -   **Answer:** cite both, separately (Henry, 2026-10-22), as DIPRA does: Dohmen, R. and Chakraborty, S. (2007), Fe-Mg diffusion in olivine II: point defect chemistry, change of diffusion mechanisms and a model for calculation of diffusion coefficients in natural olivine, *Phys. Chem. Minerals* 34(6), 409-430, doi:10.1007/s00269-007-0158-6; and their erratum, *Phys. Chem. Minerals* 34(8), 597-598, doi:10.1007/s00269-007-0185-3. The code uses the erratum's corrected composition term. With DIPRA: Girona, T. and Costa, F. (2013), *G-cubed* 14(2), 422-431, doi:10.1029/2012GC004427.
+2.  **The ± 8 kJ/mol on the activation energy** (201 ± 8 kJ/mol, used by the paper-era Monte Carlo and quoted in docs).
+    -   Code comment says "Dohmen et al. 2007". Two candidates: Dohmen, Becker and Chakraborty (2007), Fe-Mg diffusion in olivine I: experimental determination between 700 and 1,200 °C as a function of composition, crystal orientation and oxygen fugacity, *PCM* 34, 389-407 (the experiments, where the uncertainty would come from); or Dohmen and Chakraborty (2007) part II (item 1).
+    -   Need: which paper the ± 8 comes from (part I, I expect).
+    -   **Answer:** Part I (checked in the PDF, p. 400): Dohmen, R., Becker, H.-W. and Chakraborty, S. (2007), Fe-Mg diffusion in olivine I: experimental determination between 700 and 1,200 °C as a function of composition, crystal orientation and oxygen fugacity, *Phys. Chem. Minerals* 34(6), 389-407, doi:10.1007/s00269-007-0157-7. The ± 8 is for [001] at fO2 = 10^-7 Pa (196 ± 12 along [100], 191 ± 9 along [010]). Do not copy DIPRA's title for Part I (its reference list misnames it).
+3.  **Ni equation** (`girona_costa2013_ni`, the default for Ni fits).
+    -   Code: 3.84×10\^-9 (fO2 / 10\^-6 Pa)\^(1/4.25) 10\^(1.5 (0.9 - X_Fo)) exp(-(220 kJ/mol + PV)/RT), anisotropy as Fe-Mg. Identical to DIPRA Table 1, which pairs Petry's pre-factor with the activation energy of a different fit (`petry2004_ni` is Petry's own consistent pair; CHANGELOG 2026-10-13).
+    -   Best guess: Petry, C., Chakraborty, S. and Palme, H. (2004), Experimental determination of Ni diffusion coefficients in olivine and their dependence on temperature, composition, oxygen fugacity, and crystallographic orientation, *Geochim. Cosmochim. Acta* 68, 4179-4188.
+    -   Need: confirm; and whether the README should say outright that DIPRA's Ni pairing is inconsistent (it does now, in one sentence).
+    -   **Answer:** Petry, C., Chakraborty, S. and Palme, H. (2004), Experimental determination of Ni diffusion coefficients in olivine and their dependence on temperature, composition, oxygen fugacity, and crystallographic orientation, *Geochim. Cosmochim. Acta* 68(20), 4179-4188, doi:10.1016/j.gca.2004.02.024, as tabulated in DIPRA Table 1. Checked (2026-10-22): DIPRA's Ni row uses Petry's pre-factor 3.84e-9 m²/s, which Petry fitted with E = 216 kJ/mol (p. 4184), together with E = 220 kJ/mol, Petry's average over all experiments. So the docs sentence (advanced.md) that DIPRA pairs them is accurate; `petry2004_ni` is Petry's own consistent pair (about 0.14 log units slower at 1200 °C; Ni times about 1.4x longer). DIPRA's form stays the Ni default.
+4.  **Ca equation** (`girona_costa2013_ca`).
+    -   Code: separate D along \[100\], \[010\], \[001\] (pre-factors 16.59, 34.67, 95.49 ×10\^-12 m²/s; E = 193, 201, 207 kJ/mol), (fO2 / 10\^-7 Pa)\^0.3. Identical to DIPRA Table 1.
+    -   Best guess: Coogan, L. A., Hain, A., Stahl, S. and Chakraborty, S. (2005), Experimental determination of the diffusion coefficient for calcium in olivine between 900 °C and 1500 °C, *Geochim. Cosmochim. Acta* 69, 3683-3694.
+    -   Need: confirm.
+    -   **Answer:** Coogan, L. A., Hain, A., Stahl, S. and Chakraborty, S. (2005), Experimental determination of the diffusion coefficient for calcium in olivine between 900 °C and 1500 °C, *Geochim. Cosmochim. Acta* 69(14), 3683-3694, doi:10.1016/j.gca.2005.03.002, DIPRA's only Ca reference, as tabulated in DIPRA Table 1. The parameters were not checked against Coogan (no PDF on disk).
+5.  **Mn equation** (`girona_costa2013_mn`): the Fe-Mg form with E = 201 kJ/mol, as in DIPRA Table 1.
+    -   DIPRA cites Dohmen and Chakraborty (2007a, b), Chakraborty (2010), Dohmen et al. (2007) and Holzapfel et al. (2007) for the composition dependence, but no single primary Mn source.
+    -   Need: which paper to cite for Mn (or "cite DIPRA Table 1 only").
+    -   **Answer:** DIPRA Table 1 alone (Henry, 2026-10-22). Neither FORSTER nor DIPRA takes the Mn equation from Holzapfel et al. (2007): DIPRA cites Holzapfel only for the Fo dependence of Mn and Ni diffusion, and Holzapfel fitted only high-pressure data for Mn. FORSTER's `mutch2019_mn` cites Mutch et al. (2019) and (2021).
 
 ## B. Fitting method
 
-6. **The legacy ± 1σ rule**: the times where reduced chi-squared is within 1 of its minimum (`uncertainty = legacy`, the round robin and paper-era rule; `engine.Best_fit_Chi2`).
-   - It is not DIPRA's rule (DIPRA counts model points outside the data error bars; Girona and Costa 2013, Auxiliary Material 2). The code comments cite Andrae, Schulze-Hartung and Melchior (2010), Dos and don'ts of reduced chi-squared, arXiv:1012.3754, for the pitfalls, not for the rule.
-   - Need: where the rule came from (a paper, a textbook such as Bevington and Robinson, or "our own choice"). The new default method (correlated noise, `docs/references/likelihood-method.md`) does not depend on this answer; the release notes do, because they say which method produced each published range.
-   - **Answer:**
-
-7. **Review paper for diffusion chronometry**, cited once in the README as the method overview.
-   - Best guess: Costa, F., Dohmen, R. and Chakraborty, S. (2008), Time scales of magmatic processes from modeling the zoning patterns of crystals, *Rev. Mineral. Geochem.* 69, 545-594.
-   - Need: confirm, or name the review you prefer (and the page range if you have it to hand).
-   - **Answer:**
-
-8. **PyKrige** (kriging of profiles; legacy method only since 2026-10-12).
-   - Need: your preferred citation. PyKrige asks for: Murphy, B., Yurchak, R. and Müller, S. (2022), GeoStat-Framework/PyKrige, Zenodo, doi:10.5281/zenodo.3738604 (version DOI). I have not checked the version-specific DOI.
-   - **Answer:**
+6.  **The legacy ± 1σ rule**: the times where reduced chi-squared is within 1 of its minimum (`uncertainty = legacy`, the round robin and paper-era rule; `engine.Best_fit_Chi2`).
+    -   It is not DIPRA's rule (DIPRA counts model points outside the data error bars; Girona and Costa 2013, Auxiliary Material 2). The code comments cite Andrae, Schulze-Hartung and Melchior (2010), Dos and don'ts of reduced chi-squared, arXiv:1012.3754, for the pitfalls, not for the rule.
+    -   Need: where the rule came from (a paper, a textbook such as Bevington and Robinson, or "our own choice"). The new default method (correlated noise, `docs/references/likelihood-method.md`) does not depend on this answer; the release notes do, because they say which method produced each published range.
+    -   **Answer:** *Numerical Recipes* (Press, W. H., Teukolsky, S. A., Vetterling, W. T. and Flannery, B. P. (2007), 3rd ed., Cambridge University Press, §15.6, "Confidence limits on estimated model parameters"): Δχ² = 1 for one parameter, applied to χ² scaled to the χ² distribution. The paper-era rules applied the threshold to reduced χ² instead (Henry, 2026-10-21), with the Wikipedia articles "Reduced chi-squared statistic", "Chi-squared test" and "Goodness of fit"; the thresholds themselves (√(2(N-1)), then reduced χ² within 1) were our own choice. Limits: Andrae (2010), arXiv:1009.2755, and Andrae, Schulze-Hartung and Melchior (2010), arXiv:1012.3754. Details in fit-uncertainty.md.
+7.  **Review paper for diffusion chronometry**, cited once in the README as the method overview.
+    -   Best guess: Costa, F., Dohmen, R. and Chakraborty, S. (2008), Time scales of magmatic processes from modeling the zoning patterns of crystals, *Rev. Mineral. Geochem.* 69, 545-594.
+    -   Need: confirm, or name the review you prefer (and the page range if you have it to hand).
+    -   **Answer:** cite several (Henry, 2026-10-22), as overviews of diffusion chronometry: Costa, F., Dohmen, R. and Chakraborty, S. (2008), Time scales of magmatic processes from modeling the zoning patterns of crystals, *Rev. Mineral. Geochem.* 69, 545-594, doi:10.2138/rmg.2008.69.14; Chakraborty, S. (2008), Diffusion in solid silicates: a tool to track timescales of processes comes of age, *Annu. Rev. Earth Planet. Sci.* 36, 153-190, doi:10.1146/annurev.earth.36.031207.124125; Costa, F., Shea, T. and Ubide, T. (2020), Diffusion chronometry and the timescales of magmatic processes, *Nat. Rev. Earth Environ.* 1(4), 201-214, doi:10.1038/s43017-020-0038-x.
+8.  **PyKrige** (kriging of profiles; legacy method only since 2026-10-12).
+    -   Need: your preferred citation. PyKrige asks for: Murphy, B., Yurchak, R. and Müller, S. (2022), GeoStat-Framework/PyKrige, Zenodo, doi:10.5281/zenodo.3738604 (version DOI). I have not checked the version-specific DOI.
+    -   **Answer:** the Zenodo record (Henry, 2026-10-22): Murphy, B., Yurchak, R. and Müller, S. (2024), GeoStat-Framework/PyKrige: v1.7.2 (the version locked), Zenodo, doi:10.5281/zenodo.11360184 (all versions: doi:10.5281/zenodo.3738604); https://pypi.org/project/PyKrige/. PyKrige does not state a requested citation (no CITATION.cff); used only by the legacy method.
 
 ## C. Numerical scheme sources (`docs/references/numerical-methods.md`)
 
-9. **Warwick CO906 lecture notes (2009), chapter 3, "The Diffusion Equation".** The PDF names no author.
-   - Best guess: Colm Connaughton.
-   - Need: confirm, or say to cite it as "University of Warwick, CO906 lecture notes".
-   - **Answer:**
-
+9.  **Warwick CO906 lecture notes (2009), chapter 3, "The Diffusion Equation".** The PDF names no author.
+    -   Best guess: Colm Connaughton.
+    -   Need: confirm, or say to cite it as "University of Warwick, CO906 lecture notes".
+    -   **Answer:** University of Warwick, Centre for Complexity Science (2009), CO906 Numerical Simulation of Continuous Systems, lecture notes, chapter 3, "The Diffusion Equation", https://warwick.ac.uk/fac/cross_fac/complexity/study/msc_and_phd/co906/co906online/lecturenotes_2009/chap3.pdf. The notes print no author; the module page names Dr Colm Connaughton as module leader, which is likely but not confirmed authorship, so the citation names the course (with "module leader C. Connaughton") rather than an author. The Zotero copy is byte-identical to the Warwick file.
 10. **Langtangen and Linge (2017)**, *Finite Difference Computing with PDEs*, Springer, open access.
-    - Need: confirm the chapter we lean on (ch. 3, diffusion) and the DOI 10.1007/978-3-319-55456-3.
-    - **Answer:**
-
+    -   Need: confirm the chapter we lean on (ch. 3, diffusion) and the DOI 10.1007/978-3-319-55456-3.
+    -   **Answer:** the book (Henry, 2026-10-22; it holds the same material): Langtangen, H. P. and Linge, S. (2017), *Finite Difference Computing with PDEs: A Modern Software Approach*, Texts in Computational Science and Engineering 16, Springer (open access), doi:10.1007/978-3-319-55456-3, chapter 3, "Diffusion Equations" (pp. 207-322; forward and backward Euler, sparse matrix implementation, Crank-Nicolson, the θ rule, variable coefficients).
 11. **Which of these were actually used** when writing the original scheme (all in your Zotero library): Crank (1975) *The Mathematics of Diffusion* (and which chapter); Press et al. *Numerical Recipes* ch. 19/20; Demouchy and Thoraval (2014); Gerya *Numerical Geodynamic Modelling* (2010 or 2019 edition); Ford Versypt and Braatz (2014).
-    - Need: tick the ones to cite; the rest stay out.
-    - **Answer:**
+    -   Need: tick the ones to cite; the rest stay out.
+    -   **Answer:** all of them (Henry, 2026-10-22): DIPRA (Girona and Costa 2013) and its auxiliary material 1; Costa et al. (2008), Appendix I (the variable-D explicit scheme, eq. A2, r < 0.5); Press et al. (2007), *Numerical Recipes* 3rd ed., §20.2 "Diffusive initial value problems"; Crank, J. (1975), *The Mathematics of Diffusion*, 2nd ed., Clarendon Press, chapter 8 (§8.5 "Crank-Nicolson implicit method"); Gerya, T. (2010), *Introduction to Numerical Geodynamic Modelling*, Cambridge University Press (first edition; not re-checked); and the Warwick notes and Langtangen and Linge (items 9, 10). For the central-difference cross term: T. Girona, personal communication (email, 18 August 2020: "you can certainly use central difference as well"). Implicit scheme: item 13.
 
 ## D. New this week: proposed citations (not yet in the docs)
 
-These are tools the new features rely on. I believe the references below are right,
-but have not checked them against the papers.
+These are tools the new features rely on. I believe the references below are right, but have not checked them against the papers.
 
 12. **Nested sampling and dynesty** (`forster.sampling`, the fallback when importance sampling is not enough).
-    - Proposed: Skilling, J. (2006), Nested sampling for general Bayesian computation, *Bayesian Analysis* 1, 833-859; Speagle, J. S. (2020), dynesty: a dynamic nested sampling package for estimating Bayesian posteriors and evidences, *MNRAS* 493, 3132-3158.
-    - Need: OK to cite both in the README and the `forster.sampling` docstring.
-    - **Answer:**
-
+    -   Proposed: Skilling, J. (2006), Nested sampling for general Bayesian computation, *Bayesian Analysis* 1, 833-859; Speagle, J. S. (2020), dynesty: a dynamic nested sampling package for estimating Bayesian posteriors and evidences, *MNRAS* 493, 3132-3158.
+    -   Need: OK to cite both in the README and the `forster.sampling` docstring.
+    -   **Answer:** cite the packages and their references (Henry, 2026-10-22): nested sampling, Skilling, J. (2004), Nested sampling, *AIP Conf. Proc.* 735, 395-405, doi:10.1063/1.1835238, and Skilling, J. (2006), Nested sampling for general Bayesian computation, *Bayesian Analysis* 1(4), 833-859, doi:10.1214/06-BA127; dynesty, as its README asks: Speagle, J. S. (2020), dynesty: a dynamic nested sampling package for estimating Bayesian posteriors and evidences, *MNRAS* 493(3), 3132-3158, doi:10.1093/mnras/staa278, and the software, Koposov, S. et al., dynesty v3.1.0 (the version locked), Zenodo, doi:10.5281/zenodo.21417233 (all versions: doi:10.5281/zenodo.3348367). FORSTER uses the static `NestedSampler`, so Higson et al. (2019, dynamic nested sampling) is not needed.
 13. **TR-BDF2** (the default time stepper, `forster.implicit`): already cited as Bank et al. (1985) and Hosea and Shampine (1996).
-    - Proposed full references: Bank, R. E., Coughran, W. M., Fichtner, W., Grosse, E. H., Rose, D. J. and Smith, R. K. (1985), Transient simulation of silicon devices and circuits, *IEEE Trans. Electron Devices* 32, 1992-2007; Hosea, M. E. and Shampine, L. F. (1996), Analysis and implementation of TR-BDF2, *Appl. Numer. Math.* 20, 21-37.
-    - Need: OK to add them in full.
-    - **Answer:**
-
+    -   Proposed full references: Bank, R. E., Coughran, W. M., Fichtner, W., Grosse, E. H., Rose, D. J. and Smith, R. K. (1985), Transient simulation of silicon devices and circuits, *IEEE Trans. Electron Devices* 32, 1992-2007; Hosea, M. E. and Shampine, L. F. (1996), Analysis and implementation of TR-BDF2, *Appl. Numer. Math.* 20, 21-37.
+    -   Need: OK to add them in full.
+    -   **Answer:** Crank, J. and Nicolson, P. (1947), A practical method for numerical evaluation of solutions of partial differential equations of the heat-conduction type, *Math. Proc. Cambridge Philos. Soc.* 43(1), 50-67, doi:10.1017/S0305004100023197 (the trapezoidal stage); Bank, R. E., Coughran, W. M., Fichtner, W., Grosse, E. H., Rose, D. J. and Smith, R. K. (1985), Transient simulation of silicon devices and circuits, *IEEE Trans. Computer-Aided Design* 4(4), 436-451, doi:10.1109/TCAD.1985.1270142 (the same paper also appeared in *IEEE Trans. Electron Devices* 32(10), 1992-2007, doi:10.1109/T-ED.1985.22232); Hosea, M. E. and Shampine, L. F. (1996), Analysis and implementation of TR-BDF2, *Appl. Numer. Math.* 20(1-2), 21-37, doi:10.1016/0168-9274(95)00115-8. All checked on Crossref (2026-10-22).
 14. **Mutch et al. (2019, 2021)** (the DFENS diffusion equations and their covariance) and **Oeser et al. (2026)** are already cited with full references by the refit work (`docs/references/diffusivity-literature.md`); nothing needed unless you want them in the README's Citing section too.
-    - **Answer:**
+    -   **Answer:** yes, add both to the README (Henry, 2026-10-22): Mutch, E. J. F., Maclennan, J., Shorttle, O., Edmonds, M. and Rudge, J. F. (2019), Rapid transcrustal magma movement under Iceland, *Nat. Geosci.* 12(7), 569-574, doi:10.1038/s41561-019-0376-9 (the DFENS diffusion equations); Mutch, E. J. F., Maclennan, J., Shorttle, O., Rudge, J. F. and Neave, D. A. (2021), DFENS: Diffusion chronometry using finite elements and nested sampling, *G-cubed* 22(4), e2020GC009303, doi:10.1029/2020GC009303 (the method and the covariance); Oeser, M., Dohmen, R. and Weyer, S. (2026), Fe-Mg in olivine: simultaneous experimental determination of the diffusion-driven isotope fractionation along with tracer- and inter-diffusion coefficients, *Geochim. Cosmochim. Acta* 413, 48-66, doi:10.1016/j.gca.2025.09.036 (faster diffusion above about 1150 °C; not used by any preset).

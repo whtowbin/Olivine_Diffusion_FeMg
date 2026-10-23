@@ -65,7 +65,9 @@ jobs:
         run: uv sync --locked
 
       - name: Tests
-        run: uv run pytest -n auto -p no:warnings -rs
+        # --durations: the slowest tests in every job's log, to see where CI time goes
+        # (the NumPy-only job takes about 35 minutes; 2026-10-22).
+        run: uv run pytest -n auto -p no:warnings -rs --durations=25
 
       - name: Lint, format, types, complexity
         if: matrix.lint

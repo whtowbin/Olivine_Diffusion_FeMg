@@ -8,7 +8,8 @@ analytical total lies outside a window (kept, not dropped), and returns the prof
 A confirmed mapping saved as an import template (`ImportTemplate.save`, a JSON file,
 not the `forster template` parameter tables) imports files with the same columns
 again; a file with columns the template does not know, or without ones it needs, stops
-with a message (`check_columns`).
+with a message (`check_columns`). `import_files` applies one template to a whole folder
+of files (or a list of files) in one call.
 
 Fo from oxides: Fo = (MgO / 40.3044) / (MgO / 40.3044 + FeO / 71.8444), in moles, with
 all Fe as Fe2+ (FeO is total iron; Henry, 2026-10-16). Elements in wt% or ppm are
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
@@ -494,6 +496,121 @@ def read_with_template(
     from forster.io import read_table
 
     return apply(read_table(path, sheet), template, source=str(path))
+
+
+# ------------------------------------------------------------------------------ batch
+
+PROFILE_FILE_SUFFIXES = (".csv", ".xlsx", ".xlsm")
+
+
+def list_profile_files(folder: str | Path) -> list[Path]:
+    """The ``*.csv``, ``*.xlsx`` and ``*.xlsm`` files directly in ``folder``, sorted by
+    name; hidden files (leading dot) and Office lock files (``~$...``) are left out."""
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise ValueError(f"{folder} is not a folder")
+    return sorted(
+        p
+        for p in folder.iterdir()
+        if p.is_file()
+        and p.suffix.lower() in PROFILE_FILE_SUFFIXES
+        and not p.name.startswith((".", "~$"))
+    )
+
+
+def claim_names(owners: dict[str, Path], names, path: Path) -> None:
+    """Record ``path`` as the file of each profile name in ``names`` (in ``owners``); a
+    ValueError naming both files when a name already comes from another file."""
+    for name in names:
+        if name in owners:
+            raise ValueError(
+                f"profile name {name!r} is in both {owners[name].name} and {path.name}; "
+                "profile names must be unique across files (rename one, or give the files "
+                "a name column)"
+            )
+        owners[name] = path
+
+
+@dataclass(frozen=True)
+class BatchResult:
+    """What `import_files` read: the profiles of every file that matched (names unique),
+    their points as one tidy table, the template used, per-file results, ``sources``
+    (profile name -> file), ``problems`` (file -> why it was not imported: it does not
+    match the template, cannot be read, or has no usable profile) and notes."""
+
+    profiles: dict[str, Profile]
+    points: pd.DataFrame
+    template: ImportTemplate
+    files: tuple[Path, ...]
+    results: dict[Path, ImportResult]
+    sources: dict[str, Path]
+    problems: dict[Path, str]
+    notes: tuple[str, ...]
+
+    def raise_for_problems(self) -> None:
+        """A ValueError listing every file that was not imported, if any."""
+        if self.problems:
+            raise ValueError(describe_problems(self.problems))
+
+
+def describe_problems(problems: dict[Path, str]) -> str:
+    """The files that were not imported and why, one per line."""
+    lines = [f"- {path.name}: {why}" for path, why in problems.items()]
+    return f"{len(problems)} file(s) not imported:\n" + "\n".join(lines)
+
+
+def import_files(
+    sources: str | Path | Sequence[str | Path],
+    template: ImportTemplate | None = None,
+    *,
+    sheet: str | int = 0,
+) -> BatchResult:
+    """Import many files with one template.
+
+    ``sources`` is a folder (its `list_profile_files`) or a list of files. ``template``
+    is guessed from the first file when not given, which must then be complete (a
+    ValueError says what is missing; check a guess before trusting it). Each file is
+    read and applied (`read_with_template`); a profile's name is the template's name
+    column, or the file's stem when it has none. The same profile name in two files is
+    a ValueError naming both. A file that does not match the template
+    (`TemplateMismatch`), cannot be read, or yields no profile is not imported and is
+    listed in ``problems``, never skipped silently: the caller decides (the command
+    line refuses and writes nothing; `BatchResult.raise_for_problems` raises)."""
+    if isinstance(sources, str | Path) and Path(sources).is_dir():
+        files = list_profile_files(sources)
+    elif isinstance(sources, str | Path):
+        files = [Path(sources)]
+    else:
+        files = [Path(s) for s in sources]
+    if not files:
+        raise ValueError("no .csv, .xlsx or .xlsm files to import")
+    from forster.io import read_table
+
+    if template is None:
+        template = guess(read_table(files[0], sheet), name=files[0].name)
+    template.check()
+    owners: dict[str, Path] = {}
+    results: dict[Path, ImportResult] = {}
+    problems: dict[Path, str] = {}
+    for path in files:
+        try:
+            result = read_with_template(path, template, sheet=sheet)
+        except (TemplateMismatch, OSError, ValueError) as exc:
+            problems[path] = str(exc)
+            continue
+        if not result.profiles:
+            problems[path] = f"no profile with at least {MIN_PROFILE_POINTS} usable points"
+            continue
+        claim_names(owners, result.profiles, path)
+        results[path] = result
+    profiles = {name: p for r in results.values() for name, p in r.profiles.items()}
+    tables = [r.points.assign(file=path.name) for path, r in results.items()]
+    points = pd.concat(tables, ignore_index=True) if tables else pd.DataFrame()
+    notes = [f"imported {len(profiles)} profile(s) from {len(results)} of {len(files)} file(s)"]
+    notes += [f"{path.name}: {n}" for path, r in results.items() for n in r.notes[1:]]
+    return BatchResult(
+        profiles, points, template, tuple(files), results, owners, problems, tuple(notes)
+    )
 
 
 def template_table(points: pd.DataFrame) -> pd.DataFrame:

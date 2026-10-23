@@ -38,7 +38,7 @@ Stability: FTCS is stable only for $D\,\Delta t/\Delta x^2 \le \tfrac12$.
    - §3.4 and §3.5: Crank-Nicolson and its stability.
    - Constant $D$ only; the cross term for variable $D$ is not covered.
 
-2. **Langtangen, H. P., "Finite difference methods for diffusion processes"**
+2. **Langtangen, H. P. and Linge, S., "Finite difference methods for diffusion processes"**
    (lecture notes, *Lectures on numerical methods for PDEs*, 2015/2016).
    <https://hplgit.github.io/num-methods-for-PDEs/doc/pub/diffu/html/._diffu001.html#diffu:pde1:CN>
    Relevant parts: forward Euler, backward Euler, "Sparse matrix implementation"

@@ -313,7 +313,7 @@ def _masked_points(path: Path, names: Iterable[str]) -> dict[str, tuple[np.ndarr
     return out
 
 
-def moved_x(x: np.ndarray | float, flip: bool, offset_um: float) -> np.ndarray:
+def moved_x(x: np.ndarray | float, flip: bool, offset_um: float | np.ndarray) -> np.ndarray:
     """Distances flipped (x -> offset - x) or shifted (x -> x - offset), so the point at
     ``offset_um`` goes to 0."""
     x = np.asarray(x, dtype=float)

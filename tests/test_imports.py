@@ -14,6 +14,8 @@ from forster.imports import (
     apply,
     check_columns,
     guess,
+    import_files,
+    list_profile_files,
     read_with_template,
 )
 from forster.io import read_profiles
@@ -141,3 +143,103 @@ def test_forster_import_proposes_then_applies_a_confirmed_template(tmp_path):
     assert set(profiles) == {"ol1 line A", "ol2 line B"}
     result = read_with_template(source, ImportTemplate.load(draft))
     np.testing.assert_array_equal(profiles["ol2 line B"].fo, result.profiles["ol2 line B"].fo)
+
+
+# ------------------------------------------------------------------------- a folder
+
+
+def _one_profile(path, shift=0.0, name=None):
+    """A small per-profile file: distance in um, Fo in percent (and a name column when
+    ``name`` is given)."""
+    df = pd.DataFrame({"Distance (um)": np.arange(6) * 10.0, "Fo": 88.0 + shift + np.arange(6)})
+    if name:
+        df.insert(0, "Profile", name)
+    df.to_csv(path, index=False)
+    return path
+
+
+def test_a_folder_without_a_name_column_names_profiles_after_the_files(tmp_path):
+    for i, stem in enumerate(("c_grain", "a_grain", "b_grain")):
+        _one_profile(tmp_path / f"{stem}.csv", shift=i)
+    batch = import_files(tmp_path)
+    assert list(batch.profiles) == ["a_grain", "b_grain", "c_grain"]  # sorted by file name
+    assert not batch.problems and len(batch.points) == 18
+    np.testing.assert_allclose(batch.profiles["c_grain"].fo[0], 0.88)
+    np.testing.assert_allclose(batch.profiles["a_grain"].fo[0], 0.89)
+    assert batch.sources["b_grain"].name == "b_grain.csv"
+    assert batch.template.by_role("position")[0].unit == "um"
+
+
+def test_a_folder_with_a_name_column_uses_it(tmp_path):
+    _one_profile(tmp_path / "one.csv", name="olA")
+    _one_profile(tmp_path / "two.csv", shift=2, name="olB")
+    batch = import_files(tmp_path)
+    assert list(batch.profiles) == ["olA", "olB"]
+
+
+def test_a_file_that_does_not_match_is_reported_by_name(tmp_path):
+    _one_profile(tmp_path / "a.csv")
+    _one_profile(tmp_path / "c.csv", shift=1)
+    pd.DataFrame({"Distance (um)": [0, 1, 2], "Fo": [88, 89, 90], "Extra": [1, 2, 3]}).to_csv(
+        tmp_path / "b.csv", index=False
+    )
+    batch = import_files(tmp_path)
+    assert list(batch.profiles) == ["a", "c"]  # the others still come in
+    assert [p.name for p in batch.problems] == ["b.csv"]
+    assert "Extra" in next(iter(batch.problems.values()))
+    with pytest.raises(ValueError, match=r"b\.csv.*Extra"):
+        batch.raise_for_problems()
+
+
+def test_the_same_profile_name_in_two_files_is_refused_naming_both(tmp_path):
+    _one_profile(tmp_path / "one.csv", name="ol")
+    _one_profile(tmp_path / "two.csv", name="ol")
+    with pytest.raises(ValueError, match=r"'ol'.*one\.csv.*two\.csv"):
+        import_files(tmp_path)
+
+
+def test_lock_and_hidden_files_and_other_types_are_ignored(tmp_path):
+    _one_profile(tmp_path / "real.csv")
+    (tmp_path / "~$real.xlsx").write_bytes(b"lock")
+    (tmp_path / ".hidden.csv").write_text("not,a,table\n")
+    (tmp_path / "notes.txt").write_text("x")
+    (tmp_path / "sub").mkdir()
+    assert [p.name for p in list_profile_files(tmp_path)] == ["real.csv"]
+    assert list(import_files(tmp_path).profiles) == ["real"]
+
+
+def test_a_list_of_files_and_an_xlsx_work_and_a_given_template_is_used(tmp_path):
+    csv = _one_profile(tmp_path / "x.csv")
+    xlsx = tmp_path / "y.xlsx"
+    pd.read_csv(csv).to_excel(xlsx, index=False)
+    template = guess(pd.read_csv(csv), name="mine.import.json")
+    batch = import_files([csv, xlsx], template)
+    assert list(batch.profiles) == ["x", "y"] and batch.template.name == "mine.import.json"
+
+
+def test_an_empty_folder_is_an_error(tmp_path):
+    with pytest.raises(ValueError, match=r"no \.csv"):
+        import_files(tmp_path)
+
+
+def test_forster_import_on_a_folder(tmp_path):
+    folder = tmp_path / "grains"
+    folder.mkdir()
+    for i, stem in enumerate(("g1", "g2")):
+        _one_profile(folder / f"{stem}.csv", shift=i)
+    forster = [sys.executable, "-m", "forster.cli", "import", str(folder)]
+    proposed = subprocess.run(forster, capture_output=True, text=True, timeout=120)
+    assert proposed.returncode == 3, proposed.stderr
+    draft = tmp_path / "grains.import.json"
+    assert draft.exists() and "first of 2 files" in proposed.stdout
+    done = subprocess.run([*forster, "--template", str(draft)], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    assert set(read_profiles(tmp_path / "grains_profiles.csv")) == {"g1", "g2"}
+    # a file with another layout: nothing is written, the file is named
+    (tmp_path / "grains_profiles.csv").unlink()
+    pd.DataFrame({"Distance (um)": [0, 1, 2], "Fo": [88, 89, 90], "Z": [1, 2, 3]}).to_csv(
+        folder / "g3.csv", index=False
+    )
+    bad = subprocess.run([*forster, "--template", str(draft)], capture_output=True, text=True)
+    assert bad.returncode == 1 and "g3.csv" in bad.stderr
+    assert not (tmp_path / "grains_profiles.csv").exists()

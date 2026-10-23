@@ -310,6 +310,60 @@ def _mapping_text(template) -> str:
     return "\n".join(rows)
 
 
+def _import_folder(args: argparse.Namespace, folder: Path) -> int:
+    """A folder of profile files: the mapping is proposed from the first file (--template
+    absent), or applied to every file. One combined profiles table is written, and
+    nothing at all when a file does not match or two files share a profile name."""
+    from dataclasses import replace
+
+    from forster.imports import (
+        ImportTemplate,
+        describe_problems,
+        guess,
+        import_files,
+        list_profile_files,
+        template_table,
+    )
+    from forster.io import read_table
+
+    sheet: str | int = args.sheet if args.sheet is not None else 0
+    files = list_profile_files(folder)
+    if not files:
+        raise ValueError(f"{folder} has no .csv, .xlsx or .xlsm files")
+    if args.template is None:
+        draft = Path(args.save_template or folder.with_name(folder.name + ".import.json"))
+        if draft.exists() and not args.force:
+            raise FileExistsError(f"{draft} exists; check it and pass it as --template, or --force")
+        proposal = guess(read_table(files[0], sheet), name=draft.name)
+        if args.total_window:
+            proposal = replace(proposal, total_window=tuple(args.total_window))
+        proposal.save(draft)
+        print(
+            f"proposed mapping from {files[0].name} (first of {len(files)} files in "
+            f"{folder.name}; not applied):\n{_mapping_text(proposal)}"
+        )
+        for note in proposal.notes:
+            print(f"  note: {note}")
+        for problem in proposal.problems():
+            print(f"  to fix: {problem}")
+        print(f"edit {draft} if needed, then run: forster import {folder} --template {draft}")
+        return 3
+    template = ImportTemplate.load(args.template)
+    if args.total_window:
+        template = replace(template, total_window=tuple(args.total_window))
+    batch = import_files(files, template, sheet=sheet)
+    if batch.problems:
+        print(describe_problems(batch.problems), file=sys.stderr)
+        print("nothing written; fix or move those files and run again", file=sys.stderr)
+        return 1
+    out = Path(args.out or folder.with_name(folder.name + "_profiles.csv"))
+    template_table(batch.points.drop(columns="file")).to_csv(out, index=False)
+    for note in batch.notes:
+        print(note)
+    print(f"wrote {out}")
+    return 0
+
+
 def import_command(args: argparse.Namespace) -> int:
     """Without --template: guess a mapping, save it as a draft and stop for the user to
     check it. With --template: import and write a FORSTER profiles table."""
@@ -319,6 +373,8 @@ def import_command(args: argparse.Namespace) -> int:
     from forster.io import read_table
 
     source = Path(args.file)
+    if source.is_dir():
+        return _import_folder(args, source)
     sheet: str | int = args.sheet if args.sheet is not None else 0
     if args.template is None:
         draft = Path(args.save_template or source.with_suffix(".import.json"))
@@ -403,7 +459,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="import measured profiles from any spreadsheet layout: propose a column "
         "mapping, then apply a confirmed one (an import template)",
     )
-    imp.add_argument("file", help="spreadsheet of analysis points (.csv or .xlsx)")
+    imp.add_argument(
+        "file",
+        help="spreadsheet of analysis points (.csv or .xlsx), or a folder of them (one "
+        "profile per file, named after the file unless it has a name column): the "
+        "mapping is proposed from the first file and applied to all",
+    )
     imp.add_argument("--sheet", help="Excel sheet (default: the first)")
     imp.add_argument(
         "--template",
@@ -412,7 +473,11 @@ def build_parser() -> argparse.ArgumentParser:
     imp.add_argument(
         "--save-template", help="where to write the proposed template (default FILE.import.json)"
     )
-    imp.add_argument("--out", help="profiles table to write (default FILE_profiles.csv)")
+    imp.add_argument(
+        "--out",
+        help="profiles table to write (default FILE_profiles.csv; for a folder, "
+        "FOLDER_profiles.csv next to the folder)",
+    )
     imp.add_argument(
         "--total-window",
         nargs=2,

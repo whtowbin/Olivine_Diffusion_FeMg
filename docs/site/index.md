@@ -83,8 +83,6 @@ says what changed and by how much.
 
 > Towbin, W. H., and Plank, T. (2026). *Journal of Petrology* 67(9), egag077.
 
-Please also cite the source of the diffusion law you used (see
-[Setting up a run](setup.md#the-diffusion-law)). Some of the references that FORSTER
-cites are still being checked before the first release. The list is in
-[citations-to-confirm.md](https://github.com/whtowbin/Olivine_Diffusion_FeMg/blob/master/docs/references/citations-to-confirm.md)
-on GitHub.
+Please also cite the source of the diffusion law you used. The
+[citing page](changelog.md#citing) lists it for each choice, with the references for
+the numerical methods and the samplers.

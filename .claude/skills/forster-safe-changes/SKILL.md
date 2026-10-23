@@ -19,6 +19,8 @@ description: Use before committing any change to FORSTER's src/forster that shou
 ## Checks before calling work done
 `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run ty check`,
 `uv run complexipy src/forster --max-complexity-allowed 25`, `uv run pytest -n 4`.
+Do not add `-q`: pyproject's addopts already has it, and `-qq` drops the
+"N passed" summary line, so the result cannot be quoted.
 Run them once over the finished change. A new summary or parameter column needs its
 `forster.template` entry, and the documentation's column page must be regenerated
 (`uv run python docs/gen_columns.py`; `tests/test_docs.py` checks it). The README no

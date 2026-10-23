@@ -362,11 +362,58 @@ def test_the_import_dialog_is_freed_after_each_import(app, tmp_path, monkeypatch
         assert window.new_project(tmp_path / "example")
         path = lab_csv(tmp_path / "lab.csv")
         monkeypatch.setattr(
-            "forster.gui.app.QFileDialog.getOpenFileName", lambda *a, **k: (str(path), "")
+            "forster.gui.app.QFileDialog.getOpenFileNames", lambda *a, **k: ([str(path)], "")
         )
         monkeypatch.setattr(ImportDialog, "exec", lambda self: 0)  # the user cancels
         for _ in range(20):
             window._choose_import()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        app.processEvents()
+        assert window.findChildren(ImportDialog) == []
+    finally:
+        window.close()
+
+
+def test_importing_several_files_asks_for_the_mapping_once(app, tmp_path, monkeypatch):
+    """Three files (one with another layout) through the real dialog: the dialog opens
+    once for the first file, the profiles are named after the files, and the status
+    line names the file that did not match."""
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        project = window.project
+        assert project is not None
+        x, fo = lab_fo()
+        files = []
+        for stem, shift in (("g1", 0.0), ("g2", 0.01)):
+            path = tmp_path / f"{stem}.csv"
+            pd.DataFrame({"Distance (um)": x, "Fo": fo - shift}).to_csv(path, index=False)
+            files.append(str(path))
+        odd = tmp_path / "odd.csv"
+        pd.DataFrame({"Distance (um)": x, "Fo": fo, "Other": 1}).to_csv(odd, index=False)
+        files.append(str(odd))
+        monkeypatch.setattr(
+            "forster.gui.app.QFileDialog.getOpenFileNames", lambda *a, **k: (files, "")
+        )
+        shown = []
+
+        def accept(self):
+            shown.append(self.windowTitle())
+            assert "2 more" in self.windowTitle() and not self.name.isEnabled()
+            assert list(self.mismatched) == [odd]
+            assert "2 of 3 files import" in self.summary.text()
+            self.add_runs.setChecked(False)  # no fits: the profiles alone are enough here
+            return 1
+
+        monkeypatch.setattr(ImportDialog, "exec", accept)
+        window._choose_import()
+        assert len(shown) == 1
+        message = window.statusBar().currentMessage()
+        assert "2 profile(s) from 2 file(s)" in message and "odd.csv" in message
+        assert window.last_import is not None
+        assert {"g1", "g2"} <= set(window.last_import.profiles)
+        assert {"g1", "g2"} <= set(project.profiles)
         QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         app.processEvents()
         assert window.findChildren(ImportDialog) == []
@@ -399,3 +446,17 @@ def test_the_app_refuses_a_legacy_run_and_never_krigs(app, tmp_path, monkeypatch
         assert window.law_job is None and not window.law_page.drawn
     finally:
         window.close()
+
+
+def test_the_import_dialog_starts_each_profile_at_its_first_point_with_advice(app, tmp_path):
+    path = lab_csv(tmp_path / "lab.csv")
+    dialog = ImportDialog(path, read_columns(path), None)
+    try:
+        assert not dialog.rim_advice.isVisibleTo(dialog) and dialog.offset.isEnabled()
+        assert dialog.options()[2] == 0.0
+        dialog.each_start.setChecked(True)
+        assert dialog.rim_advice.isVisibleTo(dialog) and not dialog.offset.isEnabled()
+        assert "measured from the crystal rim" in dialog.rim_advice.text()
+        assert dialog.options()[2] is None
+    finally:
+        dialog.deleteLater()

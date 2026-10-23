@@ -694,6 +694,13 @@ class ProfileDataTab(Tab):
         )
         form.addRow(self.move_button)
         form.addRow(_note("A shift moves the runs on this profile with it (domain, steps)."))
+        form.addRow(
+            _note(
+                "For the best fits, give distances measured from the crystal rim (from an "
+                "image of the crystal). Rim at 0 puts the first analysis at 0, and that "
+                "analysis usually sits a few µm inside the rim."
+            )
+        )
         layout.addWidget(box)
         self.error = ErrorLabel()
         layout.addWidget(self.error)

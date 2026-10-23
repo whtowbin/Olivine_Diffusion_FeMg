@@ -68,7 +68,12 @@ that need no Python. Each build runs the app's own self-test: a fit, a
 starting-profile fit, a Monte Carlo, the comparison of diffusion laws, exports, and
 saving and reopening. These installers have **not been released yet**. When they
 are, they will be on the project's GitHub releases page. They are not signed, so
-macOS and Windows will warn you the first time you open them.
+macOS and Windows will warn you the first time you open them:
+
+- **macOS** blocks the app at first. Open **System Settings → Privacy & Security**,
+  scroll to the message about FORSTER, and click **Open Anyway**. You only do this
+  once.
+- **Windows** shows a SmartScreen warning. Click **More info**, then **Run anyway**.
 
 ## For developers
 

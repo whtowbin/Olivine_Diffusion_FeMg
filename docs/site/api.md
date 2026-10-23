@@ -121,6 +121,12 @@ pressure and fO2 in Pa, times in seconds inside the model and in days in results
 
 ::: forster.imports.read_with_template
 
+::: forster.imports.import_files
+
+::: forster.imports.BatchResult
+
+::: forster.imports.list_profile_files
+
 ::: forster.imports.ImportResult
 
 ## Project folders: `forster.project.Project`

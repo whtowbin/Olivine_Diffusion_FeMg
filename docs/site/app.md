@@ -91,7 +91,10 @@ narrow the range ([Preparing data](data.md#collecting-profiles)).
 
 **Move the distances so the rim is at 0** shifts the distances, or flips them if the
 rim is at the far end of the traverse. The domain and steps of every run on that
-profile move with them. **Import profiles...** opens the import dialog.
+profile move with them. **Rim at 0** puts the first analysis at 0. For the best fits,
+give distances measured from the crystal rim yourself (from an image of the crystal):
+the first analysis usually sits a few µm inside the rim, and that gap shifts the fitted
+time. **Import profiles...** opens the import dialog.
 
 ## Importing profiles
 
@@ -104,9 +107,17 @@ stage coordinate, an exclusion column, or nothing. The dialog proposes a mapping
 the headers and values (hover over a column to see why) and keeps **OK** disabled until
 the mapping is complete. If there is no Fo column, Fo is computed from MgO and FeO in
 moles. Points whose total falls outside the window (98.5-101.5 wt% by default) are
-kept and listed as flagged. The dialog can flip and shift the distances so the rim
-is at 0, add a run on each new profile, and save or load the mapping as an **import
-template**. `forster import` uses the same mapping, and
+kept and listed as flagged. The dialog can flip the distances, shift them by one
+offset, or start each profile at its own first point (it then reminds you that
+distances measured from the crystal rim give better fits), add a run on each new
+profile, and save or load the mapping as an **import
+template**. **Import profiles...** accepts several files, and **Import folder...** takes
+every table in a folder: the dialog opens once, for the first file, and its mapping
+(and flip and offset) applies to all; "start each profile at its first point" shifts
+each file's profiles by their own first points. Each profile is named after its file unless the
+mapping has a name column. The dialog says how many files import and lists the files
+whose columns do not match, which are left out; the same profile name in two files
+refuses the import. `forster import` uses the same mapping, and
 [Preparing data](data.md#importing-other-spreadsheet-layouts) explains it in full.
 
 ## Conditions, Orientation and Equation

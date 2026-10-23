@@ -247,7 +247,8 @@ Wasserstein distance.
   QFM-1) find [100] and [010] alike and [001] 6x faster, as DC07. The
   experiments differ in diffusant source, fO2 and crystals, and neither paper
   resolves the difference.
-- **Activation energy.** 201 +- 8 (DC07, 900-1250 C), 222 +- 7.5 (Mutch TaMED,
+- **Activation energy.** 201 +- 8 (Dohmen, Becker and Chakraborty 2007, part I, p. 400:
+  [001] at fO2 = 1e-7 Pa, 900-1250 C; 196 +- 12 along [100], 191 +- 9 along [010]), 222 +- 7.5 (Mutch TaMED,
   compiled data), 230-370 (Oeser, 1100-1300 C), 280-320 kJ/mol (Tachibana,
   1400-1600 C). Consistent with one mechanism below about 1150 C and a change
   above, rather than one Arrhenius line throughout.

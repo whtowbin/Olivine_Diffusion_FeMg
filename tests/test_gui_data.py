@@ -9,7 +9,9 @@ import pytest
 from forster.boundary import Stage
 from forster.grid import GridRequest
 from forster.gui.importing import (
+    RIM_ADVICE,
     add_imported,
+    import_files,
     import_table,
     position_um,
     read_columns,
@@ -364,3 +366,49 @@ def test_the_views_figures_are_recoloured_for_the_dark_theme():
     figure, ax = drawn()
     restyle_figure(figure, LIGHT)
     assert to_hex(ax.get_lines()[0].get_color()) == to_hex(DATA_COLOR)
+
+
+def staggered_table(path, starts, *, bad_first=False):
+    """One profile per start distance, each 10 points 5 um apart from its start."""
+    rows = []
+    for name, start in starts.items():
+        x = start + np.arange(10) * 5.0
+        for i, xi in enumerate(x):
+            bad = "bad" if bad_first and i == 0 else ""
+            rows.append(
+                {"Sample": name, "Distance (um)": xi, "Fo#": 90 - i * 0.1, "Marked_bad": bad}
+            )
+    pd.DataFrame(rows).to_csv(path, index=False)
+    return path
+
+
+def test_each_profile_can_start_at_its_own_first_point(tmp_path):
+    """offset_um=None shifts each profile by its own first point (one offset for the
+    whole table put only the profile with the smallest distance at 0), counting masked
+    points so none lands below 0, and says that rim distances fit better."""
+    df = read_columns(staggered_table(tmp_path / "s.csv", {"A": 10.0, "B": 3.0}))
+    imported = import_table(df, guess(df), offset_um=None)
+    assert imported.profiles["A"].distance_um[0] == 0.0
+    assert imported.profiles["B"].distance_um[0] == 0.0
+    assert RIM_ADVICE in imported.notes
+    shared = import_table(df, guess(df), offset_um=3.0)
+    assert shared.profiles["A"].distance_um[0] == 7.0 and RIM_ADVICE not in shared.notes
+
+    df = read_columns(staggered_table(tmp_path / "m.csv", {"A": 10.0}, bad_first=True))
+    masked = import_table(df, guess(df), offset_um=None)
+    assert masked.masked["A"][0].tolist() == [0.0]  # the masked first point
+    assert masked.profiles["A"].distance_um[0] == 5.0
+
+
+def test_a_batch_starts_each_file_at_its_own_first_point(tmp_path):
+    folder = tmp_path / "batch"
+    folder.mkdir()
+    paths = [
+        staggered_table(folder / "one.csv", {"A": 12.0}),
+        staggered_table(folder / "two.csv", {"B": 4.0}),
+    ]
+    template = guess(read_columns(paths[0]))
+    imported, problems = import_files(paths, template, offset_um=None)
+    assert problems == {}
+    assert [imported.profiles[k].distance_um[0] for k in ("A", "B")] == [0.0, 0.0]
+    assert imported.notes.count(RIM_ADVICE) == 1

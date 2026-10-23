@@ -84,6 +84,39 @@ with the `forster template` command, which writes the parameter tables.)
 | `--total-window LOW HIGH` | Window for flagging totals (default 98.5 101.5). |
 | `--force` | Overwrite an existing proposed mapping. |
 
+### A whole folder of files
+
+Profiles often come as one file each. Give `forster import` the folder instead of a
+file:
+
+```bash
+forster import grains/                              # proposes grains.import.json from the first file
+forster import grains/ --template grains.import.json # writes grains_profiles.csv
+```
+
+The mapping is proposed from the first file (in name order) and applied to every
+`.csv`, `.xlsx` and `.xlsm` file in the folder. Hidden files and Office lock files
+(`~$...`) are ignored. A profile is named by the mapping's name column; a file
+without one gives its file name (`g1.csv` becomes `g1`). The same profile name in two
+files is an error that names both files. A file whose columns differ from the mapping
+(extra or missing columns) is reported by name, and **nothing is written** until you
+fix or move it. The combined table is written next to the folder
+(`grains_profiles.csv`), not into it, so it is not read as an input on the next run.
+One file with many profiles needs a name column and works as before.
+
+From Python:
+
+```python
+from forster.imports import import_files
+
+batch = import_files("grains/")          # or a list of files; template= to give one
+batch.raise_for_problems()               # or look at batch.problems ({file: why})
+batch.profiles                           # {name: Profile}; batch.sources says which file
+```
+
+`import_files` returns the files that matched together with `problems` for the ones
+that did not, so you can decide; `raise_for_problems()` turns them into one error.
+
 The desktop app's **Import profiles...** dialog uses the same mapping and reads and
 writes the same import templates ([The desktop app](app.md#importing-profiles)). From
 Python, use `forster.imports.guess`, `ImportTemplate` and `apply` ([Python

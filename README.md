@@ -99,8 +99,25 @@ tests skip. Changes are listed in [CHANGELOG.md](CHANGELOG.md); releases follow
 
 ## Citing
 
-Towbin, W. H., and Plank, T. (2026). Journal of Petrology 67(9), egag077. The
-citations for each diffusion law and method are in the documentation.
+Towbin, W. H., and Plank, T. (2026). Journal of Petrology 67(9), egag077.
+
+Please also cite the diffusion equation you used:
+
+- the default (`dipra`): Dohmen, R. and Chakraborty, S. (2007), Physics and Chemistry
+  of Minerals 34, 409-430, doi:10.1007/s00269-007-0158-6, and their erratum, 34,
+  597-598, doi:10.1007/s00269-007-0185-3, as tabulated in DIPRA (Girona, T. and
+  Costa, F. (2013), Geochemistry, Geophysics, Geosystems 14, 422-431,
+  doi:10.1029/2012GC004427);
+- the DFENS equations (`dfens_tamed`, `dfens_global`): Mutch, E. J. F. et al. (2019),
+  Nature Geoscience 12, 569-574, doi:10.1038/s41561-019-0376-9, with their
+  covariance from Mutch, E. J. F. et al. (2021), Geochemistry, Geophysics, Geosystems
+  22, e2020GC009303, doi:10.1029/2020GC009303.
+
+For Fe-Mg diffusion above about 1150 °C, where newer experiments find faster
+diffusion, see Oeser, M., Dohmen, R. and Weyer, S. (2026), Geochimica et Cosmochimica
+Acta 413, 48-66, doi:10.1016/j.gca.2025.09.036. The references for the other
+equations, the numerical methods and the samplers are on the
+[documentation's citing page](https://forster.readthedocs.io/en/latest/changelog/#citing).
 
 ## License
 

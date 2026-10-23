@@ -50,7 +50,7 @@ from forster.imports import (
     guess,
 )
 
-from .importing import Imported, import_table, position_um, rim_offset
+from .importing import Imported, import_files, import_table
 from .panels import ErrorLabel, _note
 from .state import COPY_GROUPS, number
 
@@ -140,21 +140,45 @@ class ImportDialog(QDialog):
     """Say what each column holds (`forster.imports`: its role, which oxide or element,
     the unit; the first guess from `forster.imports.guess`, each column's reason in its
     tooltip), the window of analytical totals outside which points are flagged (kept),
-    whether to flip and shift the distances so the rim is at 0, and whether to add a run
+    whether to flip and shift the distances (by one offset, or each profile to start at
+    its first point, with advice to measure from the rim), and whether to add a run
     for each new profile. The mapping can be saved as an import template and loaded for
     the next file. OK stays disabled until the mapping has no problems; the lines at the
     bottom say what would be imported."""
 
-    def __init__(self, path: str | Path, table: pd.DataFrame, parent=None) -> None:
+    def __init__(
+        self,
+        path: str | Path,
+        table: pd.DataFrame,
+        parent=None,
+        paths: list[Path] | None = None,
+    ) -> None:
         super().__init__(parent)
-        self.setWindowTitle(f"Import profiles from {Path(path).name}")
+        self.paths = [Path(p) for p in paths or [path]]  # all files; the first is ``path``
+        n_files = len(self.paths)
+        self.tables = {self.paths[0]: table}  # files read so far (the others on demand)
+        title = f"Import profiles from {Path(path).name}"
+        if n_files > 1:
+            title += f" (and {n_files - 1} more file(s) with the same mapping)"
+        self.setWindowTitle(title)
+        self.n_files = n_files
+        self.mismatched: dict[Path, str] = {}  # files the mapping does not fit
         self.resize(840, 860)
         self.path, self.table = Path(path), table
         self.guessed = guess(table)
         self.template_name = ""  # the saved or loaded import template's name
         self.status = ""  # the last save or load, or why a template did not load
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"<b>{self.path.name}</b>: {len(table)} rows"))
+        shown = f"<b>{self.path.name}</b>: {len(table)} rows"
+        if n_files > 1:
+            shown += (
+                f". This is the first of {n_files} files: the mapping, flip and offset you "
+                "choose apply to all of them; a file whose columns differ is listed and "
+                "not imported."
+            )
+        label = QLabel(shown)
+        label.setWordWrap(True)
+        layout.addWidget(label)
         layout.addWidget(self._preview())
         layout.addWidget(self._mapping_box(), 1)
         layout.addWidget(self._options_box())
@@ -231,24 +255,34 @@ class ImportDialog(QDialog):
         form.addRow("Total window (wt%)", window)
         self.name = QLineEdit(self.path.stem)
         self.name.setToolTip("The profile's name when no column holds one")
+        if self.n_files > 1:
+            self.name.setEnabled(False)
+            self.name.setToolTip("With several files, each profile is named after its file")
         self.name.editingFinished.connect(self.update_summary)
         form.addRow("Name (no name column)", self.name)
         self.flip = QCheckBox("The rim is at the far end (flip the distances)")
         self.flip.setToolTip("Distances become offset - x, so the far end is the rim")
         self.flip.toggled.connect(lambda _: self.update_summary())
         form.addRow(self.flip)
-        row = QHBoxLayout()
         self.offset = QLineEdit("0")
         self.offset.setToolTip(
             "µm subtracted from every distance (flipped: the one that becomes 0)"
         )
         self.offset.editingFinished.connect(self.update_summary)
-        rim = QPushButton("Rim at 0")
-        rim.setToolTip("The offset that puts the first point (flipped: the last) at 0")
-        rim.clicked.connect(self._rim_at_zero)
-        row.addWidget(self.offset, 1)
-        row.addWidget(rim)
-        form.addRow("Offset (µm)", row)
+        form.addRow("Offset (µm)", self.offset)
+        self.each_start = QCheckBox("Start each profile at its first point (flipped: its last)")
+        self.each_start.setToolTip(
+            "Shifts each profile by its own first point, so every profile starts at 0"
+        )
+        self.each_start.toggled.connect(self._each_start_toggled)
+        form.addRow(self.each_start)
+        self.rim_advice = _note(
+            "For the best fits, give distances measured from the crystal rim yourself "
+            "(from an image of the crystal). The first analysis usually sits a few µm "
+            "inside the rim, and that gap shifts the fitted time."
+        )
+        self.rim_advice.setVisible(False)
+        form.addRow(self.rim_advice)
         self.add_runs = QCheckBox("Add a run for each new profile (the selected run's settings)")
         self.add_runs.setChecked(True)
         form.addRow(self.add_runs)
@@ -295,9 +329,13 @@ class ImportDialog(QDialog):
         self.template_name = template.name
         self.update_summary()
 
-    def options(self) -> tuple[str, bool, float]:
-        """(name for a table without a name column, flip, offset in um)."""
-        offset = number(self.offset.text(), "Offset (µm)", optional=True) or 0.0
+    def options(self) -> tuple[str, bool, float | None]:
+        """(name for a table without a name column, flip, offset in um; None when each
+        profile starts at its own first point)."""
+        if self.each_start.isChecked():
+            offset = None
+        else:
+            offset = number(self.offset.text(), "Offset (µm)", optional=True) or 0.0
         return self.name.text().strip() or self.path.stem, self.flip.isChecked(), offset
 
     def save_template(self, path: str | Path) -> bool:
@@ -350,13 +388,9 @@ class ImportDialog(QDialog):
         if path:
             self.load_template(path)
 
-    def _rim_at_zero(self) -> None:
-        try:
-            x = position_um(self.table, self.template())
-        except ValueError as error:
-            self.error.show_errors([str(error)])
-            return
-        self.offset.setText(f"{rim_offset(x, self.flip.isChecked()):.12g}")
+    def _each_start_toggled(self, checked: bool) -> None:
+        self.offset.setEnabled(not checked)
+        self.rim_advice.setVisible(checked)
         self.update_summary()
 
     # -- what would be imported -------------------------------------------------------
@@ -366,6 +400,11 @@ class ImportDialog(QDialog):
         template = self.template()
         template.check()
         name, flip, offset = self.options()
+        if self.n_files > 1:
+            imported, self.mismatched = import_files(
+                self.paths, template, flip=flip, offset_um=offset, tables=self.tables
+            )
+            return imported
         return import_table(self.table, template, name=name, flip=flip, offset_um=offset)
 
     def update_summary(self) -> None:
@@ -387,6 +426,10 @@ class ImportDialog(QDialog):
         more = len(imported.profiles) - len(parts)
         text = f"Would add {len(imported.profiles)} profile(s): {'; '.join(parts)}"
         text += f"; and {more} more" if more > 0 else ""
+        if self.n_files > 1:
+            ok_files = self.n_files - len(self.mismatched)
+            text = f"{ok_files} of {self.n_files} files import. " + text
+            notes += [f"Not imported, {p.name}: {why}" for p, why in self.mismatched.items()]
         # The first note is `forster.imports.apply`'s count, which ``text`` gives.
         self._show(notes + imported.notes[1:], text, flagged_text(imported), [])
         ok.setEnabled(True)
