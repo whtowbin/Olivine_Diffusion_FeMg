@@ -76,6 +76,9 @@ docs = [
 
 [tool.uv]
 default-groups = ["dev", "analysis"]
+# Supply-chain cooldown: resolve only versions published at least a week ago (matches
+# Dependabot's 7 days for the GitHub Actions). Needs uv 0.9.17 or newer.
+exclude-newer = "7 days"
 
 [build-system]
 requires = ["hatchling"]
