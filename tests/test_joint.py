@@ -366,3 +366,9 @@ def test_every_fo_offset_free_without_a_reference(crystal):
     assert {n for n in named.names if n.endswith("fo_offset")} == {"A:fo_offset"}
     with pytest.raises(ValueError, match="fo_reference: no run 'C'"):
         fit_crystal(runs, profiles, fits=fits, fo_reference="C")
+
+
+def test_fit_crystal_takes_no_ess_fallback():
+    """The joint sampler's step rule overrides the ESS threshold, so it is not offered."""
+    with pytest.raises(TypeError, match="ess_fallback"):
+        fit_crystal([], {}, ess_fallback=0.5)  # ty: ignore[unknown-argument]

@@ -374,7 +374,7 @@ def import_command(args: argparse.Namespace) -> int:
 
     source = Path(args.file)
     if source.is_dir():
-        return _import_folder(args, source)
+        return _import_folder(args, source.resolve())  # "." has no name to derive files from
     sheet: str | int = args.sheet if args.sheet is not None else 0
     if args.template is None:
         draft = Path(args.save_template or source.with_suffix(".import.json"))

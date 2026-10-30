@@ -198,6 +198,7 @@ def test_uncertainty_columns_are_read_and_written_back(tmp_path):
     [
         ({"steps_sd_um": 2.0, "steps_range_um": 3.0}, "not both"),
         ({"steps_sd_um": "1, 2"}, "2 values for 1 steps"),
+        ({"steps_sd_um": "2, "}, "2 values for 1 steps"),  # not one value for every step
         ({"step_fo_sd": 0.01}, "needs a plateau"),
     ],
 )
@@ -273,3 +274,95 @@ def test_an_old_xls_is_read_and_other_types_are_refused(tmp_path):
     path.write_bytes(b"")
     with pytest.raises(ValueError, match=r"\.csv, \.xlsx or \.xls"):
         read_table(path)
+
+
+def _profile_rows(name_column="profile", names=("p1",)):
+    rows = []
+    for name in names:
+        for i in range(5):
+            rows.append({name_column: name, "distance_um": 10.0 * i, "fo": 0.85 + 0.01 * i})
+    return pd.DataFrame(rows)
+
+
+@pytest.mark.parametrize("suffix", [".xls", ".xlsx"])
+def test_an_unreadable_excel_file_is_a_value_error(tmp_path, suffix):
+    """Tab text saved as .xls (xlrd), a corrupt .xlsx (zipfile, openpyxl): each is one
+    ValueError that names the file, so the command line and the batch importer report it."""
+    from forster.io import read_table
+
+    path = tmp_path / f"bad{suffix}"
+    path.write_text("profile\tdistance_um\tfo\np1\t0\t0.85\n")
+    with pytest.raises(ValueError, match=r"cannot be read as an Excel file"):
+        read_table(path)
+    with pytest.raises(ValueError, match=f"bad{suffix}"):
+        read_profiles(path)
+
+
+def test_a_cp1252_csv_is_read_with_a_note(tmp_path):
+    """Excel on Windows saves CSV as cp1252, where µ is the single byte 0xB5."""
+    path = tmp_path / "lab.csv"
+    rows = pd.DataFrame(
+        {"Profile_Name": "p1", "Distance µm": [0.0, 5.0, 10.0, 15.0], "Fo#": [85, 86, 87, 88]}
+    )
+    path.write_bytes(rows.to_csv(index=False).encode("cp1252"))
+    with pytest.warns(UserWarning, match="cp1252"):
+        profiles = read_profiles(path)
+    assert profiles["p1"].fo[-1] == pytest.approx(0.88)
+
+
+def test_a_utf8_csv_with_a_byte_order_mark_is_read(tmp_path):
+    path = tmp_path / "lab.csv"
+    rows = pd.DataFrame(
+        {"Profile_Name": "p1", "Distance µm": [0.0, 5.0, 10.0, 15.0], "Fo#": [85, 86, 87, 88]}
+    )
+    path.write_bytes(b"\xef\xbb\xbf" + rows.to_csv(index=False).encode("utf-8"))
+    assert list(read_profiles(path)) == ["p1"]
+
+
+def test_text_in_a_number_column_is_a_blank_not_a_crash(tmp_path):
+    table = _profile_rows()
+    table["fo"] = table["fo"].astype(str)  # numbers stored as text
+    table.loc[1, "fo"] = "n.d."
+    table.loc[2, "distance_um"] = "-"
+    path = tmp_path / "p.csv"
+    table.to_csv(path, index=False)
+    with pytest.warns(UserWarning, match="dropped rows"):
+        (profile,) = read_profiles(path).values()
+    assert len(profile.distance_um) == 3
+    assert profile.distance_um.tolist() == sorted(profile.distance_um.tolist())
+
+
+def test_profile_names_survive_as_text(tmp_path):
+    names = ("007", "1.10", "NA", "None", "null")
+    path = tmp_path / "p.csv"
+    _profile_rows(names=names).to_csv(path, index=False)
+    assert list(read_profiles(path)) == list(names)
+    xlsx = tmp_path / "p.xlsx"
+    _profile_rows(names=names).to_excel(xlsx, index=False)
+    assert list(read_profiles(xlsx)) == list(names)
+
+
+def test_run_names_and_metadata_are_read_as_text(tmp_path):
+    from forster import write_template
+
+    write_template(tmp_path / "t")
+    table = pd.read_csv(tmp_path / "t" / "parameters.csv")
+    table = table.assign(run="007", crystal="12", sample="NA", notes="")
+    path = tmp_path / "params.csv"
+    table.to_csv(path, index=False)
+    (run,) = read_runs(path)
+    assert run.name == "007"
+    assert run.metadata == {"crystal": "12", "sample": "NA"}
+
+
+def test_a_crystal_column_mixing_numbers_and_text_can_be_edited(tmp_path):
+    from forster.project import Project
+
+    project = Project.new(tmp_path / "p")
+    name = project.run_names[0]
+    project.update_run(name, metadata={"crystal": "12"})  # was refused: read back as 12
+    project.save()
+    assert Project.open(project.folder).run(name).metadata == {"crystal": "12"}
+    project.update_run(name, metadata={"crystal": "Ol3"})
+    project.save()
+    assert Project.open(project.folder).run(name).metadata == {"crystal": "Ol3"}

@@ -331,3 +331,22 @@ def test_implicit_run_from_a_table_chooses_its_grid_and_refits_identically(tmp_p
     (again,) = read_runs(again_path)
     assert fit_run(again, profiles).time_days == result.time_days
     assert scan_run(again, profiles, time_days=result.time_days).time_days == scan.time_days
+
+
+def test_a_free_far_end_matches_a_mirrored_run_with_both_ends_held():
+    """Mirror symmetry: on [0, L] with no flux at L, the profile equals that of [0, 2L]
+    held at the same value at both ends and starting symmetric about L."""
+    L = 100.0
+
+    def D(c):  # Fo dependent, as the real laws are
+        return 1e-16 * (1.0 + 4.0 * (np.asarray(c) - 0.80))
+
+    half = node_grid([0.0, 30.0, L], 1.0)
+    full = np.concatenate([half, 2 * L - half[-2::-1]])  # mirror image about L
+    start_half = cell_average(half, [30.0], [0.80, 0.90])
+    start_full = np.concatenate([start_half, start_half[-2::-1]])
+    dt = 3600.0 * 24
+    free = stepper(D, 0.80, None, dt, half)(start_half, 300)
+    held = stepper(D, 0.80, 0.80, dt, full)(start_full, 300)
+    assert np.abs(free[-1] - held[-1][: len(half)]).max() < 1e-9
+    assert free[-1][-1] < 0.90  # the free end has moved

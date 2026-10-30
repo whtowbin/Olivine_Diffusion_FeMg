@@ -57,6 +57,74 @@ def test_initial_condition_validation(kwargs, message):
         InitialCondition(**(base | kwargs))
 
 
+def test_steps_must_increase_inside_the_domain():
+    # Out-of-order steps once gave a start with Fo ~1.7 where the segments overlapped.
+    with pytest.raises(ValueError, match="steps must increase from rim to core"):
+        InitialCondition((0, 100), steps_um=(33, 10), segment_fo=(0.80, 0.85, 0.90))
+    with pytest.raises(ValueError, match="steps must increase from rim to core"):
+        InitialCondition((0, 100), steps_um=(10, 10), segment_fo=(0.80, 0.85, 0.90))
+    with pytest.raises(ValueError, match="steps must increase from rim to core"):
+        InitialCondition((0, 100), steps_um=(150,), segment_fo=(0.80, 0.90))
+    InitialCondition((0, 100), steps_um=(10, 33), segment_fo=(0.80, 0.85, 0.90))
+
+
+def test_orientation_angles_must_be_one_direction():
+    with pytest.raises(ValueError, match="sum of cos"):
+        Orientation(0, 0, 0)  # D came out 1.33 x D[001]
+    with pytest.raises(ValueError, match="alpha=45, beta=45, gamma=45"):
+        Orientation(45, 45, 45)
+    for angles in [(90, 90, 0), (0, 90, 90), (54.74, 54.74, 54.74), (55, 55, 55), (89, 90, 1)]:
+        Orientation(*angles)  # exact and rounded-to-the-degree directions are valid
+
+
+def test_orientation_from_euler_gives_one_direction_and_known_axes():
+    for euler in [(60, 20, 10, 40), (123, 77, 301, 215), (0, 0, 0, 0)]:
+        o = Orientation.from_euler(*euler)
+        cos2 = sum(np.cos(np.radians(a)) ** 2 for a in (o.alpha_deg, o.beta_deg, o.gamma_deg))
+        assert cos2 == pytest.approx(1.0, abs=1e-12)
+    # Euler (0, 0, 0): the crystal axes are the sample axes. In this module's (EDAX map)
+    # convention a profile along the map's x axis lies along [010] and one along y along
+    # [100]; each is perpendicular to the other two axes. A 90 degree turn about z swaps them.
+    for euler, expected in [
+        ((0, 0, 0, 0), (90, 0, 90)),
+        ((0, 0, 0, 90), (0, 90, 90)),
+        ((90, 0, 0, 0), (0, 90, 90)),
+        ((0, 0, 90, 0), (0, 90, 90)),
+        ((0, 90, 0, 0), (90, 90, 0)),
+    ]:
+        o = Orientation.from_euler(*euler)
+        assert (o.alpha_deg, o.beta_deg, o.gamma_deg) == pytest.approx(expected, abs=1e-9)
+
+
+@pytest.mark.parametrize("fo2", [-3.2, 0.0, -1e-3, float("nan"), float("inf")])
+def test_conditions_reject_log_units_and_non_finite_values(fo2):
+    with pytest.raises(ValueError, match="fO2_Pa is in Pa, not log units"):
+        Conditions(1200, 1e8, fo2)
+
+
+@pytest.mark.parametrize(("T_C", "P_Pa"), [(float("nan"), 1e8), (1200, float("inf"))])
+def test_conditions_reject_non_finite_temperature_and_pressure(T_C, P_Pa):
+    with pytest.raises(ValueError, match="must be finite"):
+        Conditions(T_C, P_Pa, 1e-3)
+
+
+def test_explicit_scheme_refuses_a_domain_below_the_first_node():
+    # The explicit grid starts at 0; a domain starting at -20 um would put edge 1 at 0.
+    x = np.arange(0.0, 100.0, 2.0)
+    profile = Profile(x, np.where(x < 30, 0.80, 0.90))
+    initial = InitialCondition((-20, 100), steps_um=(30,), segment_fo=(0.80, 0.90))
+    conditions, orient = Conditions(1200, 1e8, 1e-3), Orientation(90, 90, 0)
+    with pytest.raises(ValueError, match=r'scheme="implicit"'):
+        fit_profile(
+            profile,
+            conditions,
+            orient,
+            initial,
+            Grid(dx_um=1.0, dt_s=600.0, max_time_days=5),
+            scheme="central",
+        )
+
+
 def test_grid_timesteps_match_model_diffusion_expression():
     assert Grid(dx_um=1, dt_s=600, max_time_days=730).timesteps == int(730 * 24 * 60 * 60 / 600)
 

@@ -430,8 +430,10 @@ class ImportDialog(QDialog):
             ok_files = self.n_files - len(self.mismatched)
             text = f"{ok_files} of {self.n_files} files import. " + text
             notes += [f"Not imported, {p.name}: {why}" for p, why in self.mismatched.items()]
-        # The first note is `forster.imports.apply`'s count, which ``text`` gives.
-        self._show(notes + imported.notes[1:], text, flagged_text(imported), [])
+        # One file: the first note is `forster.imports.apply`'s count, which ``text`` gives.
+        # Merged files: their counts were already dropped.
+        kept = imported.notes if self.n_files > 1 else imported.notes[1:]
+        self._show(notes + kept, text, flagged_text(imported), [])
         ok.setEnabled(True)
 
     def _show(self, notes: list[str], summary: str, flagged: str, errors: list[str]) -> None:

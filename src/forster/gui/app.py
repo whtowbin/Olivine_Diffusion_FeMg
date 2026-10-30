@@ -77,6 +77,7 @@ AUTOSAVE_MS = 60_000
 STAGES = {"best fit": 1, "importance sampling": 2, "nested sampling": 2}
 EXPORT_DPI = 200  # as forster fit writes its figures
 LAW_FITS_KEPT = 24  # law-comparison fits kept in memory (four per run and settings)
+STALE = "The settings changed while this ran, so the {} was not kept: fit again."
 PROFILE, TIME, LAWS, RESULTS = "Profile", "Time distribution", "Law comparison", "Results"
 
 
@@ -204,9 +205,7 @@ class MainWindow(QMainWindow):
         self.export_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         bar.addWidget(self.export_button)
         help_menu = self.menuBar().addMenu("Help")
-        for text, slot in (
-            ("Open the worked example…", self._choose_example),
-        ):
+        for text, slot in (("Open the worked example…", self._choose_example),):
             action = QAction(text, self)
             action.triggered.connect(slot)
             help_menu.addAction(action)
@@ -428,6 +427,14 @@ class MainWindow(QMainWindow):
         if self.project is None:
             return False
         self._remember_view()
+        if folder is not None and self._holds_files(Path(folder)):
+            return self._refuse(
+                "Save failed",
+                ValueError(
+                    f"{folder} already holds files. Choose a new or empty folder so nothing "
+                    "in it is overwritten."
+                ),
+            )
         try:
             self.project.save(folder)
         except (OSError, ValueError) as exc:
@@ -435,6 +442,13 @@ class MainWindow(QMainWindow):
         self._update_title()
         self.statusBar().showMessage(f"Saved {self.project.folder}", 5000)
         return True
+
+    def _holds_files(self, folder: Path) -> bool:
+        """Whether ``folder`` is a non-empty folder other than the project's own."""
+        assert self.project is not None
+        if folder.resolve() == self.project.folder.resolve():
+            return False
+        return folder.is_dir() and any(folder.iterdir())
 
     def autosave(self) -> None:
         if self.project is not None and self.project.dirty:
@@ -517,6 +531,7 @@ class MainWindow(QMainWindow):
                 "Import profiles (CSV or Excel) to start a project, or open a project folder."
             )
             self._show_notes([])
+            self._refresh_views()
             return
         self.run_list.addItems(self._run_labels())
         names = self.project.run_names
@@ -528,6 +543,7 @@ class MainWindow(QMainWindow):
             self.canvas.show_message(
                 "This project has no runs: import profiles (CSV or Excel), or Add a run."
             )
+            self._refresh_views()
         self._fill_results()
         self._enable_actions()
 
@@ -697,9 +713,11 @@ class MainWindow(QMainWindow):
         if self.project is None or self.current is None:
             return False
         try:
+            self._remember_view()  # under the old name: the project moves the view with the run
             self.project.rename_run(self.current, new_name)
         except ValueError as exc:
             return self._refuse("Cannot rename", exc)
+        self.editor = None
         self._after_run_change(new_name)
         return True
 
@@ -873,8 +891,11 @@ class MainWindow(QMainWindow):
         if self.project is None or self.current is None:
             return
         dialog = CopySettingsDialog(self.current, self.project.run_names, self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.copy_settings_to(*dialog.choice())
+        try:
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self.copy_settings_to(*dialog.choice())
+        finally:
+            dialog.deleteLater()
 
     def copy_settings_to(self, groups: list[str], targets: list[str]) -> bool:
         """Copy groups of the selected run's settings to other runs and refit them."""
@@ -993,6 +1014,10 @@ class MainWindow(QMainWindow):
     def _refresh_views(self) -> None:
         """Redraw the view shown, if it is one (the others wait until shown)."""
         if self.project is None or self.current is None:
+            # No run: nothing stale to draw or export.
+            self.time_page.show_message("No run is selected.")
+            self.law_page.key = None
+            self.law_page.show_message("No run is selected.")
             return
         if self.centre_title == TIME:
             self.time_page.draw(time_view(self.project, self.current, self.time_page.current))
@@ -1039,6 +1064,7 @@ class MainWindow(QMainWindow):
         self._finish(tag)
         self.law_job = None
         if tag[0] != self.serial:
+            self._refresh_views()  # the new project's view was waiting for this job
             return
         for key, result in fits:
             self.law_fits[key] = result
@@ -1049,6 +1075,9 @@ class MainWindow(QMainWindow):
     def _laws_failed(self, tag: tuple[int, str], message: str) -> None:
         self._finish(tag)
         self.law_job = None
+        if tag[0] != self.serial or tag[1] != self.current:
+            self._refresh_views()  # the run shown is not the one that failed
+            return
         self.last_error = message
         self.law_page.show_message(f"A fit for the law comparison failed: {message}")
 
@@ -1208,8 +1237,10 @@ class MainWindow(QMainWindow):
         self._scan_busy(False, "")
         if serial != self.serial or self.project is None:
             return
-        self.project.store_scan(task, record)
-        if task.name == self.current:
+        still_current = self.project.store_scan(task, record)
+        if task.name == self.current and not still_current:
+            self.panel.uncertainties.result.setText(STALE.format("starting-profile fit"))
+        elif task.name == self.current:
             self._show_scan(record, seconds)
             self._show_mc(self.project.mc(task.name))  # a new posterior: a new Monte Carlo
             self._refresh_views()
@@ -1309,8 +1340,10 @@ class MainWindow(QMainWindow):
         self._mc_busy(False, "")
         if serial != self.serial or self.project is None:
             return
-        self.project.store_mc(task, record)
-        if task.name == self.current:
+        still_current = self.project.store_mc(task, record)
+        if task.name == self.current and not still_current:
+            self.panel.uncertainties.mc_result.setText(STALE.format("Monte Carlo"))
+        elif task.name == self.current:
             self._show_mc(record, seconds)
             self._refresh_views()
         self._fill_results()

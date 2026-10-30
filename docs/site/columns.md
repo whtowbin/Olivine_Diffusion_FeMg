@@ -56,7 +56,7 @@ One row per model run (one fit of one profile).
 | `domain_start_um` | µm | required | Start of the model domain, edge 1, where Fo is held (at edge1_fo). |
 | `domain_end_um` | µm | required | End of the model domain, the far end. Fo is held there at the last segment's Fo (the core), unless centre_um is given. |
 | `steps_um` | µm | required | Positions of the steps in the starting profile, in order: one number, or several in quotes ("10, 33"). The steps divide the profile into segments. |
-| `segment_fo` | fraction | required | Starting Fo of each segment, from edge 1 inward. Give one more value than steps_um ("0.91, 0.89" for one step, "0.91, 0.93, 0.89" for two). Replaces edge_fo, core_fo and step_fo, which are still read until the release. |
+| `segment_fo` | fraction | required | Starting Fo of each segment, from edge 1 inward. Give one more value than steps_um ("0.91, 0.89" for one step, "0.91, 0.93, 0.89" for two). Replaces edge_fo, core_fo and step_fo, which are still read, with a warning, and will be removed in a later version. |
 | `segment_names` |  | optional | Labels for the segments, from edge 1 inward ("rim, mantle, core"). Empty: a, b, c, ... Joint fits match segments by label, and uncertainty results name them (a_fo, ...). |
 | `edge1_fo` | fraction | optional | Fo held at edge 1 (domain_start_um) during diffusion, when it differs from the first segment's Fo. The first segment's Fo then stays the starting value. Empty: the first segment's Fo. With growth stages, it holds until the first stage. It cannot be combined with the initial-condition scan. Replaces rim_fo. |
 | `centre_um` | µm | optional | Distance of the crystal's center, for modeling the whole crystal. The model runs to the center (beyond the measured points if needed) and mirrors the profile there, so no Fo crosses it and the core is free to change. Empty: a half profile, with the far end held at the core's Fo. Needs the implicit scheme and no growth stages. |
@@ -67,9 +67,9 @@ One row per model run (one fit of one profile).
 | `dx_um` | µm | optional | Grid spacing of the final fit. Leave it empty to have it chosen for about 1% accuracy in the fitted time. A value you give is kept, with a warning if it is coarse, wastefully fine, or too coarse for the steps. |
 | `dt_s` | s | optional | Time step of the final fit, which sets how finely the fitted time is resolved. Leave it empty to have it chosen as 1/400 of the fitted time. The explicit schemes (central, dipra) split a dt above their stability limit (D dt / dx² = 0.5) into stable steps and keep only the rows at whole time steps. Growth stages need a stable dt, so they do not use the splitting. |
 | `max_time_days` | days | optional | Longest time modeled. Default 200; with dx_um or dt_s empty, 3x a quick estimate of the time. |
-| `scheme` |  | optional | implicit (default since 2026-10-13): rim on the end node, steps not snapped to nodes, any time step. central: the engine's explicit scheme, used before. dipra: DIPRA's forward-difference scheme (Girona and Costa 2013), a numerical scheme and not the diffusion law. With uncertainty = legacy the default is central. |
-| `diffusivity` |  | optional | Fe-Mg diffusivity equation (the diffusion law). Choices: dipra: Classic DIPRA (Dohmen & Chakraborty 2007), preset dohmen_chakraborty2007; refit: FORSTER refit (2026), preset femg_refit2026; dfens_tamed: DFENS TaMED (Mutch et al. 2019), preset mutch2019_tamed; dfens_global: DFENS Global (Mutch et al. 2019), preset mutch2019_global. dipra is the default. Every choice but dipra carries a covariance, which adds the law_ range to summary.csv. refit also carries the spread between laboratories (the all_ range). Any other preset name also works, as does a name from diffusivities.csv (then run forster fit with --diffusivities). |
-| `uncertainty` |  | optional | correlated (default) or legacy (the round robin rule, which reproduces old results). |
+| `scheme` |  | optional | implicit (default since 2026-10-13): rim on the end node, steps not snapped to nodes, any time step. central: the engine's explicit scheme, used before. dipra: DIPRA's forward-difference scheme (Girona and Costa 2013), a numerical scheme and not the diffusion equation. With uncertainty = legacy the default is central. |
+| `diffusivity` |  | optional | Fe-Mg diffusivity equation. Choices: dipra: Classic DIPRA (Dohmen & Chakraborty 2007), preset dohmen_chakraborty2007; refit: FORSTER refit (2026), preset femg_refit2026; dfens_tamed: DFENS TaMED (Mutch et al. 2019), preset mutch2019_tamed; dfens_global: DFENS Global (Mutch et al. 2019), preset mutch2019_global. dipra is the default. Every choice but dipra carries a covariance, which adds the law_ range to summary.csv. refit also carries the spread between laboratories (the all_ range). Any other preset name also works, as does a name from diffusivities.csv (then run forster fit with --diffusivities). |
+| `uncertainty` |  | optional | correlated (default) or legacy (the independent-errors rule with kriging from March 2026, kept to reproduce results from before the correlated method). |
 | `steps_sd_um` | µm | optional | Uncertainty on the step position(s), as a Gaussian 1 sigma: one value, or one per step ("2, 5"). 0 keeps a step fixed. Alternatively, give steps_range_um. |
 | `steps_range_um` | µm | optional | Uncertainty on the step position(s) as a uniform ± half-width, in the same form as steps_sd_um. |
 | `segment_fo_sd` | fraction | optional | Uncertainty on each segment's Fo, as a Gaussian 1 sigma: one value for every segment, or one per segment ("0.002, , 0.003"). Empty or 0 keeps a segment fixed. Replaces edge_fo_sd, core_fo_sd and step_fo_sd. |
@@ -80,11 +80,11 @@ One row per model run (one fit of one profile).
 | `scan_dx_um` | µm | optional | Grid spacing of the scan's runs. Empty: chosen for about 5% accuracy, which is coarser and faster than the final fit. |
 | `scan_dt_s` | s | optional | Time step of the scan's runs. Empty: 1/80 of the nominal fit's time. For central or dipra it is raised, if needed, to the step at which the fastest candidate reaches D dt / dx² = 0.4. |
 | `scan_max_time_days` | days | optional | Longest time the scan's runs model. Empty: max_time_days if given, capped at 10x the fitted time, otherwise 3x the fitted time. A warning says if the posterior of time reaches the end. |
-| `mc_T_sd_C` | °C | optional | Monte Carlo over the conditions and the diffusion law (forster.rescale), run when any mc_ spread column is given. This column is the 1 sigma of temperature. |
+| `mc_T_sd_C` | °C | optional | Monte Carlo over the conditions and the diffusion equation (forster.rescale), run when any mc_ spread column is given. This column is the 1 sigma of temperature. |
 | `mc_P_sd_Pa` | Pa | optional | Monte Carlo: 1 sigma of pressure. |
 | `mc_fO2_sd_log` | log10 | optional | Monte Carlo: 1 sigma of log10 fO2 (relative to mc_fO2_buffer when given). |
 | `mc_fO2_buffer` |  | optional | Monte Carlo: QFM or NNO, to hold fO2 relative to that buffer so it follows each draw's T and P. Empty: the row's fO2_buffer when fO2 is given that way, otherwise fO2 is drawn on its own. |
-| `mc_law` |  | optional | Monte Carlo: yes (default) draws the diffusion law's parameters from its covariance, or no. Laws without a covariance, such as dipra, are exact. |
+| `mc_law` |  | optional | Monte Carlo: yes (default) draws the diffusion equation's parameters from its covariance, or no. Laws without a covariance, such as dipra, are exact. |
 | `mc_between_study` |  | optional | Monte Carlo: yes adds the spread between laboratories (for an absolute time). Default no. |
 | `mc_samples` |  | optional | Monte Carlo draws (default 4000; 200 refits for runs with growth stages). |
 | `mc_seed` |  | optional | Monte Carlo seed (default 0). |
@@ -132,9 +132,9 @@ Written by `forster fit` and by the app's Export. It has one row per fitted run,
 | `high_days` | days | High end of the 1-sigma range. |
 | `low2_days` | days | Low end of the 2-sigma range (95.45%). Empty for the legacy method. |
 | `high2_days` | days | High end of the 2-sigma range. |
-| `law_sigma_log10` | log10 | 1 sigma of log10 D from the diffusion law's covariance at the run's conditions (also the 1 sigma of log10 time, with the sign changed). Empty for laws without a covariance (the default) and for fits with growth stages or a rim value that changes in time (docs/references/law-uncertainty-limits.md). |
-| `between_study_log10` | log10 | Spread between laboratories in the law's calibration data (a random study offset). |
-| `law_low_days` | days | Low end of the 1-sigma range with the law's uncertainty added. To compare crystals fitted with the same law, use low_days and high_days, because the law's error is common to all of them. For a time on its own, use these. |
+| `law_sigma_log10` | log10 | 1 sigma of log10 D from the diffusion equation's covariance at the run's conditions (also the 1 sigma of log10 time, with the sign changed). Empty for equations without a covariance (the default) and for fits with growth stages or a rim value that changes in time (docs/references/law-uncertainty-limits.md). |
+| `between_study_log10` | log10 | Spread between laboratories in the equation's calibration data (a random study offset). |
+| `law_low_days` | days | Low end of the 1-sigma range with the equation's uncertainty added. To compare crystals fitted with the same equation, use low_days and high_days, because the equation's error is common to all of them. For a time on its own, use these. |
 | `law_high_days` | days | High end of that range. |
 | `all_low_days` | days | Low end of the range with the spread between laboratories added as well. Use it for an absolute time, if the crystal may sit off the laboratories' average as one more experiment would. |
 | `all_high_days` | days | High end of that range. |
@@ -167,12 +167,12 @@ Written by `forster fit` and by the app's Export. It has one row per fitted run,
 | `scan_near_step_daic` |  | near_step_daic at the best-fit initial condition. Fitting the initial condition usually clears a near-step warning. If it is still below -6, the misfit is concentrated near the step, so quote the 2-sigma range. |
 | `mc_method` |  | Monte Carlo method: rescale (t = t_fit D_fit / D_draw, exact for a fixed rim) or refit (for growth stages, every draw is refitted). |
 | `mc_draws` |  | Monte Carlo draws made. |
-| `mc_median_days` | days | Monte Carlo median time, combining the fit (or the initial-condition posterior), the conditions and the diffusion law. |
+| `mc_median_days` | days | Monte Carlo median time, combining the fit (or the initial-condition posterior), the conditions and the diffusion equation. |
 | `mc_low_days` | days | Monte Carlo 16th percentile. |
 | `mc_high_days` | days | Monte Carlo 84th percentile. |
 | `mc_p05_days` | days | Monte Carlo 5th percentile. |
 | `mc_p95_days` | days | Monte Carlo 95th percentile. |
-| `mc_sd_log10` | log10 | Monte Carlo: standard deviation of log10 time from each source drawn alone (fit, T, P, fO2, law, studies). It shows which source matters most. |
+| `mc_sd_log10` | log10 | Monte Carlo: standard deviation of log10 time from each source drawn alone (fit, T, P, fO2, equation, studies). It shows which source matters most. |
 | `scan_dropped` |  | Grid points left out as invalid (steps out of order or outside the domain, Fo outside 0-1). |
 | `grid_resolution` |  | Diffusion length sqrt(D t) at the fit over the grid spacing. For 1% accuracy in the fitted time it should be about 5 (implicit) or 240 (central, dipra). |
 | `grid_error_pct` | % | Estimated worst-case error of the fitted time from the grid spacing: 0.2 x (dx / l)² for implicit, 2.4 x dx / l for central and dipra, where l is the diffusion length (measured on 35 real profiles). |

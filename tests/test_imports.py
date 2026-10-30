@@ -1,6 +1,7 @@
 """`forster.imports`: column mapping, units, Fo from oxides, flagged totals, import
 templates, and the `forster import` command."""
 
+import json
 import subprocess
 import sys
 
@@ -9,6 +10,7 @@ import pandas as pd
 import pytest
 
 from forster.imports import (
+    ColumnMap,
     ImportTemplate,
     TemplateMismatch,
     apply,
@@ -17,6 +19,7 @@ from forster.imports import (
     import_files,
     list_profile_files,
     read_with_template,
+    template_table,
 )
 from forster.io import read_profiles
 
@@ -243,3 +246,148 @@ def test_forster_import_on_a_folder(tmp_path):
     bad = subprocess.run([*forster, "--template", str(draft)], capture_output=True, text=True)
     assert bad.returncode == 1 and "g3.csv" in bad.stderr
     assert not (tmp_path / "grains_profiles.csv").exists()
+
+
+def test_numeric_exclusion_flags_work_when_the_column_has_blanks(tmp_path):
+    """A column with blanks reads as float, so the flag 1 arrives as 1.0."""
+    df = pd.DataFrame(
+        {
+            "Profile": "p1",
+            "Distance (um)": np.arange(8) * 5.0,
+            "Fo": 88.0 + np.arange(8),
+            "Exclude": [np.nan, 1, np.nan, np.nan, 1, np.nan, np.nan, np.nan],
+        }
+    )
+    path = tmp_path / "flags.csv"
+    df.to_csv(path, index=False)
+    result = read_with_template(path, guess(pd.read_csv(path)))
+    assert len(result.excluded) == 2 and len(result.points) == 6
+
+
+@pytest.mark.parametrize(
+    ("header", "unit"),
+    [
+        ("Distance [mm]", "mm"),
+        ("Distance/mm", "mm"),
+        ("Distance (mm)", "mm"),
+        ("Distance_mm", "mm"),
+        ("Distance mm", "mm"),
+        ("Distance (µm)", "um"),
+        ("Distance/um", "um"),
+        ("Distance, comment", "um"),
+        ("Distance summary", "um"),
+    ],
+)
+def test_the_position_unit_is_read_from_the_header(header, unit):
+    from forster.imports import _position_unit
+
+    assert _position_unit(header) == unit
+
+
+def test_forsters_own_oxide_headers_import_again(tmp_path):
+    """`template_table` writes MgO_wt%, FeO_wt% and total_wt%; the mapping must find them."""
+    result = apply(_epma(), guess(_epma()))
+    out = template_table(result.points.drop(columns=["total_ok"]))
+    path = tmp_path / "again.csv"
+    out.to_csv(path, index=False)
+    again = guess(pd.read_csv(path))
+    quantities = {(c.role, c.quantity) for c in again.columns if c.role == "oxide"}
+    assert {("oxide", "MgO"), ("oxide", "FeO"), ("oxide", "SiO2")} <= quantities
+    assert ("MgO_wt%" in [c.column for c in again.columns]) and again.problems() == []
+
+
+def test_a_template_round_trips_non_ascii_names(tmp_path):
+    template = ImportTemplate(
+        (
+            ColumnMap("Distance µm", "position", unit="um"),
+            ColumnMap("Fo μ", "fo", unit="percent"),
+        ),
+        name="lab µ",
+    )
+    path = template.save(tmp_path / "t.import.json")
+    assert "µ" in path.read_bytes().decode("utf-8")
+    assert ImportTemplate.load(path) == template
+
+
+def test_a_hand_edited_template_with_a_bad_key_is_a_clear_error(tmp_path):
+    good = guess(_epma()).to_dict()
+    good["columns"][0]["colum"] = good["columns"][0].pop("column")
+    path = tmp_path / "bad.import.json"
+    path.write_text(json.dumps(good), encoding="utf-8")
+    with pytest.raises(ValueError, match="colum"):
+        ImportTemplate.load(path)
+    path.write_text(json.dumps({"format": "forster-import", "version": 1}), encoding="utf-8")
+    with pytest.raises(ValueError, match="columns"):
+        ImportTemplate.load(path)
+    source = tmp_path / "epma.csv"
+    _epma().to_csv(source, index=False)
+    done = subprocess.run(
+        [sys.executable, "-m", "forster.cli", "import", str(source), "--template", str(path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert done.returncode == 2 and "columns" in done.stderr
+    assert "Traceback" not in done.stderr
+
+
+def test_blank_unnamed_columns_do_not_refuse_a_file(tmp_path):
+    folder = tmp_path / "grains"
+    folder.mkdir()
+    _one_profile(folder / "g1.csv")
+    template = guess(pd.read_csv(folder / "g1.csv"))
+    stray = pd.read_csv(folder / "g1.csv").assign(**{"Unnamed: 7": np.nan})
+    stray.to_csv(folder / "g2.csv", index=False)
+    stray["Unnamed: 8"] = 1.0  # a column with something in it is still refused
+    stray.to_csv(folder / "g3.csv", index=False)
+    batch = import_files(folder, template)
+    assert set(batch.profiles) == {"g1", "g2"} and list(batch.problems) == [folder / "g3.csv"]
+
+
+def test_unreadable_excel_files_are_listed_as_problems(tmp_path):
+    folder = tmp_path / "grains"
+    folder.mkdir()
+    _one_profile(folder / "g1.csv")
+    (folder / "g2.xls").write_text("Distance (um)\tFo\n0\t88\n")  # tab text, not Excel
+    (folder / "g3.xlsx").write_bytes(b"PK not a workbook")
+    batch = import_files(folder, guess(pd.read_csv(folder / "g1.csv")))
+    assert set(batch.profiles) == {"g1"}
+    assert {p.name for p in batch.problems} == {"g2.xls", "g3.xlsx"}
+    assert all("Excel file" in why for why in batch.problems.values())
+    draft = tmp_path / "grains.import.json"
+    guess(pd.read_csv(folder / "g1.csv")).save(draft)
+    done = subprocess.run(
+        [sys.executable, "-m", "forster.cli", "import", str(folder), "--template", str(draft)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert done.returncode == 1 and "g2.xls" in done.stderr and "Excel file" in done.stderr
+
+
+def test_cli_prints_an_unreadable_excel_file_as_a_refusal(tmp_path):
+    path = tmp_path / "bad.xls"
+    path.write_text("not an excel file")
+    done = subprocess.run(
+        [sys.executable, "-m", "forster.cli", "import", str(path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert done.returncode == 2 and done.stderr.startswith("forster: ")
+    assert "Traceback" not in done.stderr
+
+
+def test_forster_import_dot_resolves_the_folder(tmp_path):
+    folder = tmp_path / "grains"
+    folder.mkdir()
+    _one_profile(folder / "g1.csv")
+    done = subprocess.run(
+        [sys.executable, "-m", "forster.cli", "import", "."],
+        cwd=folder,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert done.returncode == 3, done.stderr  # proposed, awaiting a check
+    assert (tmp_path / "grains.import.json").exists()

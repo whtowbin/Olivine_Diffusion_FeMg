@@ -55,6 +55,7 @@ dev = [
     "pyside6-essentials>=6.12.0",
     "pytest>=8.3",
     "pytest-xdist>=3.6",
+    "pyyaml>=6",
     "ruff>=0.14",
     "ty>=0.0.1a20",
 ]
@@ -79,6 +80,7 @@ docs = [
 # week ago (matches Dependabot's 7 days for the GitHub Actions). Needs uv 0.9.17 or newer.
 [tool.uv]
 exclude-newer = "7 days"
+required-version = ">=0.9.17"
 default-groups = ["dev", "analysis"]
 
 [build-system]

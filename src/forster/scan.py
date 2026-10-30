@@ -26,9 +26,10 @@ chi-squared for the profile range) or uniform (+- half-width; nodes over the who
 range, flat weights, no penalty). Edge and core Fo are the boundary values held
 fixed during diffusion, so scanning them changes the boundary conditions too.
 
-All candidates run on one numerical grid. By default its time step is set so that
-D dt / dx^2 = `SCAN_STABILITY` (0.4; the explicit scheme needs 0.5 or less) for the
-largest diffusivity over every candidate's compositions. The grid spacing is not
+All candidates run on one numerical grid. With an explicit scheme its time step is set
+so that D dt / dx^2 = `SCAN_STABILITY` (0.4; the explicit scheme needs 0.5 or less) for
+the largest diffusivity over every candidate's compositions; the default implicit scheme
+keeps the grid as given. The grid spacing is not
 changed here, as coarsening it biases the result
 (``docs/references/likelihood-method.md``, section 7); `forster.grid.choose_grid`
 chooses it for the accuracy wanted.
@@ -36,6 +37,7 @@ chooses it for the accuracy wanted.
 
 from __future__ import annotations
 
+import copy
 import itertools
 import math
 from collections.abc import Callable, Mapping, Sequence
@@ -59,6 +61,7 @@ from forster.model import (
     InitialCondition,
     Orientation,
     Profile,
+    _check_options,
     _diffusion_model,
     _explicit_substeps,
     _run_past_best_fit,
@@ -202,7 +205,11 @@ def _with_values(initial: InitialCondition, values: Mapping[str, float]) -> Init
             steps[int(name[4:-3]) - 1] = v
         else:
             fo[initial.segment_names.index(name[:-3])] = v
-    return replace(initial, steps_um=tuple(steps), segment_fo=tuple(fo))
+    # Not `replace`: it would refuse the invalid trial points that `is_valid` rejects.
+    trial = copy.copy(initial)
+    object.__setattr__(trial, "steps_um", tuple(steps))
+    object.__setattr__(trial, "segment_fo", tuple(fo))
+    return trial
 
 
 @dataclass(frozen=True)
@@ -411,6 +418,7 @@ def run_candidates(
     once its own fit is well behind it, as in `fit_profile`. ``progress(i, n)`` is
     called after each run.
     """
+    _check_options(scheme, "correlated", (), None)
     if not candidates:
         raise ValueError("no candidate initial conditions")
     domains = {c.domain_um for c in candidates}
@@ -604,6 +612,7 @@ def scan_initial_conditions(
     list should be evenly spaced. To plot the best fit, fit ``scan.best_initial`` with
     `fit_profile`.
     """
+    _check_options(scheme, "correlated", (), None)
     if isinstance(candidates, CandidateGrid):
         prior, initials = candidates, candidates.candidates
     else:

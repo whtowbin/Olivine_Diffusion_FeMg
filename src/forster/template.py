@@ -102,7 +102,8 @@ PARAMETER_COLUMNS = (
         "required",
         "Starting Fo of each segment, from edge 1 inward. Give one more value than steps_um "
         '("0.91, 0.89" for one step, "0.91, 0.93, 0.89" for two). Replaces edge_fo, core_fo '
-        "and step_fo, which are still read until the release.",
+        "and step_fo, which are still read, with a warning, and will be removed in a later "
+        "version.",
     ),
     Column(
         "segment_names",
@@ -199,13 +200,13 @@ PARAMETER_COLUMNS = (
         "implicit (default since 2026-10-13): rim on the end node, steps not snapped to "
         "nodes, any time step. central: the engine's explicit scheme, used before. dipra: "
         "DIPRA's forward-difference scheme (Girona and Costa 2013), a numerical scheme and "
-        "not the diffusion law. With uncertainty = legacy the default is central.",
+        "not the diffusion equation. With uncertainty = legacy the default is central.",
     ),
     Column(
         "diffusivity",
         "",
         "optional",
-        "Fe-Mg diffusivity equation (the diffusion law). Choices: "
+        "Fe-Mg diffusivity equation. Choices: "
         + "; ".join(
             f"{alias}: {label}, preset {name}" for alias, (name, label) in FE_MG_CHOICES.items()
         )
@@ -218,7 +219,8 @@ PARAMETER_COLUMNS = (
         "uncertainty",
         "",
         "optional",
-        "correlated (default) or legacy (the round robin rule, which reproduces old results).",
+        "correlated (default) or legacy (the independent-errors rule with kriging from March "
+        "2026, kept to reproduce results from before the correlated method).",
     ),
     Column(
         "steps_sd_um",
@@ -299,7 +301,7 @@ PARAMETER_COLUMNS = (
         "mc_T_sd_C",
         "°C",
         "optional",
-        "Monte Carlo over the conditions and the diffusion law (forster.rescale), run when "
+        "Monte Carlo over the conditions and the diffusion equation (forster.rescale), run when "
         "any mc_ spread column is given. This column is the 1 sigma of temperature.",
     ),
     Column("mc_P_sd_Pa", "Pa", "optional", "Monte Carlo: 1 sigma of pressure."),
@@ -321,7 +323,7 @@ PARAMETER_COLUMNS = (
         "mc_law",
         "",
         "optional",
-        "Monte Carlo: yes (default) draws the diffusion law's parameters from its "
+        "Monte Carlo: yes (default) draws the diffusion equation's parameters from its "
         "covariance, or no. Laws without a covariance, such as dipra, are exact.",
     ),
     Column(
@@ -387,8 +389,8 @@ SUMMARY_COLUMNS = (
         "law_sigma_log10",
         "log10",
         "",
-        "1 sigma of log10 D from the diffusion law's covariance at the run's conditions "
-        "(also the 1 sigma of log10 time, with the sign changed). Empty for laws without a "
+        "1 sigma of log10 D from the diffusion equation's covariance at the run's conditions "
+        "(also the 1 sigma of log10 time, with the sign changed). Empty for equations without a "
         "covariance (the default) and for fits with growth stages or a rim value that "
         "changes in time (docs/references/law-uncertainty-limits.md).",
     ),
@@ -396,15 +398,15 @@ SUMMARY_COLUMNS = (
         "between_study_log10",
         "log10",
         "",
-        "Spread between laboratories in the law's calibration data (a random study offset).",
+        "Spread between laboratories in the equation's calibration data (a random study offset).",
     ),
     Column(
         "law_low_days",
         "days",
         "",
-        "Low end of the 1-sigma range with the law's uncertainty added. To compare crystals "
-        "fitted with the same law, use low_days and high_days, because the law's error is "
-        "common to all of them. For a time on its own, use these.",
+        "Low end of the 1-sigma range with the equation's uncertainty added. To compare crystals "
+        "fitted with the same equation, use low_days and high_days, because the equation's "
+        "error is common to all of them. For a time on its own, use these.",
     ),
     Column("law_high_days", "days", "", "High end of that range."),
     Column(
@@ -605,7 +607,7 @@ SUMMARY_COLUMNS = (
         "days",
         "",
         "Monte Carlo median time, combining the fit (or the initial-condition posterior), "
-        "the conditions and the diffusion law.",
+        "the conditions and the diffusion equation.",
     ),
     Column("mc_low_days", "days", "", "Monte Carlo 16th percentile."),
     Column("mc_high_days", "days", "", "Monte Carlo 84th percentile."),
@@ -616,7 +618,7 @@ SUMMARY_COLUMNS = (
         "log10",
         "",
         "Monte Carlo: standard deviation of log10 time from each source drawn alone (fit, "
-        "T, P, fO2, law, studies). It shows which source matters most.",
+        "T, P, fO2, equation, studies). It shows which source matters most.",
     ),
     Column(
         "scan_dropped",

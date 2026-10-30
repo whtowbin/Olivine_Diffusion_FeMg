@@ -14,6 +14,7 @@ pascals (``_Pa``), degrees Celsius (``_C``). Fo is a fraction (0.88, not 88).
 
 from __future__ import annotations
 
+import itertools
 import math
 import os
 import re
@@ -103,6 +104,10 @@ class Profile:
         object.__setattr__(self, "fo", fo)
 
 
+# Largest |sum of cos^2 - 1| of the three axis angles that `Orientation` accepts.
+ORIENTATION_COS2_TOLERANCE = 0.05
+
+
 @dataclass(frozen=True)
 class Orientation:
     """Angles (degrees) between the profile and the olivine [100], [010] and [001] axes."""
@@ -110,6 +115,21 @@ class Orientation:
     alpha_deg: float
     beta_deg: float
     gamma_deg: float
+
+    def __post_init__(self) -> None:
+        # The three direction cosines of one direction satisfy sum cos^2 = 1. Angles
+        # rounded to the nearest degree or read from EBSD stay within the tolerance.
+        cos2 = sum(math.cos(math.radians(a)) ** 2 for a in self._angles())
+        if not abs(cos2 - 1.0) <= ORIENTATION_COS2_TOLERANCE:
+            raise ValueError(
+                f"orientation angles alpha={self.alpha_deg:g}, beta={self.beta_deg:g}, "
+                f"gamma={self.gamma_deg:g} degrees are not the angles of one direction: the "
+                f"sum of cos^2 is {cos2:.3f}, not 1. Check that they are the angles "
+                "between the profile and [100], [010] and [001]"
+            )
+
+    def _angles(self) -> tuple[float, float, float]:
+        return self.alpha_deg, self.beta_deg, self.gamma_deg
 
     @classmethod
     def from_euler(
@@ -133,6 +153,17 @@ class Conditions:
     T_C: float
     P_Pa: float
     fO2_Pa: float
+
+    def __post_init__(self) -> None:
+        if not (math.isfinite(self.T_C) and math.isfinite(self.P_Pa)):
+            raise ValueError(
+                f"T_C and P_Pa must be finite numbers, got T_C={self.T_C}, P_Pa={self.P_Pa}"
+            )
+        if not (math.isfinite(self.fO2_Pa) and self.fO2_Pa > 0):
+            raise ValueError(
+                f"fO2_Pa must be a positive number of pascals, got {self.fO2_Pa}: "
+                "fO2_Pa is in Pa, not log units"
+            )
 
     @property
     def T_K(self) -> float:
@@ -230,6 +261,13 @@ class InitialCondition:
             raise ValueError(
                 f"segment names must be distinct letters and digits starting with a letter "
                 f"(not 'step...'), got {list(names)}"
+            )
+        if not all(low <= s <= high for s in self.steps_um) or not all(
+            b > a for a, b in itertools.pairwise(self.steps_um)
+        ):
+            raise ValueError(
+                f"the steps must increase from rim to core and lie inside the model domain "
+                f"{self.domain_um} um, got steps_um {self.steps_um}"
             )
         if self.centre_um is not None and not self.centre_um >= high:
             raise ValueError(
@@ -346,7 +384,8 @@ class FitResult:
 
     ``uncertainty`` names the method. "correlated": ``sum_chi2`` is the generalised
     chi-squared of the measured points (``fit_x_um``, ``fit_fo``) under the fitted
-    ``noise`` model, and the range ends are where it crosses its minimum + 1,
+    ``noise`` model, and the range ends are where it crosses its minimum plus
+    `forster.uncertainty.interval_threshold` (1 for many points, more for few),
     interpolated between time steps. "legacy": ``sum_chi2`` is the chi-squared of
     the kriged grid (``fit_x_um`` is the model grid) and the range is the old
     reduced chi-squared rule; ``noise`` is None.
@@ -514,9 +553,17 @@ def model_grid(
     x_um: np.ndarray, grid: Grid, domain_um: tuple[float, float]
 ) -> tuple[np.ndarray, float, tuple[int, int]]:
     """Even grid from 0 to the last measured point (as in model_diffusion), its spacing,
-    and the grid rows nearest the two ends of the model domain."""
+    and the grid rows nearest the two ends of the model domain.
+
+    The grid starts at 0, so a domain that starts below 0 is refused."""
     num_x = int(round(abs(x_um.max() - x_um.min()) / grid.dx_um, 0))
     step_x, dx_um = np.linspace(0, x_um.max(), num_x, endpoint=True, retstep=True)
+    if domain_um[0] < step_x[0] - dx_um / 2:
+        raise ValueError(
+            f"the explicit schemes put edge 1 at x = 0, but the domain starts at "
+            f'{domain_um[0]:g} um; use scheme="implicit" or shift the profile\'s '
+            "distances so edge 1 is at 0"
+        )
     low_idx = int(np.abs(step_x - domain_um[0]).argmin())
     high_idx = int(np.abs(step_x - domain_um[1]).argmin())
     return step_x, float(dx_um), (low_idx, high_idx)
@@ -1090,7 +1137,7 @@ def fit_profile(
 
     With "correlated" and ``stop_early`` (the default) the model stops once the fit
     is well behind it (see `STOP_TIME_FACTOR`, `STOP_RSS_RATIO`) instead of running to
-    ``grid.max_time_days``, and is extended if the 1-sigma range reaches the end;
+    ``grid.max_time_days``, and is extended if the 2-sigma range reaches the end;
     ``FitResult.modelled_days`` then says how far it ran. The fit is the same as with the
     full run. The legacy method always runs to ``max_time_days``.
 
@@ -1410,9 +1457,8 @@ def _core_end_lengths(
             "last measured point, and data that stop on the slope move the fit. Measure "
             "until the data have been flat for at least one more diffusion length, and do "
             "not trim plateau points. If the profile already reaches the crystal's center, "
-            "the fixed core boundary is the problem, not the data (modeling the whole "
-            "crystal, rim to rim with a free core, is not available yet; "
-            "docs/guide/practical-advice.md)",
+            "the fixed core boundary is the problem, not the data: give the crystal's "
+            "center as centre_um to model rim to rim with a free core (docs/site/setup.md)",
             stacklevel=3,
         )
     return lengths

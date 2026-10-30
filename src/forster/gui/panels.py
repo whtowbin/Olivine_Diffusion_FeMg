@@ -621,8 +621,10 @@ class UncertaintiesTab(Tab):
         self.mc_buffer.setCurrentIndex(max(0, self.mc_buffer.findData(values["fO2_buffer"])))
         self.mc_law.setChecked(values["law"] == "yes")
         self.mc_between.setChecked(values["between_study"] == "yes")
-        for widget in (self.mc_buffer, self.mc_law, self.mc_between, self.mc_button):
+        for widget in (self.mc_buffer, self.mc_law, self.mc_between):
             widget.setEnabled(on)
+        # The cancel button is shown only while a Monte Carlo runs.
+        self.mc_button.setEnabled(on and self.mc_cancel.isHidden())
         keys = ("on", "fO2_buffer", "law", "between_study", *self.mc_fields)
         self.mc_error.show_errors(self.errors(*keys))
 
@@ -651,7 +653,7 @@ class ProfileDataTab(Tab):
             "Add profiles from a CSV or Excel table, choosing which columns hold the "
             "profile name, the distance and Fo"
         )
-        self.import_button.clicked.connect(self.import_requested.emit)
+        self.import_button.clicked.connect(lambda _checked=False: self.import_requested.emit())
         top.addWidget(self.import_button)
         layout.addLayout(top)
         layout.addWidget(

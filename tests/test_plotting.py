@@ -121,3 +121,16 @@ def test_a_failed_law_still_leaves_the_others_figure(example, tmp_path, monkeypa
     assert (tmp_path / f"{STEM}_laws.png").stat().st_size > 0
     assert not (tmp_path / f"{STEM}_dfens_global_fit.png").exists()
     assert (tmp_path / f"{STEM}_dipra_fit.png").stat().st_size > 0
+
+
+def test_time_distributions_survive_a_zero_day_monte_carlo_draw(example):
+    """A draw of 0 days has no logarithm: it is left out of the histogram, not a crash."""
+    from forster import plot_time_distributions
+    from forster.rescale import TimeDistribution
+
+    _, fits = example
+    fit = next(iter(fits.values()))
+    days = np.array([0.0, 1.0, 2.0, 3.0, 5.0, 8.0])
+    mc = TimeDistribution("refit", days, {16: 1.0, 50: 3.0, 84: 8.0}, {}, 0)
+    ax = plot_time_distributions(fit, mc=mc, ax=Figure().subplots())
+    assert np.isfinite(ax.get_xlim()).all()

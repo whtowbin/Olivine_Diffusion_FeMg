@@ -198,3 +198,20 @@ def test_the_app_refuses_the_legacy_method_which_needs_kriging(project):
     legacy = project.update_run(EXAMPLE, uncertainty="legacy", scheme="central")
     message = app_refusal(legacy)
     assert message is not None and "kriging" in message and "forster fit" in message
+
+
+def test_inconsistent_angles_and_out_of_order_steps_are_refused_in_the_editor(editor, project):
+    """The model now rejects these inputs; the editor shows its normal refusal and
+    leaves the run as it was."""
+    before = project.run(EXAMPLE)
+    fields = editor.orientation_text() | {"mode": "angles"}
+    bad = fields | {"alpha_deg": "0", "beta_deg": "0", "gamma_deg": "0"}
+    assert not editor.set_orientation(bad, "alpha_deg")
+    assert editor.errors["alpha_deg"]
+    assert project.run(EXAMPLE).orientation == before.orientation
+
+    assert editor.add_segment(1)  # three segments, steps at 24 and the middle of b
+    rows = list(editor.rows)
+    assert not editor.set_cell(0, "end", str(rows[1].end_um + 1))  # past the next step
+    assert editor.errors["segment:0:end"]
+    assert project.run(EXAMPLE).initial.steps_um == tuple(r.end_um for r in rows[:-1])

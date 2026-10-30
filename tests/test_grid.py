@@ -16,8 +16,10 @@ import pytest
 from conftest import ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS, require_round_robin
 
 from forster import (
+    Conditions,
     Grid,
     InitialCondition,
+    Orientation,
     RunDefaults,
     fit_profile,
     fit_run,
@@ -265,3 +267,17 @@ def test_blank_grid_on_a_dense_profile_stays_within_memory():
         profile, run.conditions, run.orientation, run.initial, run.diffusivity
     )
     assert choice.coarse_time_days > 0 and choice.grid.timesteps > 0
+
+
+@pytest.mark.parametrize("time_days", [0.0, -1.0])
+def test_choose_grid_with_a_zero_time_runs_the_coarse_estimate(time_days):
+    # time_days=0 once crashed with OverflowError (a zero diffusion length).
+    x = np.arange(0.0, 120.0, 2.0)
+    profile = Profile(x, np.where(x < 30, 0.80, 0.90) + 0.0005 * np.sin(x))
+    initial = InitialCondition((0, 120), steps_um=(30,), segment_fo=(0.80, 0.90))
+    conditions, orient = Conditions(1200, 1e8, 1e-3), Orientation(90, 90, 0)
+    args = (profile, conditions, orient, initial, "dohmen_chakraborty2007")
+    zero = choose_grid(*args, time_days=time_days)
+    unknown = choose_grid(*args)
+    assert zero.coarse_time_days > 0
+    assert zero.grid == unknown.grid

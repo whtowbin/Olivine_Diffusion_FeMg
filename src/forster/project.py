@@ -72,7 +72,7 @@ from forster.model import Conditions, FitResult, Grid, InitialCondition, Orienta
 from forster.rescale import PosteriorOfTime, TimeDistribution, monte_carlo
 from forster.sampling import ICPosterior
 from forster.scan import ScanResult, is_valid
-from forster.template import write_template
+from forster.template import PARAMETER_COLUMNS, write_template
 from forster.uncertainty import NoiseModel
 
 FORMAT_VERSION = 1
@@ -379,12 +379,31 @@ class Project:
         if (folder / PROFILES).exists():
             profiles = read_profiles(folder / PROFILES)
             masked = _masked_points(folder / PROFILES, profiles)
-        runs = read_runs(folder / PARAMETERS, diffusivities=custom)
+        # An empty project: older versions wrote a blank file, newer ones the header row.
+        blank = not (folder / PARAMETERS).read_text(encoding="utf-8-sig").strip()
+        runs = [] if blank else read_runs(folder / PARAMETERS, diffusivities=custom)
         state = {}
         if (folder / STATE).exists():
-            state = json.loads((folder / STATE).read_text())
+            try:
+                state = json.loads((folder / STATE).read_text())
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{folder / STATE}: not a FORSTER project file ({exc})") from exc
             if not isinstance(state, dict):
                 raise ValueError(f"{folder / STATE}: not a FORSTER project file")
+            version_ = state.get("format", FORMAT_VERSION)
+            if not isinstance(version_, int) or isinstance(version_, bool):
+                raise ValueError(
+                    f'{folder / STATE}: "format" must be a whole number, not {version_!r}; '
+                    "the file is damaged"
+                )
+            if not isinstance(state.get("views", {}), dict):
+                raise ValueError(
+                    f'{folder / STATE}: "views" must be a table of run names, not '
+                    f"{state['views']!r}; the file is damaged"
+                )
+            state["views"] = {
+                str(k): v for k, v in state.get("views", {}).items() if isinstance(v, dict)
+            }
             # project.json comes from whoever sent the folder: keep only well-formed cache
             # keys, which are used to build paths (and to delete stale entries).
             for kind in RECORDS:
@@ -421,7 +440,10 @@ class Project:
         _no_links(folder)
         folder.mkdir(parents=True, exist_ok=True)
         _write_csv(profile_table(self.profiles, self.masked), folder / PROFILES)
-        _write_csv(pd.DataFrame([run_row(r) for r in self.runs]), folder / PARAMETERS)
+        runs = pd.DataFrame([run_row(r) for r in self.runs])
+        if runs.empty:  # a header row, so the table reads back as no runs
+            runs = pd.DataFrame(columns=pd.Index([c.name for c in PARAMETER_COLUMNS]))
+        _write_csv(runs, folder / PARAMETERS)
         if self.diffusivities:
             _write_csv(diffusivity_table(self.diffusivities.values()), folder / DIFFUSIVITIES)
         state = {**self.state, "format": FORMAT_VERSION, "forster_version": version("forster")}
@@ -430,11 +452,25 @@ class Project:
     def save(self, folder: str | Path | None = None) -> None:
         """Write the tables and project.json (to ``folder``: save as), and clear the
         autosave."""
-        if folder is not None:
+        if folder is not None and Path(folder) != self.folder:
+            self._copy_cache(Path(folder))
             self.folder = Path(folder)
         self._write(self.folder)
         shutil.rmtree(self.folder / WORK / "autosave", ignore_errors=True)
         self.dirty = False
+
+    def _copy_cache(self, folder: Path) -> None:
+        """Copy the cache entries project.json lists into ``folder``'s cache (save as), so
+        the saved results stay with the project; links are never followed."""
+        _no_links(self.folder / WORK, self.folder / WORK / "cache")
+        _no_links(folder / WORK, folder / WORK / "cache")
+        for kind in RECORDS:
+            for key in set(self.state.get(kind, {}).values()):
+                source, target = self._cache(key), folder / WORK / "cache" / key
+                if not source.is_dir() or target.exists():
+                    continue
+                _no_links(source, *(p for p in source.iterdir()))
+                shutil.copytree(source, target)
 
     def autosave(self) -> None:
         """Write everything to ``.forster/autosave/``, leaving the saved tables alone."""

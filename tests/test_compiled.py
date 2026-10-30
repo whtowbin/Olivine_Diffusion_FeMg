@@ -66,6 +66,19 @@ def test_implicit_kernel_matches_numpy_with_a_changing_rim(law):
     assert np.array_equal(np.concatenate([fast(start, 80), rest[1:]]), a)
 
 
+def test_implicit_kernel_matches_numpy_with_a_fixed_rim(law):
+    D, _ = law
+    x = node_grid([0.0, 40.3, 150.0], 2.0)
+    start = cell_average(x, [20.3], [0.82, 0.88])
+    fast = compiled.implicit_stepper(D, 0.82, 0.88, 3600.0, x)
+    assert fast is not None
+    slow = stepper(D, 0.82, 0.88, 3600.0, x)
+    a, b = fast(start, 200), slow(start, 200)
+    assert np.abs(a - b).max() < 1e-12
+    rest = fast(a[80], 120, first_row=80)
+    assert np.array_equal(np.concatenate([fast(start, 80), rest[1:]]), a)
+
+
 def test_a_custom_diffusivity_falls_back_to_numpy():
     def D(x):
         return 1e-17 * (1.0 + np.asarray(x))  # not of the log-linear form

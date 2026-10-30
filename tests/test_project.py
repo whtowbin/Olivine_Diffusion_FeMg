@@ -260,7 +260,7 @@ def test_cache_keeps_one_entry_per_run_and_ignores_scan_settings(project):
 def test_steps_outside_the_domain_are_refused(project):
     run = project.run(EXAMPLE)
     for steps in ((100.0,), (-5.0,)):
-        with pytest.raises(ValueError, match="inside the model domain"):
+        with pytest.raises(ValueError, match="inside"):
             project.update_run(EXAMPLE, initial=replace(run.initial, steps_um=steps))
     assert project.run(EXAMPLE) == run
 
@@ -466,3 +466,50 @@ def test_a_variant_fit_is_keyed_by_its_own_settings(project):
     assert outcome.result.inputs["diffusivity"] == other
     assert not project.store(task, outcome.result)  # not the run's own settings
     assert project.result(EXAMPLE) is None
+
+
+def test_a_project_with_no_runs_reopens(tmp_path):
+    folder = tmp_path / "empty"
+    Project.new(folder, example=False)
+    again = Project.open(folder)
+    assert again.runs == [] and again.profiles == {}
+    again.save()
+    assert Project.open(folder).runs == []
+
+
+def test_a_blank_parameter_table_from_older_versions_opens_as_no_runs(tmp_path):
+    folder = tmp_path / "old"
+    Project.new(folder, example=False)
+    (folder / "parameters.csv").write_text("\n")
+    assert Project.open(folder).runs == []
+
+
+def test_save_as_takes_the_result_cache_along(project, tmp_path):
+    project.fit(EXAMPLE)
+    project.save()
+    key = project.state["results"][EXAMPLE]
+    new = tmp_path / "copy"
+    project.save(new)
+    assert (new / WORK / "cache" / key / "fit.json").exists()
+    assert (project.folder / WORK / "cache" / key / "fit.json").exists()  # the original stays
+    again = Project.open(new)
+    assert again.result(EXAMPLE) is not None
+
+
+@pytest.mark.parametrize(
+    ("change", "match"),
+    [
+        ({"format": "1"}, "format"),
+        ({"format": True}, "format"),
+        ({"views": []}, "views"),
+    ],
+)
+def test_a_malformed_project_file_is_a_clear_error(project, change, match):
+    project.save()
+    state = json.loads((project.folder / "project.json").read_text())
+    (project.folder / "project.json").write_text(json.dumps({**state, **change}))
+    with pytest.raises(ValueError, match=match):
+        Project.open(project.folder)
+    (project.folder / "project.json").write_text("{not json")
+    with pytest.raises(ValueError, match="not a FORSTER project file"):
+        Project.open(project.folder)

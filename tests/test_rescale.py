@@ -6,17 +6,33 @@ fO2 against the buffer; and the refit path on a fit with a growth stage.
 """
 
 import math
+import warnings
 from dataclasses import replace
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from forster import Conditions, Grid, fit_profile, fit_run, read_profiles, read_runs, write_template
+from forster import (
+    Conditions,
+    Grid,
+    fit_profile,
+    fit_run,
+    read_profiles,
+    read_runs,
+    rescale,
+    write_template,
+)
 from forster.boundary import Stage
 from forster.diffusivity import resolve
 from forster.io import mc_run, mc_summary
-from forster.rescale import ConditionUncertainty, _condition_draws, _log10_d, monte_carlo
+from forster.rescale import (
+    ConditionUncertainty,
+    _condition_draws,
+    _log10_d,
+    _refit,
+    monte_carlo,
+)
 
 
 @pytest.fixture(scope="module")
@@ -141,3 +157,50 @@ def test_time_distributions_figure(example):
     assert ax.get_xscale() == "log"
     lo, hi = ax.get_xlim()
     assert lo < mc.percentiles_days[5] and hi > mc.percentiles_days[95]
+
+
+def _staged_fit_with_short_grid(example):
+    """A staged fit whose grid ends just past its best time (4 days for a 3 day fit)."""
+    run, profiles, result, _ = example
+    grid = Grid(0.5, result.dt_s, 4.0)
+    stage = Stage(0.5 * 86400, rim_um=1.0, zone_value=0.915)
+    staged = fit_profile(
+        profiles[run.profile_name],
+        run.conditions,
+        run.orientation,
+        run.initial,
+        grid,
+        None,
+        run.diffusivity,
+        stages=[stage],
+    )
+    slow = replace(
+        run.diffusivity, log10_D0_m2_s=tuple(v - 1 for v in run.diffusivity.log10_D0_m2_s)
+    )
+    return run, staged, slow
+
+
+def test_a_refit_draw_with_lower_d_gets_a_longer_run_not_the_grid_cap(example):
+    """A draw with D 10x lower needs a run ~10x longer than the fit's whole grid."""
+    run, staged, slow = _staged_fit_with_short_grid(example)
+    assert staged.time_days < 4.0 < 10 * staged.time_days
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        dist = _refit(staged, [staged.time_days], [run.conditions], [slow], [0.0], 0)
+    assert dist.days[0] == pytest.approx(10 * staged.time_days, rel=0.15)
+
+
+def test_a_refit_draw_stuck_at_the_grid_end_is_counted_and_warned_once(example, monkeypatch):
+    """With the run length not scaled (forced), the draw is capped and the count is warned."""
+    run, staged, slow = _staged_fit_with_short_grid(example)
+    monkeypatch.setattr(rescale, "_log10_d", lambda *args: 0.0)
+    with pytest.warns(UserWarning, match=r"1 of 2 Monte Carlo draws .* end of the modelled time"):
+        dist = _refit(
+            staged,
+            [staged.time_days] * 2,
+            [run.conditions] * 2,
+            [slow, run.diffusivity],
+            [0.0, 0.0],
+            0,
+        )
+    assert dist.days[0] < 4.5

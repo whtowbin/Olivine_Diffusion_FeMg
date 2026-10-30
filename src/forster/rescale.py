@@ -192,7 +192,8 @@ def _condition_draws(
 
 
 def _log10_d(law: Diffusivity, conditions: Conditions, orientation, x_fo: float) -> float:
-    D, _ = law.functions(conditions, orientation)
+    with notes.quiet():  # draws outside a law's range are the spread being sampled
+        D, _ = law.functions(conditions, orientation)
     return math.log10(float(D(np.array([x_fo]))[0]))
 
 
@@ -279,20 +280,30 @@ def _refit(
     result, t_fit, drawn, laws, studies, seed, progress=None, cancel=None
 ) -> TimeDistribution:
     """Refit every draw (growth stages, changing rim), scaling each by the fit's own
-    relative scatter (t_fit / best) and the between-study offset."""
+    relative scatter (t_fit / best) and the between-study offset.
+
+    A draw whose D is lower than the fit's needs a proportionally longer run, so its
+    grid's longest time is the fit's grid's times D_fit / D_draw (never shorter: growth
+    stages fall on the grid's steps). Draws whose best fit still sits on the grid's last
+    row are counted and reported once."""
     inputs = result.inputs
     profile = Profile(result.data_x_um, result.data_fo, name=result.name)
-    days = []
+    initial, grid = inputs["initial"], inputs["grid"]
+    x_fo = initial.edge_fo + (initial.core_fo - initial.edge_fo) / 3
+    ref = _log10_d(inputs["diffusivity"], inputs["conditions"], inputs["orientation"], x_fo)
+    days, capped = [], 0
     for t, c, lw, b in zip(t_fit, drawn, laws, studies, strict=True):
         if cancel is not None and cancel():
             raise Cancelled
+        slower = 10 ** (ref - _log10_d(lw, c, inputs["orientation"], x_fo))
+        draw_grid = replace(grid, max_time_days=grid.max_time_days * max(slower, 1.0))
         with notes.quiet():  # the fit itself has already warned
             fit = fit_profile(
                 profile,
                 c,
                 inputs["orientation"],
-                inputs["initial"],
-                inputs["grid"],
+                initial,
+                draw_grid,
                 None,
                 lw,
                 inputs["scheme"],
@@ -301,8 +312,15 @@ def _refit(
                 rim_fo=inputs["rim_fo"],
                 check_near_step=False,
             )
+        capped += fit.indices[0] >= draw_grid.timesteps
         days.append(fit.time_days * (t / result.time_days) * 10 ** (-b))
         if progress is not None:
             progress(len(days), len(t_fit))
+    if capped:
+        notes.warn(
+            f"{capped} of {len(t_fit)} Monte Carlo draws fitted a time at the end of the "
+            "modelled time, so their times are lower limits; raise the grid's "
+            "max_time_days and run the Monte Carlo again."
+        )
     days = np.array(days)
     return TimeDistribution("refit", days, _percentiles(days), {}, seed)

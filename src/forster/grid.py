@@ -289,8 +289,8 @@ def choose_grid(
     """A grid for fitting ``profile`` to within ``tolerance`` (default by ``purpose``).
 
     ``time_days``: the fitted time if already known (for example the nominal fit when
-    choosing a scan's grid); otherwise a coarse fit estimates it. ``species``: for
-    coupled element runs, every (diffusivity, Fo range) modelled; dt satisfies the
+    choosing a scan's grid); if None or not positive, a coarse fit estimates it.
+    ``species``: for coupled element runs, every (diffusivity, Fo range) modelled; dt satisfies the
     fastest, dx resolves the slowest. ``max_time_days``: kept if given, otherwise
     3 x the estimated time. ``scheme``: the explicit schemes and "implicit" have
     their own rules (module docstring).
@@ -299,7 +299,7 @@ def choose_grid(
         raise ValueError(f"purpose {purpose!r}; use one of {', '.join(TOLERANCES)}")
     tolerance = tolerance or TOLERANCES[purpose]
     species = _species_or_default(species, diffusivity, initial)
-    if time_days is None:
+    if time_days is None or time_days <= 0:
         time_days = _coarse_time_days(
             profile,
             conditions,
@@ -348,9 +348,11 @@ def check_grid(
     species: Sequence[Species] | None = None,
     scheme: str = DEFAULT_SCHEME,
 ) -> list[str]:
-    """Problems with a given grid, as messages; raises if it is unstable.
+    """Problems with a given grid, as messages.
 
-    Stability (explicit schemes only) is checked on the spacing actually used. With
+    Stability (explicit schemes only) is checked on the spacing actually used; an unstable
+    dt is reported, not refused (the run splits it into stable substeps, and staged
+    explicit runs raise in `fit_profile`). With
     ``time_days`` (a fitted time), also the accuracy: estimated error above
     ``tolerance``, a grid much finer than needed (wasted time), and (explicit) too few
     nodes across the initial condition or (implicit) too few time steps to the fit.

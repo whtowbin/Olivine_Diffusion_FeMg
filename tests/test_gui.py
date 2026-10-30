@@ -8,6 +8,7 @@ import time
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -464,7 +465,6 @@ def test_the_import_dialog_starts_each_profile_at_its_first_point_with_advice(ap
         dialog.deleteLater()
 
 
-
 def record_dialogs(monkeypatch, opened, answers=None):
     """Every file, input and app dialog the window can open records its name in
     ``opened`` and answers from ``answers`` (by name), else as if cancelled."""
@@ -609,3 +609,201 @@ def test_cold_start_import_excel_fit_save_reopen(app, tmp_path, monkeypatch):
         assert again.project.result(fitted) is not None  # from the cache
     finally:
         again.close()
+
+
+def test_rename_a_run_then_switch_save_and_reopen(app, tmp_path):
+    """Renaming looked the view up under the old name: afterwards switching runs, Save
+    and closing all raised KeyError."""
+    window = MainWindow(ask=False)
+    window.show()
+    folder = tmp_path / "example"
+    try:
+        assert window.new_project(folder)
+        project = window.project
+        assert project is not None
+        window.duplicate_run()
+        copy = window.current
+        assert copy is not None and copy != EXAMPLE
+        window.show_centre("Time distribution")
+        assert window.rename_run("renamed")
+        assert window.current == "renamed"
+        window._run_selected(project.run_names.index(EXAMPLE))
+        assert window.current == EXAMPLE
+        window._run_selected(project.run_names.index("renamed"))
+        assert window.save()
+        assert project.view("renamed")["centre_tab"] == "Time distribution"
+        wait(app, lambda: settled(window), "fits")
+    finally:
+        window.close()
+    again = MainWindow(ask=False)
+    try:
+        assert again.open_project(folder)
+        assert again.project is not None
+        assert "renamed" in again.project.run_names and copy not in again.project.run_names
+        assert again.project.view("renamed")["centre_tab"] == "Time distribution"
+    finally:
+        again.close()
+
+
+def test_save_as_refuses_a_folder_that_holds_files(app, tmp_path):
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        other = tmp_path / "other"
+        other.mkdir()
+        (other / "notes.txt").write_text("keep me", encoding="utf-8")
+        assert not window.save(other)
+        assert "already holds files" in window.last_error
+        assert (other / "notes.txt").read_text(encoding="utf-8") == "keep me"
+        assert not (other / "parameters.csv").exists()
+        assert window.save()  # its own folder is fine
+        assert window.save(tmp_path / "fresh")  # so is a new one
+        assert (tmp_path / "fresh" / "parameters.csv").exists()
+    finally:
+        window.close()
+
+
+def test_a_scan_or_monte_carlo_for_changed_settings_is_not_shown(app, tmp_path, monkeypatch):
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        project = window.project
+        assert project is not None
+        name = window.current
+        assert name is not None
+        shown = []
+        monkeypatch.setattr(window, "_show_scan", lambda *a: shown.append("scan"))
+        monkeypatch.setattr(window, "_show_mc", lambda *a: shown.append("mc"))
+        monkeypatch.setattr(project, "store_scan", lambda task, record: False)
+        monkeypatch.setattr(project, "store_mc", lambda task, record: False)
+        window._scan_done((window.serial, SimpleNamespace(name=name)), None, 1.0)  # ty: ignore[invalid-argument-type]
+        assert "fit again" in window.panel.uncertainties.result.text()
+        window._mc_done((window.serial, SimpleNamespace(name=name)), None, 1.0)  # ty: ignore[invalid-argument-type]
+        assert "fit again" in window.panel.uncertainties.mc_result.text()
+        assert shown == []
+        assert not window.panel.uncertainties.apply_button.isEnabled()
+        wait(app, lambda: settled(window), "fit")
+    finally:
+        window.close()
+
+
+def test_the_monte_carlo_button_stays_off_while_one_runs(app, tmp_path):
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        tab = window.panel.uncertainties
+        tab.mc_on.setChecked(True)
+        window._mc_busy(True, "")
+        assert not tab.mc_button.isEnabled()
+        tab._refresh_mc()  # any panel reload
+        assert not tab.mc_button.isEnabled()
+        window._mc_busy(False, "")
+        tab._refresh_mc()
+        assert tab.mc_button.isEnabled() == tab.mc_on.isChecked()
+        wait(app, lambda: settled(window), "fit")
+    finally:
+        window.close()
+
+
+def test_a_law_job_from_a_closed_project_does_not_freeze_the_view(app, tmp_path):
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        old_serial = window.serial
+        window.law_job = object()  # ty: ignore[invalid-assignment]  # a job from the old project
+        assert window.new_project(tmp_path / "second")
+        assert window.serial != old_serial
+        window.law_page.show_message("Fitting…")
+        window._laws_done((old_serial, "x"), [], 0.0)
+        assert window.law_job is None
+        window._laws_failed((old_serial, "x"), "boom")
+        assert window.law_job is None
+        assert "boom" not in window.last_error
+        wait(app, lambda: settled(window), "fit")
+    finally:
+        window.close()
+
+
+def test_the_copy_settings_dialog_is_freed_and_no_run_leaves_no_stale_views(
+    app, tmp_path, monkeypatch
+):
+    from forster.gui.dialogs import CopySettingsDialog
+
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        monkeypatch.setattr(CopySettingsDialog, "exec", lambda self: 0)
+        for _ in range(5):
+            window._choose_copy()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        app.processEvents()
+        assert window.findChildren(CopySettingsDialog) == []
+        project = window.project
+        assert project is not None
+        wait(app, lambda: project.result(window.current or "") is not None, "fit")
+        window.show_centre("Time distribution")
+        window.time_page.figure.text(0.5, 0.5, "old run")
+        window.time_page.drawn = True
+        window.delete_run()
+        assert window.current is None
+        assert not window.time_page.drawn and not window.law_page.drawn
+        assert not window.export_plot(tmp_path / "stale.png")
+        assert not (tmp_path / "stale.png").exists()
+        wait(app, lambda: settled(window), "fit")
+    finally:
+        window.close()
+
+
+def test_the_data_tab_import_button_opens_the_import(app, tmp_path, monkeypatch):
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        asked = []
+        monkeypatch.setattr(
+            "forster.gui.app.QFileDialog.getOpenFileNames",
+            lambda *a, **k: asked.append(True) or ([], ""),
+        )
+        QTest.mouseClick(window.panel.profile.import_button, Qt.MouseButton.LeftButton)
+        assert asked == [True]
+        wait(app, lambda: settled(window), "fit")
+    finally:
+        window.close()
+
+
+def test_the_import_dialog_keeps_the_notes_of_merged_files(app, tmp_path, monkeypatch):
+    """The first note of one file is its count (the summary says it); merged files carry
+    no count line, so dropping the first note lost a real one."""
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        files = [str(lab_csv(tmp_path / f"{stem}.csv")) for stem in ("a", "b")]
+        # Same profile names in two files are refused; name them apart.
+        for stem in ("a", "b"):
+            table = pd.read_csv(tmp_path / f"{stem}.csv")
+            table["Sample"] = table["Sample"] + stem
+            table.to_csv(tmp_path / f"{stem}.csv", index=False)
+        monkeypatch.setattr(
+            "forster.gui.app.QFileDialog.getOpenFileNames", lambda *a, **k: (files, "")
+        )
+        seen = []
+
+        def look(self):
+            seen.append((self.n_files, self.preview().notes, self.notes.text()))
+            return 0
+
+        monkeypatch.setattr(ImportDialog, "exec", look)
+        window._choose_import()
+        n_files, notes, shown = seen[0]
+        assert n_files == 2 and notes
+        for note in notes:
+            assert note in shown
+        wait(app, lambda: settled(window), "fit")
+    finally:
+        window.close()

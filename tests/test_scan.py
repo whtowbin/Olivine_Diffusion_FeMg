@@ -221,3 +221,32 @@ def test_warns_when_a_scanned_parameter_is_best_at_its_limit(setup):
         scan_initial_conditions(
             Profile(x, model), run.conditions, run.orientation, narrow, run.grid
         )
+
+
+def test_scan_entry_points_check_the_scheme_name():
+    # "Implicit" once ran silently as the dipra scheme.
+    from forster import Conditions, Grid, InitialCondition, Orientation
+
+    x = np.arange(0.0, 100.0, 2.0)
+    profile = Profile(x, np.where(x < 30, 0.80, 0.90))
+    initial = InitialCondition((0, 100), steps_um=(30,), segment_fo=(0.80, 0.90))
+    grid = Grid(dx_um=1.0, dt_s=600.0, max_time_days=5)
+    args = (profile, Conditions(1200, 1e8, 1e-3), Orientation(90, 90, 0), [initial], grid)
+    with pytest.raises(ValueError, match="unknown scheme 'Implicit'"):
+        run_candidates(*args, scheme="Implicit")
+    with pytest.raises(ValueError, match="unknown scheme 'Implicit'"):
+        scan_initial_conditions(*args, scheme="Implicit")
+
+
+def test_candidate_grid_drops_out_of_order_and_out_of_range_trial_points():
+    from forster import InitialCondition
+
+    initial = InitialCondition((0, 100), steps_um=(20, 25), segment_fo=(0.82, 0.85, 0.88))
+    grid = candidate_grid(
+        initial,
+        {"step1_um": Uncertainty(4.0), "a_fo": Uncertainty(0.1)},
+        points=5,
+    )
+    assert grid.dropped > 0  # Fo above 1 is dropped, not an error
+    grid = candidate_grid(initial, {"step1_um": Uncertainty(4.0), "step2_um": Uncertainty(4.0)})
+    assert grid.dropped > 0 and all(c.steps_um[0] < c.steps_um[1] for c in grid.candidates)

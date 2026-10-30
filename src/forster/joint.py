@@ -747,7 +747,6 @@ def fit_crystal(
     n_samples: int = DEFAULT_SAMPLES,
     nlive: int = DEFAULT_NLIVE,
     seed: int = 0,
-    ess_fallback: float = ESS_FALLBACK,
     progress: Callable[[str], None] | None = None,
     cancel: Callable[[], bool] | None = None,
 ) -> CrystalFit:
@@ -767,8 +766,10 @@ def fit_crystal(
     fits where already done (each missing one is fitted with `fit_run`). ``grid``: one
     grid for every profile; by default each profile's scan grid (`forster.io.scan_run`)
     with the smallest time step and longest run among them. ``method``, ``n_samples``,
-    ``nlive``, ``seed``, ``ess_fallback``, ``progress`` and ``cancel`` as for
-    `forster.sampling.fit_initial_condition`; the same seed gives the same result.
+    ``nlive``, ``seed``, ``progress`` and ``cancel`` as for
+    `forster.sampling.fit_initial_condition`; the same seed gives the same result. A joint
+    fit has no ``ess_fallback``: its sampler uses a sample-count step instead
+    (`forster.sampling.sample_posterior`).
     """
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}; use one of {', '.join(METHODS)}")
@@ -794,7 +795,7 @@ def fit_crystal(
     offsets = _warn_best(like, z)
     if len(like.names):
         samples, used, ess, log_z = sample_posterior(
-            like, z, method, n_samples, nlive, seed, ess_fallback, say, whiten=True, step=True
+            like, z, method, n_samples, nlive, seed, ESS_FALLBACK, say, whiten=True, step=True
         )
     else:
         (samples, log_z), used, ess = _fixed_samples(like), "fixed", math.nan

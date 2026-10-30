@@ -299,12 +299,13 @@ def plot_time_distributions(
             lw=1.8,
             label=f"With the initial condition: {stats(posterior.days, posterior.density)}",
         )
-    if mc is not None and len(mc.days):
-        log_days = np.log10(mc.days)
+    mc_days = mc.days[mc.days > 0] if mc is not None else np.empty(0)  # a zero draw has no log
+    if mc is not None and len(mc_days):
+        log_days = np.log10(mc_days)
         counts, edges = np.histogram(log_days, bins=60)
         centres = 10 ** (0.5 * (edges[1:] + edges[:-1]))
         lo, mid, hi = (mc.percentiles_days[p] for p in (16, 50, 84))
-        spans.append((float(np.percentile(mc.days, 0.1)), float(np.percentile(mc.days, 99.9))))
+        spans.append((float(np.percentile(mc_days, 0.1)), float(np.percentile(mc_days, 99.9))))
         ax.fill_between(
             centres,
             counts / counts.max(),

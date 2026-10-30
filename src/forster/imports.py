@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 
 import numpy as np
@@ -175,18 +175,33 @@ class ImportTemplate:
             raise ValueError(f"not a FORSTER import template (format {data.get('format')!r})")
         if data.get("version", 0) > VERSION:
             raise ValueError(f"import template version {data['version']} is newer than {VERSION}")
+        if not isinstance(data.get("columns"), list):
+            raise ValueError(
+                'import template has no "columns" list (allowed keys: format, version, '
+                "name, total_window, columns)"
+            )
+        allowed = [f.name for f in fields(ColumnMap)]
+        for c in data["columns"]:
+            bad = sorted(set(c) - set(allowed)) if isinstance(c, dict) else ["(not an object)"]
+            if bad or "column" not in c or "role" not in c:
+                raise ValueError(
+                    f"import template column entry {c!r}: bad or missing key(s) {bad or ''}; "
+                    f"every entry needs column and role, and may have {allowed}"
+                )
         columns = tuple(ColumnMap(**c) for c in data["columns"])
         window = tuple(data.get("total_window", TOTAL_WINDOW))
         return cls(columns, (float(window[0]), float(window[1])), data.get("name", ""))
 
     def save(self, path: str | Path) -> Path:
         path = Path(path)
-        path.write_text(json.dumps(self.to_dict(), indent=1, ensure_ascii=False) + "\n")
+        path.write_text(
+            json.dumps(self.to_dict(), indent=1, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         return path
 
     @classmethod
     def load(cls, path: str | Path) -> ImportTemplate:
-        template = cls.from_dict(json.loads(Path(path).read_text()))
+        template = cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
         return replace(template, name=template.name or Path(path).name)
 
 
@@ -246,11 +261,12 @@ EXCLUDE_KEYS = ("marked_bad", "ignore", "exclude", "bad", "omit")
 
 def _position_unit(header: str) -> str:
     text = str(header).lower()
-    return "mm" if re.search(r"(\(|_|\s|^)mm(\)|\s|$|_)", text) else "um"
+    # "mm" as a word of its own: (mm), [mm], /mm, _mm, "x mm"; not "comment" or "summary".
+    return "mm" if re.search(r"(?<![a-z])mm(?![a-z])", text) else "um"
 
 
 def _oxide_name(header: str) -> str | None:
-    text = re.sub(r"\(.*?\)|wt\.?%?|_wt|\s", "", str(header))
+    text = re.sub(r"\(.*?\)|_?wt\.?%?|%|\s", "", str(header))
     text = text.rstrip("*").removesuffix("t").removesuffix("T") if text[:3] == "FeO" else text
     for name in OXIDE_MASS:
         if text.lower() == name.lower():
@@ -413,7 +429,9 @@ def _total(df: pd.DataFrame, template: ImportTemplate) -> tuple[pd.Series, str]:
 def _excluded(df: pd.DataFrame, template: ImportTemplate) -> pd.Series:
     out = pd.Series(False, index=df.index)
     for cmap in template.by_role("exclude"):
-        out |= df[cmap.column].astype(str).str.strip().str.lower().isin(EXCLUDE_VALUES)
+        # A column with blanks reads as float, so a flag 1 arrives as "1.0".
+        flags = df[cmap.column].astype(str).str.strip().str.lower().str.removesuffix(".0")
+        out |= flags.isin(EXCLUDE_VALUES)
     return out
 
 
@@ -451,7 +469,11 @@ def apply(
     profile column every row belongs to one profile, called ``name`` (default: the
     stem of ``source``, else "profile")."""
     template.check()
-    check_columns(df.columns, template)
+    # A column with no header and nothing in it (Excel's stray formatting) is no column.
+    check_columns(
+        [c for c in df.columns if not (str(c).startswith("Unnamed:") and df[c].isna().all())],
+        template,
+    )
     default_name = name or (Path(source).stem if source else "profile")
     points, excluded = _points(df, template, default_name)
     notes: list[str] = []

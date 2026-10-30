@@ -7,6 +7,7 @@ transcription of its source, and the general formula against the engine.
 
 import itertools
 import math
+import warnings
 from dataclasses import fields, replace
 from pathlib import Path
 
@@ -320,3 +321,53 @@ def test_choices_in_the_diffusivity_column_and_the_summary_label(tmp_path, examp
         assert runs[alias].diffusivity is DIFFUSIVITY_PRESETS[name]
     row = summary_row(fit_run(runs["dfens_tamed"], profiles))
     assert (row["diffusivity"], row["diffusivity_label"]) == FE_MG_CHOICES["dfens_tamed"]
+
+
+def test_presets_survive_a_15_digit_spreadsheet_save_but_a_changed_value_does_not(tmp_path):
+    """Excel keeps 15 significant digits, so a preset row comes back a hair different."""
+    path = tmp_path / "diffusivities.csv"
+    diffusivity_table(DIFFUSIVITY_PRESETS.values()).to_csv(path, index=False, float_format="%.15g")
+    read = read_diffusivities(path)
+    assert all(d is DIFFUSIVITY_PRESETS[name] for name, d in read.items())
+    assert read.keys() == DIFFUSIVITY_PRESETS.keys()
+    changed = diffusivity_table([DOHMEN_CHAKRABORTY_2007]).assign(log10_D0_001=-9.2100001)
+    with pytest.raises(ValueError, match="is a preset name"):
+        from_table(changed)
+
+
+def test_the_dc07_presets_carry_their_stated_fo2_range():
+    assert DOHMEN_CHAKRABORTY_2007.fO2_min_Pa == 1e-10
+    assert DIFFUSIVITY_PRESETS["mutch2019_tamed"].fO2_min_Pa == 1e-10
+    assert DIFFUSIVITY_PRESETS["mutch2019_global"].fO2_min_Pa is None
+
+
+@pytest.mark.parametrize("name", ["dohmen_chakraborty2007", "mutch2019_tamed"])
+@pytest.mark.parametrize("engine_path", [True, False])
+def test_fo2_below_the_calibration_warns_without_changing_d(name, engine_path):
+    law = DIFFUSIVITY_PRESETS[name]
+    law = law if engine_path else generic(law)
+    inside, below = Conditions(1100, 1e5, 1e-8), Conditions(1100, 1e5, 1e-12)
+    orientation = Orientation(90, 90, 0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        D_inside, _ = law.functions(inside, orientation)
+    with pytest.warns(UserWarning, match="below the range"):
+        D_below, _ = law.functions(below, orientation)
+    expected = DIFFUSIVITY_PRESETS[name].axis_diffusivities(below, 0.9)
+    assert D_below(np.array([0.9]))[0] == pytest.approx(
+        float(expected @ np.array([0, 0, 1])), rel=1e-9
+    )
+    assert D_inside(np.array([0.9]))[0] > 0
+
+
+@pytest.mark.parametrize("name", list(DIFFUSIVITY_PRESETS))
+def test_a_temperature_that_looks_like_kelvin_warns_for_every_law(name):
+    with pytest.warns(UserWarning, match="looks like kelvin"):
+        DIFFUSIVITY_PRESETS[name].functions(Conditions(1650.0, 1e5, 1e-7), Orientation(90, 90, 0))
+
+
+def test_laws_without_a_stated_range_do_not_warn_at_low_fo2():
+    law = DIFFUSIVITY_PRESETS["mutch2019_global"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        law.functions(Conditions(1100, 1e5, 1e-14), Orientation(90, 90, 0))

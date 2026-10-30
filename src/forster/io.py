@@ -6,8 +6,9 @@ Three parameter-table layouts are recognised from their columns:
 - template (written by ``forster template``; the column guide is
   `forster.template.PARAMETER_COLUMNS`): the Python API's names with units, Fo as
   a fraction, ``steps_um`` and ``segment_fo`` for the initial condition (the old
-  ``edge_fo``, ``core_fo``, ``step_fo`` and ``rim_fo`` are read until the release, with
-  a `RenamedColumnWarning`), optional ``segment_names`` and ``centre_um``. Orientation
+  ``edge_fo``, ``core_fo``, ``step_fo`` and ``rim_fo`` are still read, with a
+  `RenamedColumnWarning`; they will be removed in a later version), optional
+  ``segment_names`` and ``centre_um``. Orientation
   is ``alpha_deg``, ``beta_deg``, ``gamma_deg`` or EBSD Euler angles ``phi1_deg``,
   ``Phi_deg``, ``phi2_deg`` with ``profile_angle_deg``; fO2 is ``fO2_Pa`` or
   ``fO2_buffer`` with ``fO2_delta_log``. Optional ``edge1_fo`` (a fixed edge value other
@@ -39,7 +40,7 @@ from __future__ import annotations
 
 import ast
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -128,7 +129,8 @@ UNCERTAINTY_COLUMNS = (
     ("steps", "steps_sd_um", "steps_range_um"),
     ("segments", "segment_fo_sd", "segment_fo_range"),
 )
-# Old half-profile names, read until the release (with a RenamedColumnWarning): the Fo
+# Old half-profile names, still read with a RenamedColumnWarning (to be removed in a later
+# version): the Fo
 # of the first, last and middle segment and their uncertainties, and the held edge value.
 OLD_FO_COLUMNS = ("edge_fo", "core_fo", "step_fo")
 OLD_UNCERTAINTY_COLUMNS = (
@@ -147,7 +149,8 @@ RENAMED_COLUMNS = {
 
 
 class RenamedColumnWarning(UserWarning):
-    """A parameter table uses an old column name; it is read, until the release."""
+    """A parameter table uses an old column name. It is still read; the name will be removed
+    in a later version."""
 
 
 # Growth stages (template layout): list-valued like steps_um, one entry per stage, as
@@ -236,20 +239,80 @@ class Run:
             )
 
 
-def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
+# Columns read as text, so a name such as "007", "1.10" or "NA" comes back as written
+# and a column mixing "12" and "Ol3" keeps one type; blank cells stay missing.
+TEXT_COLUMNS = frozenset(
+    {"run", "profile", "Profile_Name", "Sample", "File_Name", *METADATA_COLUMNS}
+)
+_EXCEL_ENGINES = {".xlsx": "openpyxl", ".xlsm": "openpyxl", ".xls": "xlrd"}
+
+
+def _csv_encoding(path: Path) -> str:
+    """UTF-8, or Windows Excel's cp1252 (a µ is the single byte 0xB5) when the file is not."""
+    raw = path.read_bytes()
+    try:
+        raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    else:
+        return "utf-8-sig"
+    try:
+        raw.decode("cp1252")
+    except UnicodeDecodeError:
+        raise ValueError(
+            f"{path}: cannot be read as text (neither UTF-8 nor Windows cp1252); "
+            "save it again as CSV UTF-8"
+        ) from None
+    notes.warn(f"{path}: not UTF-8; read as Windows cp1252 text", stacklevel=3)
+    return "cp1252"
+
+
+def read_table(
+    path: str | Path, sheet: str | int = 0, *, text_columns: Iterable[str] = ()
+) -> pd.DataFrame:
     """A CSV file, or one sheet of an Excel workbook (.xlsx, .xlsm or the old .xls; the
-    first sheet by default)."""
+    first sheet by default). The name and metadata columns (`TEXT_COLUMNS`) and any in
+    `text_columns` are read as text; a file that cannot be read raises ValueError."""
     path = Path(path)
-    if path.suffix.lower() == ".csv":
-        # pandas' default float parser can be 1 ulp off; round_trip reads back exactly
-        # what was written, so a table written by FORSTER refits identically.
-        # pandas documents "round_trip" but its type stubs leave it out.
-        return pd.read_csv(path, float_precision="round_trip")  # ty: ignore[no-matching-overload]
-    if path.suffix.lower() in {".xlsx", ".xlsm"}:
-        return pd.read_excel(path, sheet_name=sheet, engine="openpyxl")
-    if path.suffix.lower() == ".xls":  # the old binary format, which openpyxl cannot read
-        return pd.read_excel(path, sheet_name=sheet, engine="xlrd")
-    raise ValueError(f"{path}: expected a .csv, .xlsx or .xls file")
+    suffix = path.suffix.lower()
+    if suffix == ".csv":
+        encoding = _csv_encoding(path)
+
+        def read(**kwargs: Any) -> pd.DataFrame:
+            # pandas' default float parser can be 1 ulp off; round_trip reads back exactly
+            # what was written, so a table written by FORSTER refits identically.
+            # pandas documents "round_trip" but its type stubs leave it out.
+            return pd.read_csv(  # ty: ignore[no-matching-overload]
+                path, float_precision="round_trip", encoding=encoding, **kwargs
+            )
+    elif suffix in _EXCEL_ENGINES:
+
+        def read(**kwargs: Any) -> pd.DataFrame:
+            # The old .xls format needs xlrd, which openpyxl cannot replace.
+            try:
+                return pd.read_excel(  # ty: ignore[no-matching-overload]
+                    path, sheet_name=sheet, engine=_EXCEL_ENGINES[suffix], **kwargs
+                )
+            except (ValueError, ImportError):
+                raise
+            except Exception as exc:  # xlrd, zipfile and openpyxl each raise their own
+                raise ValueError(
+                    f"{path}: cannot be read as an Excel file ({exc}); open it in Excel and "
+                    "save it as .xlsx or CSV"
+                ) from exc
+    else:
+        raise ValueError(f"{path}: expected a .csv, .xlsx or .xls file")
+    header = list(read(nrows=0).columns)
+    wanted = TEXT_COLUMNS | set(text_columns)
+    text = [c for c in header if c in wanted]
+    if not text:
+        return read()
+    # Only blank cells are missing here: "NA", "None" and "null" are names.
+    words = read(usecols=text, dtype=str, keep_default_na=False, na_values=[""])
+    rest = [c for c in header if c not in wanted]
+    if not rest:
+        return words
+    return pd.concat([read(usecols=rest), words], axis=1)[header]
 
 
 def _usable_rows(df: pd.DataFrame) -> pd.Series:
@@ -281,7 +344,7 @@ def read_profiles(
     `MIN_PROFILE_POINTS` usable points (single analyses, averages) are skipped
     with a warning that lists them.
     """
-    df = read_table(path, sheet)
+    df = read_table(path, sheet, text_columns=[name_column] if name_column else ())
     layout = (
         TEMPLATE_PROFILE_LAYOUT
         if set(TEMPLATE_PROFILE_LAYOUT[:3]) <= set(df.columns)
@@ -297,6 +360,10 @@ def read_profiles(
         raise ValueError(f"{path}: missing column(s) {sorted(missing)}")
     keep = _usable_rows(df)
     names = df.loc[keep, name_column].dropna().unique()
+    # Text such as "n.d." or "-" in a number column is a missing value.
+    df[[distance_column, fo_column]] = df[[distance_column, fo_column]].apply(
+        pd.to_numeric, errors="coerce"
+    )
     # A row with no distance or Fo cannot be fitted; a name left with too few points
     # is skipped below like any other.
     blank = keep & df[name_column].notna() & df[[distance_column, fo_column]].isna().any(axis=1)
@@ -556,13 +623,14 @@ def _uncertainty_source(row: pd.Series, sd_col: str, range_col: str) -> tuple[st
 def _step_uncertainties(
     row: pd.Series, column: str, kind: str, initial: InitialCondition
 ) -> dict[str, Uncertainty]:
-    """One spread for every step, or one per step; 0 leaves a step fixed."""
-    spreads = [float(v) for v in _steps(row[column])]
+    """One spread for every step, or one per step; an empty entry or 0 leaves a step fixed."""
+    values = _number_list(row, column) or ()
     n = len(initial.steps_um)
-    if len(spreads) == 1:
-        spreads *= n
-    if len(spreads) != n:
-        raise ValueError(f"run {row['run']!r}: {column} has {len(spreads)} values for {n} steps")
+    if len(values) == 1:
+        values = values * n
+    if len(values) != n:
+        raise ValueError(f"run {row['run']!r}: {column} has {len(values)} values for {n} steps")
+    spreads = [v or 0.0 for v in values]
     return {f"step{i + 1}_um": Uncertainty(s, kind) for i, s in enumerate(spreads) if s}
 
 
@@ -841,7 +909,7 @@ def _warn_renamed_columns(path: str | Path, columns: set[str]) -> None:
     if old:
         renames = "; ".join(f"{c} -> {RENAMED_COLUMNS[c]}" for c in old)
         notes.warn(
-            f"{path}: old column names, read until the release: {renames}",
+            f"{path}: old column names, still read but to be removed in a later version: {renames}",
             RenamedColumnWarning,
             stacklevel=3,
         )
@@ -1110,7 +1178,9 @@ def fit_run(
         given = False
     else:
         grid = run.grid
-        check_grid(grid, *args, run.diffusivity, scheme=run.scheme)  # raises if unstable
+        check_grid(
+            grid, *args, run.diffusivity, scheme=run.scheme
+        )  # warns; an unstable dt is split
         given = True
     result = fit_profile(
         *args,

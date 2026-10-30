@@ -686,6 +686,7 @@ dev = [
     { name = "pyside6-essentials" },
     { name = "pytest" },
     { name = "pytest-xdist" },
+    { name = "pyyaml" },
     { name = "ruff" },
     { name = "ty" },
 ]
@@ -727,6 +728,7 @@ dev = [
     { name = "pyside6-essentials", specifier = ">=6.12.0" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-xdist", specifier = ">=3.6" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "ruff", specifier = ">=0.14" },
     { name = "ty", specifier = ">=0.0.1a20" },
 ]

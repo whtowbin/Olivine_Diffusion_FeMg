@@ -457,10 +457,11 @@ class RunEditor:
             assert fo2 is not None
             if fo2 <= 0:
                 raise ValueError("fO2 (Pa) must be positive")
+            conditions = Conditions(T, P * 1e6, fo2)
         except ValueError as error:
             self.errors[edited] = str(error)
             return False
-        return self._commit(edited, conditions=Conditions(T, P * 1e6, fo2), fO2_form=None)
+        return self._commit(edited, conditions=conditions, fO2_form=None)
 
     # -- orientation --------------------------------------------------------------------
 

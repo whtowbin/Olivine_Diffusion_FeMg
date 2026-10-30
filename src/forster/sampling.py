@@ -437,11 +437,26 @@ def _log_t_density(z: np.ndarray, loc: np.ndarray, chol: np.ndarray, df: float) 
 
 
 def _importance(
-    like: PriorLikelihood, z0: np.ndarray, n: int, seed: int, whiten: bool = False
+    like: PriorLikelihood,
+    z0: np.ndarray,
+    n: int,
+    seed: int,
+    whiten: bool = False,
+    cache: dict | None = None,
 ) -> tuple[_Samples, float]:
-    f0 = -_log_post(like, z0)
-    cov = _laplace_covariance(like, z0, f0, whiten) * PROPOSAL_INFLATION**2
+    """Importance samples from the Laplace proposal at ``z0`` and their effective sample
+    size. ``cache`` (an empty dict, passed again to a larger draw of the same ``z0``,
+    ``seed`` and ``whiten``) keeps the proposal's covariance and each point's log
+    likelihood rows, so the larger draw runs the model only at points it has not met;
+    the result is the same as without it."""
     d = len(z0)
+    if cache is not None and "cov" in cache:
+        cov = cache["cov"]
+    else:
+        f0 = -_log_post(like, z0)
+        cov = _laplace_covariance(like, z0, f0, whiten) * PROPOSAL_INFLATION**2
+        if cache is not None:
+            cache["cov"] = cov
     u = stats.qmc.Sobol(d + 1, scramble=True, seed=seed).random(n)
     u = np.clip(u, 1e-12, 1 - 1e-12)
     chi = stats.chi2.ppf(u[:, d], PROPOSAL_DF)
@@ -449,14 +464,28 @@ def _importance(
     z = z0 + (stats.norm.ppf(u[:, :d]) @ chol.T) / np.sqrt(chi / PROPOSAL_DF)[:, None]
     log_q = _log_t_density(z, z0, chol, PROPOSAL_DF) - float(np.sum(np.log(like.spread)))
     thetas, log_ws, rows = [], [], []
-    for zi, lq in zip(z, log_q, strict=True):
+    # Rows are reused only for points that are bitwise the earlier draw's (the first
+    # n points of a scrambled Sobol sequence are the same for any n; the matrix product
+    # above could still differ in the last bit, so the points are compared).
+    known = []
+    if cache is not None and "rows" in cache:
+        k = len(cache["rows"])
+        if k <= len(z) and np.array_equal(z[:k], cache["z"]):
+            known = cache["rows"]
+    evaluated = []
+    for i, (zi, lq) in enumerate(zip(z, log_q, strict=True)):
         theta = like.nominal + zi * like.spread
         lp = like.log_prior(theta)
-        r = like.log_like_rows(theta) if math.isfinite(lp) else None
+        r = known[i] if i < len(known) else None
+        if i >= len(known) and math.isfinite(lp):
+            r = like.log_like_rows(theta)
+        evaluated.append(r)
         if r is not None:
             thetas.append(theta)
             log_ws.append(lp - lq)
             rows.append(r)
+    if cache is not None:
+        cache["z"], cache["rows"] = z, evaluated
     if not rows:
         raise ValueError("no valid initial condition among the proposals")
     s = _Samples(np.array(thetas), np.array(log_ws), np.array(rows))
@@ -623,12 +652,13 @@ def sample_posterior(
     if method in ("auto", "laplace"):
         say("importance sampling")
         n = n_samples
-        samples, ess = _importance(like, z, n, seed, whiten)
+        cache: dict | None = {} if step else None
+        samples, ess = _importance(like, z, n, seed, whiten, cache)
         too_few = ess < ess_fallback * n
         if step:
             if ess < ideal_ess_fraction(len(z)) * n:
                 n = STEP_FACTOR * n_samples
-                samples, ess = _importance(like, z, n, seed, whiten)
+                samples, ess = _importance(like, z, n, seed, whiten, cache)
             too_few = ess < STEP_ESS_FLOOR
         joint = samples.log_w + special.logsumexp(samples.rows, axis=1) - math.log(like.rows)
         log_z = float(special.logsumexp(joint) - math.log(n))

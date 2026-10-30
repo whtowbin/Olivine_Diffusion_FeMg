@@ -35,12 +35,13 @@ from typing import TYPE_CHECKING, Any, Protocol
 import numpy as np
 import pandas as pd
 
-from forster import dipra
+from forster import dipra, notes
 
 if TYPE_CHECKING:
     from forster.model import Conditions, Orientation
 
 R_J_MOL_K = 8.3145  # as in engine.D_Fo
+T_KELVIN_LIKELY_C = 1600.0  # above this, T_C was probably given in kelvin
 ELEMENTS = ("Fe-Mg", "Ni", "Mn", "Ca")
 LOG10_6 = math.log10(6.0)  # [001] is 6x faster than [100] and [010] for Fe-Mg, Ni, Mn
 
@@ -103,10 +104,10 @@ class LawUncertainty:
 
     ``covariance`` is over ``parameters`` (names from `LAW_PARAMETERS`, in the
     equation's own units); parameters not named are taken as exact.
-    ``between_study_log10`` is the standard deviation of a laboratory's offset in
-    log10 D (a random study effect): what one more experiment, or a crystal that
-    behaves like one, adds beyond the law's own uncertainty. Tuples keep the
-    dataclass hashable.
+    ``between_study_log10`` is the standard deviation of the laboratories' average
+    offsets in log10 D (the refit's per-laboratory tau): what a new laboratory's
+    average adds beyond the law's own uncertainty. It does not cover the scatter of
+    one experiment within a laboratory. Tuples keep the dataclass hashable.
     """
 
     parameters: tuple[str, ...]
@@ -148,6 +149,9 @@ class ArrheniusDiffusivity:
 
     Per-axis values are tuples in the order ([100], [010], [001]). The dataclass is
     frozen; derive variants with `dataclasses.replace` or `shift_activation_energy`.
+    ``fO2_min_Pa`` is the lowest fO2 of the calibration where the source states one
+    (None: not stated); `functions` warns outside it and above `T_KELVIN_LIKELY_C`,
+    and the numbers are the same either way.
     """
 
     name: str
@@ -163,6 +167,7 @@ class ArrheniusDiffusivity:
     pressure_coefficient_per_Pa: float = 0.0
     source: str = ""
     uncertainty: LawUncertainty | None = None  # not in the diffusivities table
+    fO2_min_Pa: float | None = None  # not in the diffusivities table
 
     def __post_init__(self) -> None:
         if not self.name or not str(self.name).strip():
@@ -239,8 +244,24 @@ class ArrheniusDiffusivity:
         variance = float(g @ np.array(self.uncertainty.covariance) @ g)
         return math.sqrt(max(variance, 0.0))
 
+    def warn_if_outside_range(self, conditions: Conditions) -> None:
+        """Warn (numbers unchanged) about conditions outside the calibration or a T that
+        looks like kelvin."""
+        if conditions.T_C > T_KELVIN_LIKELY_C:
+            notes.warn(
+                f"T_C = {conditions.T_C:g} looks like kelvin; T_C is in degrees Celsius "
+                f"(diffusion equation {self.name!r})"
+            )
+        if self.fO2_min_Pa is not None and conditions.fO2_Pa < self.fO2_min_Pa:
+            notes.warn(
+                f"fO2 = {conditions.fO2_Pa:.3g} Pa is below the range of the diffusion "
+                f"equation {self.name!r} (calibrated only for fO2 above "
+                f"{self.fO2_min_Pa:.3g} Pa); its times there are an extrapolation"
+            )
+
     def functions(self, conditions: Conditions, orientation: Orientation) -> DiffusivityFunctions:
         """D(X_Fo) along the profile and dD/dX_Fo, for the model's time steppers."""
+        self.warn_if_outside_range(conditions)
         cos2 = _cos2(orientation)
         # Everything but the composition term is constant during a run.
         at_ref = float(self.axis_diffusivities(conditions, self.fo_ref) @ cos2)
@@ -276,6 +297,7 @@ class _EngineFeMg(ArrheniusDiffusivity):
             activation_energy_J_mol=DOHMEN_CHAKRABORTY_2007.activation_energy_J_mol,
         )
         if E[0] == E[1] == E[2] and unchanged == DOHMEN_CHAKRABORTY_2007:
+            self.warn_if_outside_range(conditions)
             D, dD = dipra.D_Fo_and_derivative(
                 conditions.T_K,
                 conditions.P_Pa,
@@ -303,6 +325,7 @@ DOHMEN_CHAKRABORTY_2007 = _EngineFeMg(
     fo_ref=0.9,
     activation_volume_m3_mol=7e-6,
     P_ref_Pa=1e5,
+    fO2_min_Pa=1e-10,
     source=(
         "Dohmen and Chakraborty (2007), Phys Chem Minerals 34, 409-430, and erratum "
         f"34, 597-598; fO2 > 1e-10 Pa. As in {_DIPRA_TABLE_1}."
@@ -356,6 +379,7 @@ def _mutch2019(
     coefficients: tuple[float, float, float, float, float, float],
     covariance: tuple[tuple[float, ...], ...],
     anisotropy: float = 6.0,
+    fO2_min_Pa: float | None = None,
 ) -> ArrheniusDiffusivity:
     """Mutch et al. (2019) regression ln D[001] = a + b ln fO2(bar) + c X_Fo + q/T + j P +
     h P/T, at full precision with its covariance (Mutch et al. 2021, Data Set S6)."""
@@ -376,6 +400,7 @@ def _mutch2019(
         activation_volume_m3_mol=-h * R_J_MOL_K,
         P_ref_Pa=0.0,
         pressure_coefficient_per_Pa=j / ln10,
+        fO2_min_Pa=fO2_min_Pa,
         source=(
             f"Mutch et al. (2019), Nature Geoscience 12, 569-574 ({data}); coefficients and "
             "covariance at full precision from Mutch et al. (2021), G-cubed 22, "
@@ -450,6 +475,7 @@ DIFFUSIVITY_PRESETS: dict[str, ArrheniusDiffusivity] = {
                     5.82629996012315e-13,
                 ),
             ),
+            fO2_min_Pa=1e-10,
         ),
         _mutch2019(
             "mutch2019_global",
@@ -838,6 +864,17 @@ def from_row(row: Mapping[str, Any]) -> ArrheniusDiffusivity:
     )
 
 
+def _same_numbers(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
+    """Whether two table rows agree, ``source`` aside: numbers to 1e-12 (a spreadsheet
+    saves 15 significant digits), text exactly."""
+    return all(
+        math.isclose(a[c], b[c], rel_tol=1e-12, abs_tol=1e-12)
+        if isinstance(b[c], float)
+        else a[c] == b[c]
+        for c in TABLE_COLUMNS[:-1]
+    )
+
+
 def diffusivity_table(diffusivities: Iterable[ArrheniusDiffusivity]) -> pd.DataFrame:
     """A diffusivities table with one row per equation."""
     return pd.DataFrame([to_row(d) for d in diffusivities]).reindex(columns=list(TABLE_COLUMNS))
@@ -866,7 +903,7 @@ def from_table(
             )
         preset = DIFFUSIVITY_PRESETS.get(equation.name)
         if preset is not None:
-            if {**to_row(equation), "source": ""} != {**to_row(preset), "source": ""}:
+            if not _same_numbers(to_row(equation), to_row(preset)):
                 raise ValueError(
                     f"{origin}: {equation.name!r} is a preset name; give your equation another name"
                 )

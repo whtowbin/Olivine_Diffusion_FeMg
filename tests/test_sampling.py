@@ -337,3 +337,35 @@ def test_a_conflicting_prior_is_reported_in_prior_sd_and_warned(example):
         )  # fmt: skip
     assert -2.5 < post.prior_offsets["a_fo"] <= -2.0
     assert scan_summary(post)["scan_prior_offsets"].startswith("a_fo=-2.")
+
+
+@pytest.mark.needs_numba
+def test_a_larger_importance_draw_reuses_the_smaller_ones_model_runs_exactly(example, laplace):
+    """The joint-fit step rule draws n then 4n points: with the cache, the 4n draw is
+    bit-identical to a fresh one but runs the model only at points not met before."""
+    run, profile, grid = example
+    like = S.ICLikelihood(*_args(run, profile, grid, TWO))
+    like.use_noise(laplace.noise)
+    z = np.zeros(2)
+    fresh, fresh_ess = S._importance(like, z, 256, 0, whiten=True)
+    calls = {"rows": 0, "marginal": 0}
+    rows_of, marginal_of = like.log_like_rows, like.log_marginal
+
+    def count_rows(theta):
+        calls["rows"] += 1
+        return rows_of(theta)
+
+    def count_marginal(theta):
+        calls["marginal"] += 1
+        return marginal_of(theta)
+
+    like.log_like_rows, like.log_marginal = count_rows, count_marginal  # ty: ignore[invalid-assignment]
+    cache: dict = {}
+    S._importance(like, z, 64, 0, whiten=True, cache=cache)
+    after_first = dict(calls)
+    reused, reused_ess = S._importance(like, z, 256, 0, whiten=True, cache=cache)
+    assert calls["marginal"] == after_first["marginal"]  # no second Hessian
+    assert calls["rows"] - after_first["rows"] <= 256 - 64  # only the new points
+    assert reused_ess == fresh_ess
+    for name in ("theta", "log_w", "rows"):
+        assert np.array_equal(getattr(reused, name), getattr(fresh, name))
