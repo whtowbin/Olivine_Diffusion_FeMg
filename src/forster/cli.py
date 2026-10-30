@@ -1,5 +1,6 @@
-"""Command line: ``forster template DIR``, ``forster fit PROFILES PARAMETERS`` and
-``forster gui [FOLDER]`` (the desktop app, `forster.gui`; needs the ``gui`` extra)."""
+"""Command line: ``forster template DIR``, ``forster fit PROFILES PARAMETERS``,
+``forster cite`` and ``forster gui [FOLDER]`` (the desktop app, `forster.gui`; needs the
+``gui`` extra)."""
 
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ from pathlib import Path
 import pandas as pd
 from matplotlib.figure import Figure
 
+from forster.citation import cite
 from forster.diffusivity import (
     FE_MG_CHOICES,
     ArrheniusDiffusivity,
@@ -403,6 +405,11 @@ def import_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def cite_command(args: argparse.Namespace) -> int:
+    print(cite(args.diffusivity), end="")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forster",
@@ -488,6 +495,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     imp.add_argument("--force", action="store_true", help="overwrite an existing draft")
     imp.set_defaults(handler=import_command)
+
+    cite_parser = commands.add_parser(
+        "cite", help="print how to cite FORSTER and, optionally, a diffusion equation"
+    )
+    cite_parser.add_argument(
+        "--diffusivity",
+        metavar="NAME",
+        help="also give the reference for this equation (a name or alias: "
+        + ", ".join(FE_MG_CHOICES)
+        + ")",
+    )
+    cite_parser.set_defaults(handler=cite_command)
 
     gui = commands.add_parser(
         "gui",

@@ -5,6 +5,7 @@ Fe-Mg diffusion modeling of zoned olivine profiles.
 
 from forster import boundary, diffusivity, dipra, elements, scan, uncertainty
 from forster.boundary import BoundaryHistory, Stage
+from forster.citation import cite
 from forster.diffusivity import (
     DIFFUSIVITY_PRESETS,
     ArrheniusDiffusivity,
@@ -81,6 +82,7 @@ __all__ = [
     "candidate_grid",
     "check_grid",
     "choose_grid",
+    "cite",
     "diffusivity",
     "dipra",
     "elements",

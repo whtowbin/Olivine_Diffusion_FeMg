@@ -46,12 +46,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from forster.citation import cite
 from forster.imports import ImportTemplate, list_profile_files
 from forster.model import FitResult
 from forster.plotting import SIGMA, plot_fit
 from forster.project import FitOutcome, FitTask, McRecord, McTask, Project, ScanRecord, ScanTask
 
-from .dialogs import CopySettingsDialog, ImportDialog
+from .dialogs import CiteDialog, CopySettingsDialog, ImportDialog
 from .importing import Imported, add_imported, import_files, import_table, read_columns
 from .panels import ERROR_COLOR, SidePanel
 from .plot import ProfileCanvas
@@ -205,7 +206,10 @@ class MainWindow(QMainWindow):
         self.export_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         bar.addWidget(self.export_button)
         help_menu = self.menuBar().addMenu("Help")
-        for text, slot in (("Open the worked example…", self._choose_example),):
+        for text, slot in (
+            ("Open the worked example…", self._choose_example),
+            ("Cite FORSTER…", self._show_cite),
+        ):
             action = QAction(text, self)
             action.triggered.connect(slot)
             help_menu.addAction(action)
@@ -886,6 +890,15 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(text + (f"; {'; '.join(notes)}" if notes else ""), 8000)
         self._after_run_change(added[0] if added else self.current)
         return True
+
+    def _show_cite(self) -> None:
+        """How to cite FORSTER and the selected run's diffusion equation."""
+        run = self.editor.run if self.editor is not None else None
+        dialog = CiteDialog(cite(run.diffusivity if run is not None else None), self)
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()
 
     def _choose_copy(self) -> None:
         if self.project is None or self.current is None:

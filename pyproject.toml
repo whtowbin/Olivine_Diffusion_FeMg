@@ -5,7 +5,7 @@ description = "FORSTER olivine diffusion: fit Fe-Mg diffusion times to zoned oli
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-authors = [{ name = "Henry Towbin" }]
+authors = [{ name = "W. Henry Towbin" }]
 keywords = ["olivine", "diffusion", "chronometry", "geochemistry", "petrology", "timescales"]
 classifiers = [
     "Development Status :: 3 - Alpha",

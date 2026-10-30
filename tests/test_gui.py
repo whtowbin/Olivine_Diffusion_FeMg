@@ -465,10 +465,46 @@ def test_the_import_dialog_starts_each_profile_at_its_first_point_with_advice(ap
         dialog.deleteLater()
 
 
+def test_the_cite_dialog_shows_the_runs_equation_copies_it_and_is_freed(app, tmp_path):
+    from PySide6.QtCore import QTimer
+    from PySide6.QtGui import QGuiApplication
+
+    from forster import cite
+    from forster.gui.dialogs import CiteDialog
+
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert window.new_project(tmp_path / "example")
+        seen = {}
+
+        def press_copy():
+            dialog = window.findChildren(CiteDialog)[0]
+            seen["text"] = dialog.text.toPlainText()
+            QGuiApplication.clipboard().clear()
+            dialog.copy_button.click()
+            seen["clipboard"] = QGuiApplication.clipboard().text()
+            dialog.reject()
+
+        QTimer.singleShot(200, press_copy)
+        window.actions_["Cite FORSTER…"].trigger()  # the real Help menu action
+        assert [a.text() for a in window.menuBar().actions()] == ["Help"]
+        assert window.editor is not None
+        expected = cite(window.editor.run.diffusivity)
+        assert seen["text"] == expected
+        assert "Dohmen and Chakraborty" in expected
+        assert seen["clipboard"] == expected
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        app.processEvents()
+        assert window.findChildren(CiteDialog) == []
+    finally:
+        window.close()
+
+
 def record_dialogs(monkeypatch, opened, answers=None):
     """Every file, input and app dialog the window can open records its name in
     ``opened`` and answers from ``answers`` (by name), else as if cancelled."""
-    from forster.gui.dialogs import CopySettingsDialog
+    from forster.gui.dialogs import CiteDialog, CopySettingsDialog
 
     answers = answers or {}
 
@@ -488,7 +524,7 @@ def record_dialogs(monkeypatch, opened, answers=None):
         monkeypatch.setattr(f"forster.gui.app.QFileDialog.{name}", fake(name, cancelled))
     for name, cancelled in (("getItem", ("", False)), ("getText", ("", False))):
         monkeypatch.setattr(f"forster.gui.app.QInputDialog.{name}", fake(name, cancelled))
-    for dialog in (ImportDialog, CopySettingsDialog):
+    for dialog in (ImportDialog, CiteDialog, CopySettingsDialog):
         monkeypatch.setattr(dialog, "exec", fake(dialog.__name__, 0))
 
 

@@ -1,0 +1,54 @@
+cff-version: 1.2.0
+message: "If you use FORSTER, please cite the software and Towbin and Plank (2026). `forster cite` prints the full text, including the reference for the diffusion equation you used."
+type: software
+title: "FORSTER: Fitting Olivine Residence & Storage Timescales from Elemental Relaxation"
+abstract: >-
+  FORSTER estimates how long a zoned olivine crystal stayed hot by fitting a model of
+  Fe-Mg diffusion to forsterite profiles measured across it, with an uncertainty that
+  allows for correlated noise in the measurements.
+authors:
+  - family-names: Towbin
+    given-names: W. Henry
+  # TODO(Henry): add co-authors (Jollands, Shi): full names, ORCIDs, affiliations; and
+  # decide on Plank and the order
+# Keep in step with `version` in pyproject.toml (tests/test_citation.py checks it).
+version: 0.1.0.dev0
+license: MIT
+repository-code: "https://github.com/whtowbin/Olivine_Diffusion_FeMg"
+url: "https://forster.readthedocs.io"
+keywords:
+  - olivine
+  - diffusion
+  - chronometry
+  - geochemistry
+  - petrology
+  - timescales
+# identifiers:
+#   # TODO(Henry): after the first GitHub release Zenodo mints a DOI; add it here
+#   - type: doi
+#     value: 10.5281/zenodo.XXXXXXX
+references:
+  - type: article
+    title: "Decompression Melting of Peridotite Xenoliths"
+    authors:
+      - family-names: Towbin
+        given-names: W. Henry
+      - family-names: Plank
+        given-names: Terry
+        orcid: "https://orcid.org/0000-0002-1665-0484"
+    journal: "Journal of Petrology"
+    volume: 67
+    issue: 9
+    notes: "Article egag077."
+    year: 2026
+    doi: "10.1093/petrology/egag077"
+  - type: thesis
+    title: "The Fidelity of the Mantle Signal in Peridotite Xenoliths: Interactions during Magmatic Ascent"
+    authors:
+      - family-names: Towbin
+        given-names: W. Henry
+    thesis-type: "PhD dissertation"
+    institution:
+      name: "Columbia University"
+    year: 2023
+    notes: "Chapter 2: Decompression Melting of Peridotite Xenoliths."

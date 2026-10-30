@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QTableWidget,
@@ -512,3 +514,24 @@ class CopySettingsDialog(QDialog):
             if item is not None and item.checkState() == Qt.CheckState.Checked:
                 targets.append(item.text())
         return groups, targets
+
+
+class CiteDialog(QDialog):
+    """How to cite FORSTER (`forster.cite`), with a Copy button."""
+
+    def __init__(self, text: str, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Cite FORSTER")
+        self.resize(640, 380)
+        layout = QVBoxLayout(self)
+        self.text = QPlainTextEdit(text)
+        self.text.setReadOnly(True)
+        layout.addWidget(self.text)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        self.copy_button = buttons.addButton("Copy", QDialogButtonBox.ButtonRole.ActionRole)
+        self.copy_button.clicked.connect(self.copy)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def copy(self) -> None:
+        QGuiApplication.clipboard().setText(self.text.toPlainText())
