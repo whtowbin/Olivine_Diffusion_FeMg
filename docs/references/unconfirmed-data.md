@@ -121,7 +121,7 @@ Spandler and O'Neill (2010) are excluded from the preset, and Shea et al. (2023)
   - Separating it from the solid data leaves the fitted fO2 exponent unchanged (0.216 with or without the melt term).
   - So it belongs as one log offset, common to axes and elements, applied only to crystals in melt contact (`melt-contact-diffusion.md`).
 - **The proposed cause is extra M-site vacancies made at the melt interface** by Al or H (Shea et al.'s Eq. 4: D = X_V D_V). Higher aSiO2 and extended defects were tested and rejected. It predicts that the offset shrinks where the fO2-dependent vacancies dominate, which is untested.
-- **It is not a laboratory artefact.** The Kilauea Iki olivine needs 5-15x DC07 over 29 years of natural re-equilibration, with no experimental interface, at temperatures below Oeser's ~1150 C regime change.
+- **It is not a laboratory artifact.** The Kilauea Iki olivine needs 5-15x DC07 over 29 years of natural re-equilibration, with no experimental interface, at temperatures below Oeser's ~1150 C regime change.
 - **Size for a fitted time** (crystal in melt contact, against the preset):
   - +0.54 (Spandler, and Jurewicz and Watson) → time x0.29;
   - +0.82 to +0.83 (Shea) → x0.15.
@@ -137,9 +137,9 @@ Spandler and O'Neill (2010) are excluded from the preset, and Shea et al. (2023)
 2. **Jurewicz and Watson (1988).** A third melt study with its own conditions, so the melt term gets a spread from three studies.
 3. **Shea, Nizam and Helz (2026) supplement** (fO2, temperature-time paths, crystal data). Run forster's forward model on the lava-lake paths with the preset plus a melt term, to turn "5-15x, lower bound" into a likelihood.
 4. **A second solid-source study with all three axes at 1150-1300 C,** to settle [010] (Dohmen's 6x or Oeser's 2x) and whether the high-temperature level is real. For Oeser's runs 7, 14 and 15, the raw linescans would check the deconvolution.
-5. **Holzapfel et al. (2007) Au-capsule fO2.** The 14 runs are in the preset at Ni-NiO ± 2 log. A measured or better-estimated fO2 would narrow that sd (RR1200 moves by 0.02 between sd 0.5 and 3; Fig. U2) and confirm the runs. With them in, the Mutch form, with its pressure terms, is identifiable; fitting it is the next step.
+5. **Holzapfel et al. (2007) Au-capsule fO2.** The 14 runs are in the preset at Ni-NiO ± 2 log. A measured or better-estimated fO2 would narrow that sd (RR1200 moves by 0.02 between sd 0.5 and 3; Fig. U2) and confirm the runs. With them in, the Mutch form, with its pressure terms, is identifiable; it was fitted (2026-10-15, `fit_mutch.py`, see "The Mutch forms, and why V is fitted" above) and adds nothing to the Dohmen and Chakraborty form.
 6. **Mutch et al.'s compiled experiments** (from the authors). They would show why our OLS on the same six studies gives an fO2 exponent of 0.258 where theirs is 0.224 (`data-to-source.md`, item 8). Their coefficients and covariances are already in the Mutch presets.
-7. **Per-run orientations** (Chakraborty 1997; Petry 2004) and **Meissner (2000)**: confirmation of what is already in. Each moves RR1200 by less than 0.01, unless a run turns out to be off [001].
+7. **Per-run orientations** (Chakraborty 1997; Petry 2004) and **Meißner (2000)**: confirmation of what is already in. Each moves RR1200 by less than 0.01, unless a run turns out to be off [001].
 
 ## Other data that would change the result most
 

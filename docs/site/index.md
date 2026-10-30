@@ -17,7 +17,7 @@ before diffusion began. FORSTER runs the diffusion model forward in time and rep
 the time at which the model best matches the data. It also gives 1σ and 2σ ranges,
 which should contain the true time 68% and 95% of the time. It can fit the starting
 profile as well, and carry the uncertainty in temperature, pressure, oxygen fugacity
-and the diffusion law (the equation that gives the Fe-Mg diffusivity) into the time.
+and the diffusion equation (the formula for the Fe-Mg diffusivity) into the time.
 
 <figure markdown="span">
   ![The desktop app with a fitted profile](images/app-monte-carlo.png)
@@ -54,9 +54,9 @@ same fits from the command line, or the other way round.
 | install FORSTER | [Installation](installation.md) |
 | fit the worked example in five minutes | [Quick start](quickstart.md) |
 | get your microprobe spreadsheet into FORSTER, and plan your analyses | [Preparing data](data.md) |
-| choose the starting profile, conditions, orientation and diffusion law | [Setting up a run](setup.md) |
+| choose the starting profile, conditions, orientation and diffusion equation | [Setting up a run](setup.md) |
 | understand what the time and its range mean | [How the fit works](how-it-works.md) |
-| include the starting profile, T, P, fO2 and the diffusion law in the uncertainty | [Uncertainty beyond the fit](uncertainty.md) |
+| include the starting profile, T, P, fO2 and the diffusion equation in the uncertainty | [Uncertainty beyond the fit](uncertainty.md) |
 | read `summary.csv` and act on FORSTER's warnings | [Reading the results](results.md) |
 | look up a column | [Column reference](columns.md) |
 | look up a term (diffusion length, prior, ESS, ...) | [Glossary](glossary.md) |
@@ -70,7 +70,7 @@ model runs forward in time, and the step widens with the diffusion length √(D 
 misfit, and the range spans the times where the misfit is within about 1 of that
 minimum. **d** Optionally, uncertain step positions and segment Fo are fitted along
 with the time. **e** A Monte Carlo draws T, P, fO2 and the parameters of the
-diffusion law. **f** The resulting distributions of time. The curves are
+diffusion equation. **f** The resulting distributions of time. The curves are
 illustrative.*
 
 ## Status
@@ -81,8 +81,17 @@ says what changed and by how much.
 
 ## How to cite
 
-> Towbin, W. H., and Plank, T. (2026). *Journal of Petrology* 67(9), egag077.
+Please cite the software and the paper that describes the method:
 
-Please also cite the source of the diffusion law you used. The
+> Towbin, W. H. FORSTER: Fitting Olivine Residence & Storage Timescales from Elemental
+> Relaxation (version from `forster --version`).
+> https://github.com/whtowbin/Olivine_Diffusion_FeMg. A DOI will be added after the
+> first release.
+
+> Towbin, W. H., and Plank, T. (2026). Decompression Melting of Peridotite Xenoliths.
+> *Journal of Petrology* 67(9), egag077,
+> [doi:10.1093/petrology/egag077](https://doi.org/10.1093/petrology/egag077).
+
+Please also cite the source of the diffusion equation you used. The
 [citing page](changelog.md#citing) lists it for each choice, with the references for
 the numerical methods and the samplers.

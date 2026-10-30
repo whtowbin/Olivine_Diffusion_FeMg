@@ -1,7 +1,7 @@
 [project]
 name = "forster"
 version = "0.1.0.dev0"
-description = "FORSTER olivine diffusion: fit Fe-Mg diffusion times to zoned olivine profiles"
+description = "Fit Fe-Mg diffusion times to zoned olivine profiles"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

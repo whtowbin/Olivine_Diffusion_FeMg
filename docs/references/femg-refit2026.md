@@ -53,7 +53,7 @@ D is in m²/s, T in K, P and f<sub>O2</sub> in Pa, R = 8.314 J mol⁻¹ K⁻¹, 
 | n | 0.08 | 0.10 | -0.04 | 1 | -0.06 |
 | V | -0.21 | -0.22 | 0.85 | -0.06 | 1 |
 
-Treated as independent, the five 1-sigma values would give an uncertainty on D several times too large. The full covariance is `DIFFUSIVITY_PRESETS["femg_refit2026"].uncertainty`; `log10_sigma(conditions, orientation, x_fo)` propagates it (exact here, because log10 D is linear in all five parameters). That uncertainty is for D in an average laboratory. A crystal that may sit off that average, as one more experiment would, adds tau in quadrature; forster reports both ranges (`law_` and `all_` columns; README, "Uncertainty").
+Treated as independent, the five 1-sigma values would give an uncertainty on D several times too large. The full covariance is `DIFFUSIVITY_PRESETS["femg_refit2026"].uncertainty`; `log10_sigma(conditions, orientation, x_fo)` propagates it (exact here, because log10 D is linear in all five parameters). That uncertainty is for D in an average laboratory. A crystal that may sit off that average, as one more experiment would, adds tau in quadrature; forster reports both ranges (`law_` and `all_` columns; see `docs/site/uncertainty.md`).
 
 ## Worked values
 

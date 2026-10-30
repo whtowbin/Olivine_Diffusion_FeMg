@@ -13,8 +13,11 @@ was measured; the scripts are in `docs/plans/2026-10-14-review-fixes/`
 
 ## How the range is computed (no Monte Carlo)
 
-The method is linear error propagation, not a Monte Carlo, and it needs no model
-runs beyond the fit itself:
+The law range the fit reports is linear error propagation, not a Monte Carlo, and
+it needs no model runs beyond the fit itself. (A Monte Carlo over the conditions
+and the law, `forster.rescale.monte_carlo`, was added on 2026-10-15; it is a
+separate, optional step that combines both, and refits each draw for cases 1-3
+below. See `docs/site/uncertainty.md`.)
 
 1. The law carries a covariance C over its parameters (`LawUncertainty`).
    `femg_refit2026` has one over log D0, E, the fO2 exponent, the composition
@@ -127,7 +130,7 @@ range, and is cruder than the usual case.
   time shift for dn = 0.3 matched -dn (X_ref - X) at that X to 0.0011 log; the
   midpoint missed by up to 0.005 (`test_the_composition_term_moves_time_as_evaluated_a_third_of_the_way_in`).
   For `femg_refit2026` it barely matters: sigma changes by 0.0005 log over X =
-  0.80-0.90, because the composition coefficient's own variance is small (sd 0.138).
+  0.80-0.90, because the composition coefficient's own variance is small (sd 0.131).
   A law with a much less certain composition term, or a profile spanning a much
   wider Fo range, would need this checked again.
 - **The plateau Fo** of a two-step initial condition is not used to place X.
@@ -160,7 +163,7 @@ range, and is cruder than the usual case.
   cm3/mol, and +0.177 with each value's published error and a random offset per
   experiment (2026-10-15): it moved 0.17 log, about 1.3 times the present sigma
   (0.132), with the data selection and the error model alone.
-- **Extrapolation beyond the calibration.** g' C g grows away from the data's centre
+- **Extrapolation beyond the calibration.** g' C g grows away from the data's center
   as the covariance says it should (the bowtie widening in
   `analyses/femg_refit/README.md`), but only within the assumed form; outside the
   calibrated T, P, fO2 and Fo ranges, and in other diffusion regimes (the PED
@@ -168,11 +171,15 @@ range, and is cruder than the usual case.
   `diffusivity-uncertainty-sources.md`), the law itself may not hold.
 - **Inputs to the law.** Errors in the user's T, P, fO2 and orientation are not in
   C (the calibration experiments' own input errors are: the refit carries them). They
-  move D through the same g, but `forster` does not propagate them (an error of
-  10 C at 1200 C is 0.05 log in D for E = 209 kJ/mol, before any change in a
-  buffered fO2).
+  move D through the same g, so the fit's law range does not include them (an error
+  of 10 C at 1200 C is 0.05 log in D for E = 209 kJ/mol, before any change in a
+  buffered fO2). Since 2026-10-15 `forster.rescale.monte_carlo` propagates them
+  when given a `ConditionUncertainty`.
 
 ## What a law range for cases 1-3 would need
+
+Since 2026-10-15 `forster.rescale.monte_carlo` does this (a refit per draw,
+200 by default). The note below is why it needs one.
 
 A refit per draw: sample the law's parameters from C (and an offset from tau), fit
 the profile with each sampled law, and take the 16th and 84th percentiles of the

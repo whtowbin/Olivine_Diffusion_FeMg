@@ -29,11 +29,14 @@ Every upload is confirmed with Henry first.
 
 ## Each release
 
-1. Clear the checklist in CHANGELOG.md "Before release" (citations, release notes on
-   the cross-term fix and the uncertainty versions, round robin results out of the
-   public tree).
-2. Set the version in `pyproject.toml` (e.g. `0.1.0`), move the CHANGELOG's
-   "Unreleased" entries under that version and date, commit.
+1. Clear the "Before-release checklist" at the end of docs/development-log.md
+   (citations, release notes on the cross-term fix and the uncertainty versions, round
+   robin results out of the public tree).
+2. Set the version in `pyproject.toml` (e.g. `0.1.0`) and in `CITATION.cff` (`version`;
+   tests/test_citation.py checks that they agree). In CHANGELOG.md, replace
+   "(unreleased)" in the heading with the date. Change the pre-release wording ("in
+   development", "not yet on PyPI", "until the first release") in README.md,
+   docs/site/index.md, docs/site/changelog.md and docs/site/installation.md. Commit.
 3. **TestPyPI first:** run the "Publish to PyPI" workflow by hand (Actions → Publish to
    PyPI → Run workflow). It builds, checks the metadata, installs the wheel in a clean
    environment and runs the worked example, then uploads to TestPyPI. Check the page and
@@ -42,8 +45,16 @@ Every upload is confirmed with Henry first.
 4. **PyPI:** tag and push the tag: `git tag v0.1.0 && git push origin v0.1.0`. The
    workflow publishes to PyPI (after the reviewer approves, if set).
 5. Check https://pypi.org/project/forster/ and `pip install forster` in a clean
-   environment; build the app installers if wanted (`gui-installers.yml` also runs on
-   `v*` tags).
+   environment.
+6. **GitHub release:** create a release from the tag on GitHub. Zenodo mints the DOI
+   from the release, so the DOI exists only after this step. Attach the desktop
+   installers to the release: `gui-installers.yml` runs on `v*` tags but only uploads
+   them as workflow artifacts, so download them from the run and attach them by hand
+   (docs/site/installation.md promises them on the releases page).
+7. **DOI:** put the Zenodo DOI into `CITATION.cff` (`identifiers`) and `DOI` in
+   `src/forster/citation.py` (the TODO(Henry) markers), and into the citation text in
+   README.md, docs/site/index.md and docs/site/changelog.md. Commit it after the
+   release, as the first change of the next version.
 
 ## Local check (no upload)
 

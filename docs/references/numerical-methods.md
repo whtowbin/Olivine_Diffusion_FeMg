@@ -1,8 +1,9 @@
 # Sources for the numerical diffusion scheme
 
 Notes on where the finite-difference method in `src/forster/engine.py`
-came from. Started 2026-10-11 from Henry's recollection; entries marked
-[confirm] still need checking.
+came from. Started 2026-10-11 from Henry's recollection. The entries that were
+marked [confirm] were settled on 2026-10-22; the answers are in
+`citations-to-confirm.md` (items 9 to 11) and are noted below.
 
 ## What the engine does
 
@@ -14,20 +15,26 @@ $$C^{n+1} = C^n + \frac{\Delta t}{\Delta x^2}\Big[D\,(C_{i+1} - 2C_i + C_{i-1}) 
 The matrix form of one step is $C^{n+1} = (I + \Delta t\,A)\,C^n$, where $A$ is
 tridiagonal. The code never builds $A$: `np.convolve` with the 3-point kernels
 `[1, -2, 1]` and `[1, 0, -1]` (`diffusion_kernel`, `diffusion_step`) computes
-the same product. There is no implicit or Crank-Nicolson solver in the engine
-and none in the git history (no `diags`, `spsolve` or `solve_banded`); those
-schemes appear in the sources below but were not adopted.
+the same product. When these notes were written (2026-10-11) there was no
+implicit or Crank-Nicolson solver in the engine or in the git history (no
+`diags`, `spsolve` or `solve_banded`). Since 2026-10-13 `src/forster/implicit.py`
+holds one (TR-BDF2, a trapezoidal stage then BDF2) and it is the default
+scheme; see `grid-choice.md`. The explicit scheme described here is still
+available as `scheme="central"`.
 
 Stability: FTCS is stable only for $D\,\Delta t/\Delta x^2 \le \tfrac12$.
-`engine.py` states this in a comment, but nothing enforces it.
+`engine.py` states this in a comment. Since 2026-10-15 `fit_profile` enforces it
+for the explicit schemes by splitting a longer time step into stable substeps
+(`grid-choice.md`).
 
 ## Sources used early on (Henry's recollection)
 
 1. **Warwick CO906 lecture notes (2009), Chapter 3: "The Diffusion Equation".**
    University of Warwick, Complexity Science DTC, module CO906.
    <https://warwick.ac.uk/fac/cross_fac/complexity/study/msc_and_phd/co906/co906online/lecturenotes_2009/chap3.pdf>
-   Author is not printed in the PDF [confirm; probably Colm Connaughton, who
-   taught the Warwick complexity computing modules].
+   Author is not printed in the PDF. The module page names Dr Colm Connaughton
+   as module leader; the citation names the course, not an author
+   (`citations-to-confirm.md`, item 9).
    Relevant parts:
    - §3.1: the FTCS scheme written as $dv/dt = Av$ with tridiagonal $A$ (eq. 3.4)
      and the forward Euler step $v_{j+1} = v_j + hAv_j$ (eq. 3.5). This is the
@@ -48,29 +55,33 @@ Stability: FTCS is stable only for $D\,\Delta t/\Delta x^2 \le \tfrac12$.
    Citable published version: Langtangen, H. P. and Linge, S. (2017),
    *Finite Difference Computing with PDEs: A Modern Software Approach*,
    Texts in Computational Science and Engineering 16, Springer (open access),
-   ch. 3, doi:10.1007/978-3-319-55456-3 [confirm DOI and chapter].
+   ch. 3, "Diffusion Equations", doi:10.1007/978-3-319-55456-3 (DOI and chapter
+   confirmed 2026-10-22, `citations-to-confirm.md`, item 10).
 
-## Other likely sources (in Zotero; Henry to confirm which were used)
+## Other sources (in Zotero; Henry confirmed on 2026-10-22 that all were used)
 
 | Source | Zotero added | Why it may be relevant |
 |---|---|---|
 | Girona, T. and Costa, F. (2013), DIPRA, *G³* 14, 422-431, doi:10.1029/2012GC004427 | 2017-02-22 | Same equation for Fe-Mg in olivine; eq. 5 is the explicit update with a forward-difference cross term. Already cited in the restructure plan and used as the check in "Engine fix". |
-| Crank, J. (1975), *The Mathematics of Diffusion*, 2nd ed., Oxford | 2017-02-22 | Analytic erf solution used in `tests/test_physics.py`; ch. 8 covers numerical methods [confirm chapter]. |
-| Costa, F., Dohmen, R. and Chakraborty, S. (2008), "Time scales of magmatic processes from modeling the zoning patterns of crystals", *Rev. Mineral. Geochem.* 69, 545-594 [confirm pages] | 2020-08-14 | Standard review of explicit FD for diffusion chronometry, including the concentration-dependent-D term. |
-| Press, W. H. et al., *Numerical Recipes*, ch. 19 (20 in 3rd ed.), "Partial Differential Equations" | 2020-08-09 | FTCS, von Neumann stability, Crank-Nicolson, tridiagonal solver. |
+| Crank, J. (1975), *The Mathematics of Diffusion*, 2nd ed., Oxford | 2017-02-22 | Analytic erf solution used in `tests/test_physics.py`; chapter 8 (section 8.5, Crank-Nicolson implicit method) covers numerical methods. |
+| Costa, F., Dohmen, R. and Chakraborty, S. (2008), "Time scales of magmatic processes from modeling the zoning patterns of crystals", *Rev. Mineral. Geochem.* 69, 545-594, doi:10.2138/rmg.2008.69.14 | 2020-08-14 | Standard review of explicit FD for diffusion chronometry, including the concentration-dependent-D term. |
+| Press, W. H. et al., *Numerical Recipes*, 3rd ed. (2007), section 20.2, "Diffusive initial value problems" | 2020-08-09 | FTCS, von Neumann stability, Crank-Nicolson, tridiagonal solver. |
 | Demouchy, S. and Thoraval, C. (2014), "Numerical models of ionic diffusion in one and three dimensions: application to dehydration of mantle olivine", *Phys. Chem. Minerals*, doi:10.1007/s00269-014-0685-x | 2016-11-20 | FD diffusion models in olivine. |
-| Gerya, T., *Numerical Geodynamic Modelling*, Cambridge (2010 or 2019 ed.) | 2016-10-30 | Explicit and implicit FD for the heat/diffusion equation. |
+| Gerya, T. (2010), *Introduction to Numerical Geodynamic Modelling*, Cambridge (first edition; edition confirmed 2026-10-22, not re-checked) | 2016-10-30 | Explicit and implicit FD for the heat/diffusion equation. |
 | Ford Versypt, A. N. and Braatz, R. D. (2014), "Analysis of finite difference discretization schemes for diffusion in spheres with variable diffusivity", *Comput. Chem. Eng.*, doi:10.1016/j.compchemeng.2014.05.022 | 2023-04-21 | Discretizing the variable-$D$ cross term. |
 
 ## Open items
 
-- Confirm the Warwick author and the Langtangen and Linge DOI and chapter.
-- Henry: which of the Zotero items above were actually used for this code.
-- The restructure plan's citation table
+- [x] Confirm the Warwick author and the Langtangen and Linge DOI and chapter
+  (2026-10-22, `citations-to-confirm.md`, items 9 and 10).
+- [x] Henry: which of the Zotero items above were actually used for this code
+  (all of them, 2026-10-22; item 11).
+- [ ] The restructure plan's citation table
   (`docs/plans/2026-10-11-restructure.md`, row "Numerical scheme") says "own
-  implementation"; once the list above is settled, cite the FTCS sources there.
-- Consider enforcing the stability limit in `fit_profile` (raise if
-  $\max D\,\Delta t/\Delta x^2 > \tfrac12$) instead of leaving it as a comment.
+  implementation"; the list above is settled, so cite the FTCS sources there.
+- [x] Consider enforcing the stability limit in `fit_profile`: instead of raising,
+  it splits a longer step into stable substeps (2026-10-15); with growth stages
+  it raises `unstable grid for growth stages`.
 
 ## Log
 
@@ -92,7 +103,8 @@ nothing, so they are not repeated.
   Crank (1975) mention in `tests/test_physics.py`. The engine itself cites
   only DIPRA (in a comment on the cross-term kernel).
 - **Stability.** `engine.py:136` states $D\,\Delta t/\Delta x^2 < 0.5$ as a
-  comment; nothing in `src/` or `tests/` checks it.
+  comment; nothing in `src/` or `tests/` checked it then (since 2026-10-15
+  `fit_profile` substeps to stay stable).
 - **Warwick CO906 ch. 3.** Downloaded and read: 11 pages, sections 3.1-3.6
   (FTCS, boundary conditions, consistency and von Neumann stability,
   Crank-Nicolson, similarity solutions). The PDF names no author, and its

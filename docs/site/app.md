@@ -2,7 +2,7 @@
 
 The app does everything `forster fit` does, with the profile on screen. You draw the
 starting profile with the mouse and the fit updates as you go. The uncertainty from the
-starting profile, the conditions and the diffusion law are shown in the same window.
+starting profile, the conditions and the diffusion equation are shown in the same window.
 It needs the `gui` extra ([Installation](installation.md)).
 
 ```bash
@@ -11,15 +11,23 @@ forster gui my_project/
 
 `my_project/` is a **project folder**. An empty or new folder starts from the worked
 example. If the folder already holds FORSTER tables (`profiles.csv`,
-`parameters.csv`), the app opens them. The app saves to the same tables the command
-line reads, so `forster fit my_project/profiles.csv my_project/parameters.csv` reruns
-a saved project unchanged.
+`parameters.csv`), the app opens them. A folder with other files in it and no
+`parameters.csv` is refused; start the project from the app's **Import profiles...**
+instead. The app saves to the same tables the command line reads, so
+`forster fit my_project/profiles.csv my_project/parameters.csv --diffusivities my_project/diffusivities.csv`
+reruns a saved project unchanged (the `--diffusivities` part matters when the project
+has its own equations).
 
 !!! note "About the screenshots"
     The screenshots come from the app's test runs. "OL7 prof 1" and "OL7 prof 2" are
-    synthetic test profiles, not real crystals. Three screenshots (the Segments tab,
-    a refused edit and the starting-profile fit) date from the first build, which had
-    fewer tabs. The tabs they show still work the same way.
+    synthetic test profiles, not real crystals. They were taken on 2026-10-17 and show
+    the toolbar of that date, which has **New from example** and no **Import folder**
+    button or **Help** menu; today's toolbar is described above. The settings tabs and
+    plots they show work the same way, with these differences: the field now
+    called **Crystal center** is labeled "Crystal centre" in some, a warning in them
+    that whole-crystal modeling is "not available yet" is out of date (`centre_um`
+    models whole crystals), and the import dialog image lacks the **Start each
+    profile at its first point** box.
 
 ## The window
 
@@ -39,10 +47,10 @@ The window has three parts:
 
 Across the top are **New project** (an empty project), **Open** (a project folder),
 **Save**, **Save as**, **Import profiles** and **Import folder** (CSV or Excel files),
-**Copy settings**, **Fit all** (fit every run) and **Export**. With no project open,
+**Copy settings**, **Fit all** (fit every run not fitted yet) and **Export**. With no project open,
 importing starts one: after you map the columns, you name a folder for the new
 project. **Help > Open the worked example** makes a copy of the worked example to try
-the app on. Hover over any field to see its unit and the table column it is saved in.
+the app on. **Help > Cite FORSTER...** shows how to cite FORSTER and the diffusion equation of the selected run. Hover over any field to see its unit and the table column it is saved in.
 
 ## The Profile view and the Segments tab
 
@@ -94,7 +102,7 @@ narrow the range ([Preparing data](data.md#collecting-profiles)).
 
 **Move the distances so the rim is at 0** shifts the distances, or flips them if the
 rim is at the far end of the traverse. The domain and steps of every run on that
-profile move with them. **Rim at 0** puts the first analysis at 0. For the best fits,
+profile move with them. **Rim at 0** fills the offset box with the value that puts the first analysis at 0; **Move** then applies it. For the best fits,
 give distances measured from the crystal rim yourself (from an image of the crystal):
 the first analysis usually sits a few µm inside the rim, and that gap shifts the fitted
 time. **Import profiles...** opens the import dialog.
@@ -103,7 +111,7 @@ time. **Import profiles...** opens the import dialog.
 
 ![The import dialog](images/app-import-dialog.png)
 
-Choose a CSV or Excel file, then say what each column holds. A column can be the
+Choose a CSV or Excel file (for an Excel workbook the app reads the first sheet only; `forster import --sheet` picks another), then say what each column holds. A column can be the
 profile name (or none, if the whole file is one profile), the distance (µm or mm), Fo
 (a fraction or percent), an oxide or element (wt% or ppm), the analytical total, a
 stage coordinate, an exclusion column, or nothing. The dialog proposes a mapping from
@@ -129,7 +137,7 @@ refuses the import. `forster import` uses the same mapping, and
   a buffer (QFM or NNO, in log units) or in Pa.
 - **Orientation**: the angles between the profile and the crystal axes [100], [010]
   and [001], or EBSD Euler angles together with the profile's direction on the map.
-- **Equation**: the Fe-Mg diffusion law. Choose one of the four built-in laws or one of
+- **Equation**: the Fe-Mg diffusion equation. Choose one of the four built-in equations or one of
   the project's own equations from `diffusivities.csv`. The tooltip gives the source of
   each.
 
@@ -157,9 +165,10 @@ accounts for 85% of the spread. The warning below the plot says the profile ends
 ![The Monte Carlo panel](images/app-monte-carlo.png)
 
 Below it, the **Monte Carlo** panel draws temperature, pressure, fO2 and the
-diffusion law's parameters, and turns each draw into a time. Enter the 1σ of T (°C),
+diffusion equation's parameters, and turns each draw into a time. Tick **Run a Monte Carlo
+for this run**, set the options below, and press **Run Monte Carlo**. Enter the 1σ of T (°C),
 P (MPa) and fO2 (log units). Choose whether fO2 stays relative to a buffer as T
-changes, whether to draw the law's parameters from its published covariance, and
+changes, whether to draw the equation's parameters from its published covariance, and
 whether to add the spread between laboratories. The result line gives the median time,
 the 68% and 90% ranges, and how much each source contributes. [Uncertainty beyond the
 fit](uncertainty.md#the-monte-carlo-over-t-p-fo2-and-the-law) explains the numbers.
@@ -170,17 +179,17 @@ fit](uncertainty.md#the-monte-carlo-over-t-p-fo2-and-the-law) explains the numbe
 
 This view shows the distribution of time on a log axis: from the fit alone, with the
 starting profile's uncertainty (after **Fit starting profile**), and with the
-conditions and the law (after a Monte Carlo). It is the figure `forster fit` writes as
+conditions and the diffusion equation (after a Monte Carlo). It is the figure `forster fit` writes as
 `_time.png`. *Show* picks which distributions to draw.
 
 ## Law comparison
 
 ![The Law comparison view](images/app-law-comparison.png)
 
-This view refits the run with each of the four built-in Fe-Mg diffusion laws, as
+This view refits the run with each of the four built-in Fe-Mg diffusion equations, as
 `forster fit --compare-laws` draws it. The profiles look identical because the fit
-fixes D × t. The times differ because each law gives a different D. Thick bars show
-the 1σ range from the profile alone, and thin bars add the law's own calibration
+fixes D × t. The times differ because each equation gives a different D. Thick bars show
+the 1σ range from the profile alone, and thin bars add the equation's own calibration
 uncertainty.
 
 ## Advanced
@@ -200,8 +209,9 @@ uncertainty.
 ![The Results view](images/app-results.png)
 
 The Results view lists every run's time, 1σ and 2σ ranges, Monte Carlo median and 68%
-range, status and number of warnings. **Export** writes the same `summary.csv` as
-`forster fit` for the fitted runs.
+range, status and number of warnings. **Export > Summary CSV...** writes `summary.csv`
+for the fitted runs, with nearly the same columns as `forster fit`
+writes (no `forster_version`).
 
 ## Copying settings between runs
 
@@ -223,9 +233,11 @@ The app and its plots follow the system's light or dark setting.
 
 - **Save** writes the tables (`profiles.csv`, `parameters.csv`, `diffusivities.csv`)
   and `project.json`, which holds what only the app needs (each run's view: tabs and
-  zoom).
+  zoom). **Save as** refuses a folder that already holds files (it would overwrite
+  them): choose a new or empty folder.
 - Fits, starting-profile fits and Monte Carlos are cached in the project folder
   (`.forster/cache`), so a reopened project shows its results straight away.
 - The project is autosaved every minute (`.forster/autosave`). If you open a project with unsaved changes from an earlier session, the app offers to restore them.
 - **Export** writes the plot or view on screen as PNG or PDF, the fit figure as
-  `forster fit` draws it, `summary.csv`, or the whole project as a zip to share.
+  `forster fit` draws it, `summary.csv` (**Summary CSV...**), or the whole project as a
+  zip to share.

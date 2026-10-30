@@ -15,8 +15,8 @@ Terms used across this site, in alphabetical order.
 AIC (Akaike information criterion)
 :   A score for comparing models that penalizes each extra parameter. Lower is better.
     FORSTER uses the change in AIC (ΔAIC, `near_step_daic`) to test whether the misfit
-    is concentrated near the steps. A difference under 2 means the data cannot tell the
-    models apart. Below -6, FORSTER warns.
+    is concentrated near the steps. A change of about +2 means no sign of near-step
+    misfit, and the data cannot tell the models apart. Below -6, FORSTER warns.
 
 Anisotropy
 :   Diffusion that runs at different rates in different crystallographic directions.
@@ -43,14 +43,24 @@ Coverage
     of known age. A good 1σ range covers about 68%.
 
 Diffusion length
-:   Roughly how far a step has spread by diffusion, l = √(D t). On a fitted profile it
-    is about half the width of the smoothed step. Several checks measure distances in
+:   Roughly how far a step has spread by diffusion, l = √(D t). A smoothed step is about 3.6 l
+    wide between its 10% and 90% levels. Several checks measure distances in
     diffusion lengths.
 
-Diffusion law (diffusivity equation)
+Diffusion equation (diffusivity equation, "diffusion law")
 :   The equation that gives the diffusivity D from temperature, pressure, oxygen
     fugacity, Fo and crystallographic direction. FORSTER offers four for Fe-Mg
     ([Setting up a run](setup.md#the-diffusion-law)).
+
+DIPRA
+:   A program that tabulates the Fe-Mg diffusion equation of Dohmen and Chakraborty
+    (2007) (Girona and Costa 2013). In FORSTER `dipra` names that equation, the default.
+    It is also the name of an explicit numerical scheme (`scheme = dipra`), which is a
+    different thing.
+
+DFENS
+:   A program for diffusion chronometry (Mutch et al. 2021). `dfens_tamed` and
+    `dfens_global` are the Fe-Mg equations of Mutch et al. (2019) that it uses.
 
 Diffusivity (D)
 :   The diffusion coefficient: how fast Fe and Mg exchange, in m²/s. A profile fixes the
@@ -92,13 +102,17 @@ Importance sampling
     weighted by how much more or less probable it is under the exact distribution. The
     weights correct the sample to the exact distribution.
 
+Legacy (uncertainty method)
+:   The independent-errors rule with kriging, in use from March 2026 and kept
+    (`uncertainty = legacy`) to reproduce results from before the correlated method.
+
 Laplace approximation
 :   A bell-shaped (multivariate Gaussian) approximation of a posterior, centered on the
     best fit and shaped by the curvature of the misfit there.
 
-Law range
-:   The range of time including the diffusion law's own calibration uncertainty
-    (`law_low_days`-`law_high_days`).
+Diffusion-equation range (law range)
+:   The range of time including the Fe-Mg diffusion equation's own calibration
+    uncertainty (`law_low_days`-`law_high_days`).
 
 Marginalized
 :   Averaged over the possible values of other parameters, each weighted by its
@@ -106,7 +120,7 @@ Marginalized
     every starting profile the data and the priors allow.
 
 Monte Carlo
-:   Drawing the uncertain inputs (T, P, fO2, the law's parameters) at random many times
+:   Drawing the uncertain inputs (T, P, fO2, the diffusion equation's parameters) at random many times
     and looking at the spread of the results.
 
 Near-step check
@@ -133,6 +147,15 @@ Posterior
 Prior
 :   What is known about a parameter before fitting this profile: a nominal value and a
     Gaussian 1σ (`_sd` columns) or a uniform ± half-width (`_range` columns).
+
+Refit (`refit`)
+:   FORSTER's own refit of the Fe-Mg diffusion equation to published experiments
+    (`femg_refit2026`). It carries a covariance and a spread between laboratories.
+
+Rescaling
+:   Turning a fitted time into the time for another D without refitting: t = t_fit ×
+    D_fit / D_draw. The Monte Carlo uses it ([Uncertainty beyond the
+    fit](uncertainty.md#the-monte-carlo-over-t-p-fo2-and-the-law)).
 
 Residual
 :   Measured Fo minus model Fo at a measured point, at the best-fit time.

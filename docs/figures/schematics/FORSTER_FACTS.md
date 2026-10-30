@@ -4,7 +4,7 @@ Source: the FORSTER repo at /Users/henrytowbin/Projects/Olivine_Diffusion_FeMg (
 .claude/skills/forster-*/SKILL.md, docs/plans/2026-10-13-growth-stages.md,
 docs/plans/2026-10-16-geometry-naming.md, docs/plans/2026-10-16-joint-fits.md). Read those
 files for anything not covered here. If something is not in them, treat it as **unknown**:
-keep that part of the drawing generic and list it in docs/facts.md as unknown. Do not invent
+keep that part of the drawing generic and list it as unknown in the figure's caption notes. Do not invent
 numbers.
 
 Audience: readers of a geoscience methods paper (petrologists, volcanologists), the
@@ -34,12 +34,12 @@ range.
 - One-dimensional diffusion along the profile, solved by finite differences (implicit
   scheme by default).
 - **Starting profile** (initial condition): step-shaped. The regions between steps are
-  **segments**, labelled a, b, c, ... from edge 1 inward (renamable, e.g. rim, mantle1,
+  **segments**, labeled a, b, c, ... from edge 1 inward (renamable, e.g. rim, mantle1,
   core). Each segment has one Fo. Step positions are distances from the edge.
 - **Edges:** edge 1 is the crystal rim, held at the edge Fo (in contact with the melt); the
   edge value can differ from the Fo of the segment next to it. For a half profile the far
-  end is held at the core value (default). If the user gives a crystal centre, the profile
-  is mirrored there (no flux across the centre) and the core is free to change.
+  end is held at the core value (default). If the user gives a crystal center, the profile
+  is mirrored there (no flux across the center) and the core is free to change.
 - Distances are measured from the profile's own edge.
 
 ## The fit
@@ -49,7 +49,7 @@ range.
    noise model has a white (point-to-point) part and a smooth correlated misfit part.
 3. Best-fit time = minimum misfit; 1σ and 2σ ranges from the misfit curve.
 4. Uncertain starting profile: step positions and segment Fo can carry a prior (sd or
-   range). FORSTER then fits them too (optimise, then importance sampling around the best
+   range). FORSTER then fits them too (optimize, then importance sampling around the best
    fit; nested sampling if needed) and reports a time range that includes them.
 5. Monte Carlo over T, P, fO2 and the diffusivity law's parameters gives the final time
    distribution (median, 68% and 90% ranges).
@@ -63,19 +63,21 @@ stage can fit the measured profile (the measured profile includes every zone). F
 reports both the time since the first stage and the time since the last stage. Stage start
 times are fixed inputs.
 
-## Joint fit of several profiles on one crystal (planned; being built now)
+## Joint fit of several profiles on one crystal (built: `forster.fit_crystal`, since 2026-10-16)
 Profiles along different crystallographic directions of one crystal (usually orthogonal)
 share one history.
 - Shared: time; T, P, fO2 (must be identical); each segment's Fo, matched by segment label;
   the edge value by default.
 - Not shared: step positions and zone widths (olivine grows faster on some faces than
-  others, and a section may miss the centre), the origin (each profile is measured from
+  others, and a section may miss the center), the origin (each profile is measured from
   its own edge), and orientation, so each profile has its own D.
 - Per-profile corrections, each with a prior: an Fo offset on all of a profile's segments
-  for drift between microprobe sessions (~0.1 mol%), and an edge position offset of a few
-  µm (the first point may be a few µm off the true rim).
-- The user may mark where two profiles cross (a distance along each); the model should
-  agree there.
+  for drift between microprobe sessions (~0.1 mol%), and, optionally, an edge position
+  offset of a few µm (the first point may be a few µm off the true rim). The edge offset
+  is off by default, because with free steps it is barely identifiable; the user turns it
+  on per crystal.
+- Marking where two profiles cross (a distance along each, so the model agrees there) was
+  planned and is not built; do not draw it as a feature.
 - Workflow: quick individual fits of each profile first (their times are compared as a
   check), then the joint fit; the joint misfit is the sum over profiles, each with its own
   noise model.

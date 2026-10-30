@@ -65,7 +65,7 @@ The last command should print `5.14 days (4.24-6.21)` for the worked example. Th
 
 GitHub builds standalone versions of the desktop app for macOS, Windows and Linux
 that need no Python. Each build runs the app's own self-test: a fit, a
-starting-profile fit, a Monte Carlo, the comparison of diffusion laws, exports, and
+starting-profile fit, a Monte Carlo, the comparison of diffusion equations, exports, and
 saving and reopening. These installers have **not been released yet**. When they
 are, they will be on the project's GitHub releases page. They are not signed, so
 macOS and Windows will warn you the first time you open them:
@@ -84,10 +84,9 @@ uv sync
 uv run pytest -n 4
 ```
 
-Some tests use profiles from an interlaboratory comparison (a "round robin"). These
-profiles belong to other laboratories and are kept in a private git submodule until
-that study is published. Without access to it, those tests are skipped and the rest
-still run.
+Some tests use other laboratories' unpublished profiles, kept in a private git
+submodule (`Diffusion Round Robin`). Without access to it, those tests are skipped and
+the rest still run.
 
 This site is built from `docs/site/` with MkDocs:
 

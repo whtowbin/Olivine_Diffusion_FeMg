@@ -190,7 +190,10 @@ term, propagated analytically to the fitted time (`FitResult.time_range_days`); 
 `docs/plans/2026-10-13-law-uncertainty.md`. For Fo fits option 1 no longer needs a
 Monte Carlo: a law's covariance maps onto log time directly. The Mutch et al. (2019)
 covariances are now in the presets at full precision (2026-10-15), from Mutch et al. (2021), DFENS
-Data Set S6; both Fe-Mg matrices are positive definite. Where the analytic mapping holds and where it
+Data Set S6; both Fe-Mg matrices are positive definite. As shipped (refitted on
+2026-10-15), `femg_refit2026` is fitted to 132 values from four studies
+(Chakraborty 1997; Dohmen et al. 2007; Petry et al. 2004; Holzapfel et al. 2007),
+leaving out Spandler and O'Neill (2010) and Oeser et al. (2026); `femg-refit2026.md`. Where the analytic mapping holds and where it
 does not (changing rims, growth stages, element fits): `law-uncertainty-limits.md`.
 
 Ranked by what they buy for the work they cost:

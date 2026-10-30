@@ -1,7 +1,7 @@
 # Choosing the numerical grid
 
 How `forster` picks the grid spacing dx, the time step dt and the longest
-modelled time, what it tells you about a grid you give it, and the
+modeled time, what it tells you about a grid you give it, and the
 measurements behind both. Code: `src/forster/grid.py`. Scripts and data:
 `docs/plans/2026-10-13-grid-choice/`.
 
@@ -11,8 +11,9 @@ The default scheme is `implicit` (since 2026-10-13; section "The implicit
 scheme" below). Leave `dx_um` and `dt_s` blank in `parameters.csv` (or pass a
 `GridRequest()` from Python) and the grid is chosen for you:
 
-1. A quick fit on a coarse grid with the explicit scheme (150 nodes, or a
-   quarter of the narrowest gap if that is finer) estimates the time, and from
+1. A quick fit on a coarse grid (150 nodes, or a quarter of the narrowest gap
+   if that is finer), in the fit's own scheme since 2026-10-18 (it was always
+   explicit before), estimates the time, and from
    it the diffusion length l = sqrt(D t), with D the diffusivity at the middle
    of the composition range.
 2. dx is set so the fitted time is within a tolerance. Implicit: dx = l / 8 for
@@ -23,9 +24,11 @@ scheme" below). Leave `dx_um` and `dt_s` blank in `parameters.csv` (or pass a
    and an end of the profile).
 3. dt: implicit, t × tolerance / 4, that is 400 steps up to the fit (80 for
    scans), because the scheme is stable at any dt and the best fit is a whole
-   time step. Central and dipra: D_max dt / dx² = 0.4, with D_max the largest
-   diffusivity over the compositions the profile passes through (they diverge
-   above 0.5).
+   time step. Central and dipra: the larger of the stable step (D_max dt / dx²
+   = 0.4, with D_max the largest diffusivity over the compositions the profile
+   passes through; they diverge above 0.5) and the step that resolves the fit.
+   Since 2026-10-15 a dt above the stable step is not refused: `fit_profile`
+   splits each step into stable substeps and keeps the rows at whole steps.
 4. The longest time is 3× the coarse fit's time. Early stopping ends the run
    sooner and extends it if the 1σ range reaches the end.
 
@@ -49,7 +52,7 @@ check. For central and dipra:
 
 | Check | Result |
 |---|---|
-| D_max dt / dx² above 0.5 | error: `unstable grid` (the fit would diverge) |
+| D_max dt / dx² above 0.5 | split into stable substeps; with growth stages, error: `unstable grid for growth stages` |
 | fewer than 4 nodes across the narrowest gap | warning: the initial condition is not resolved |
 | l / dx below what the tolerance needs | warning: the time `may be off by up to` the estimated error |
 | l / dx over 4× what is needed | warning: `much finer than needed` (slow, no gain) |
@@ -75,72 +78,60 @@ stable step.
 
 ### Accuracy against resolution
 
-Six real profiles (three from the round robin, three from Towbin and Plank
-2026), each fitted on grids with dx = l / k, dt at ratio 0.4, against a
+Three real profiles from Towbin and Plank 2026, each fitted on grids with dx = l / k, dt at ratio 0.4, against a
 reference at k = 60. Error is |t_k / t_60 − 1|, in percent (`calib_grid2.py`,
-steps left where the grid puts them). The round robin data belong to other
-labs, so the round robin profiles are named here only by their geometry and
-their rows in the CSV files of `docs/plans/2026-10-13-grid-choice/` are kept in
-the private round robin repository; the public CSVs hold the paper profiles:
+steps left where the grid puts them). The study also covered three round robin
+profiles (other laboratories' unpublished data); their rows are kept in the
+private round robin repository and are not shown here. The public CSV files of
+`docs/plans/2026-10-13-grid-choice/` hold the paper profiles:
 
 | Profile | k = 12 | 20 | 30 | 40 |
 |---|---|---|---|---|
 | AZ18 WHT01_Ol_63_prof_1 | 1.5 | 0.3 | 0.1 | 0.6 |
 | AZ18 WHT01_bigol1_overgrowth_prof_1 | 1.3 | 0.8 | 0.1 | 0.1 |
-| Round robin profile B (29 points, 10 µm apart) | 6.5 | 3.9 | 1.8 | 2.0 |
-| Round robin profile A (30 points, 10 µm apart) | 3.5 | 8.1 | 6.5 | 5.7 |
-| Round robin profile C (298 points, 0.5 µm apart) | 0.5 | 1.4 | 0.4 | 0.3 |
 | Xenocryst_ol6_prof_1 | 4.5 | 2.5 | 1.8 | 0.5 |
 
 Below k = 8 the fits are unreliable (`calib_grid.py`): at k = 1–3 the
-worst error is 34–196% on five of the six profiles (3% on round robin profile C), and
+worst error is 34–196% on most of the six profiles, and
 at k = 5–8 it is up to 24%.
 
 The error falls roughly as 1/k, not 1/k² as the scheme's interior order
 would suggest, for two reasons: the boundary value sits on a ghost node one
 dx outside the profile, and each step of the initial condition snaps to the
-nearest node. The worst cases above gave the rule error ≈ 0.65 / k
+nearest node. The worst cases over all six profiles gave the rule error ≈ 0.65 / k
 (5.4% at k = 12, 1% at k = 65). That was too small: these errors are measured
 against an explicit k = 60 reference with the same first-order bias. Against a
 converged reference the coefficient is about 2.4 (see the correction above and
 "All 35 real profiles" below).
 
 **Step snapping.** Repeating the study with the grid shifted so the first
-step falls exactly on a node (`aligned` in `calib_grid2.csv`):
-
-| Profile | snapped, k = 20 / 40 | on a node, k = 20 / 40 |
-|---|---|---|
-| Round robin profile A | 8.1 / 5.7 | 1.8 / 1.4 |
-| Round robin profile B | 3.9 / 2.0 | 2.9 / 1.0 |
-| others | within 0.6 points of each other | |
-
-The large and non-monotonic errors of round robin profile A are snapping: its
-fitted time moves by a few percent as the step jumps between nodes. The
+step falls exactly on a node (`aligned` in `calib_grid2.csv`) changed the three
+paper profiles by less than 0.6 points. Where errors were large and
+non-monotonic in k, snapping was the cause: the fitted time moves by a few
+percent as the step jumps between nodes. The
 grid rule does not remove this; a scheme that puts steps on nodes would.
 
 ### Cost
 
-One fit at k = 12 takes 0.02–0.03 s on five of the profiles (0.5 s on
-round robin profile C, the longest); at k = 60, 0.5–2.8 s. The `final` rule
+One fit at k = 12 takes 0.02–0.5 s depending on the number of points; at
+k = 60, 0.5–2.8 s. The `final` rule
 (k = 65) is therefore about 25× the cost of the `scan` rule, which is why
 scans use the coarser grid.
 
 ### The time step
 
-Raising dt to ratio 0.4 changed fitted times by under 0.2% on the round
-robin profiles (`docs/references/likelihood-method.md`, section 7); coarsening
+Raising dt to ratio 0.4 changed fitted times by under 0.2% on the real
+profiles (`docs/references/likelihood-method.md`, section 7); coarsening
 dx by the same speed-up biased them by up to 12%. The existing parameter
 tables use ratios of 0.007–0.17, so they are stable but take 2–60× more
 steps than needed.
 
 ### Existing grids
 
-The parameter tables use dx = 1 µm (round robin) and 0.5 µm (paper). For the
+The paper parameter tables use dx = 0.5 µm. For the
 three paper profiles above that is k = 22 and 18 (Ol_63, bigol1) and 5
-(Xenocryst_ol6_prof_1, whose time is about 7% off its converged value). The k
-values of the round robin profiles are left out: with dx known, k gives the
-diffusion length, which is a round robin result. Ol_63, bigol1 and round robin
-profiles A and B met the scan tolerance by the original 0.65 / k rule, but not
+(Xenocryst_ol6_prof_1, whose time is about 7% off its converged value). Ol_63
+and bigol1 met the scan tolerance by the original 0.65 / k rule, but not
 the final one; by the corrected 2.4 / k rule none of the six meets even the
 scan tolerance (k = 48).
 
@@ -171,8 +162,7 @@ profiles above, with the explicit stable dt so only dx matters
 
 Either change alone helps somewhat but leaves errors of 2–25%: averaging the
 start keeps the first-order error of the ghost rim, and a rim on a node keeps
-the snapping noise. The largest errors are on round robin profiles A
-and B. Together the
+the snapping noise. Together the
 error falls as about 0.2 (dx / l)², which `forster.grid` uses.
 
 ### Time

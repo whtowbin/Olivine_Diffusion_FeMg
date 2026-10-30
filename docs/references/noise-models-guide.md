@@ -6,7 +6,7 @@ The method itself is in [likelihood-method.md](likelihood-method.md). The tests 
 the numbers here are in
 [the whitening-validity study](../plans/2026-10-15-whitening-validity/README.md).
 The figures are made by `figures/noise_models/make_figures.py`. What was tested and
-found, including fitting the starting profile and plateau length, is summarised in
+found, including fitting the starting profile and plateau length, is summarized in
 [noise-model-findings.md](noise-model-findings.md); advice for collecting and fitting
 profiles is collected in [practical-advice.md](../guide/practical-advice.md).
 
@@ -40,7 +40,7 @@ profiles is collected in [practical-advice.md](../guide/practical-advice.md).
 
 | Column | Meaning | How to read it |
 |---|---|---|
-| `white_sigma_fo` | s, the white noise (Fo fraction; 0.001 = 0.1 mol% Fo) | Should be close to your analytical precision. The paper profiles give 0.05–0.18 mol%, median about 0.1. Much larger than your precision: there is unmodelled scatter, or outliers (section 3.6). |
+| `white_sigma_fo` | s, the white noise (Fo fraction; 0.001 = 0.1 mol% Fo) | Should be close to your analytical precision. The paper profiles give 0.05–0.18 mol%, median about 0.1. Much larger than your precision: there is unmodeled scatter, or outliers (section 3.6). |
 | `correlated_sigma_fo` | a, the smooth misfit's amplitude | 0 means white noise alone was enough. If a is larger than s, the misfit dominates the residuals. |
 | `correlation_length_um` | L, the misfit's length | Compare with l (√(D t), or half the width of the diffused step). L about l or longer, or L near half the profile, means the misfit is the size of the profile's shape (sections 3.3 and 3.4). |
 | `near_step_daic` | AIC change when the misfit is allowed to be larger near the steps | Below −6: FORSTER warns that the misfit is concentrated near the step (section 3.5). Around +2: no sign of it (+2 is the cost of the unused parameter). |
@@ -57,7 +57,7 @@ FORSTER issues these warnings about the noise and the profile:
   76–94% of fits with strong misfit near the step on 29- and 298-point profiles. On a
   17-point profile it caught only 14–37%, so silence on a short profile is weak
   evidence. Among the real profiles tested it fires on three of the paper profiles and
-  on some of the dense round robin profiles.
+  on the dense round robin profile.
 - **"the misfit spans the profile"** when L reaches half the profile and a is at least
   half of s. Check the initial and boundary conditions.
 - **"even at the best-fit initial condition the misfit is concentrated near the step"**
@@ -76,7 +76,7 @@ example) and 0.1 mol% white noise. Each column adds one kind of misfit and shows
 typical draw:
 - Row 1: the data, the true profile (dotted), the default best fit and its 1σ and 2σ
   bands.
-- Row 2: the raw residuals. Grey band: ± the fitted s. Green line: the smooth misfit
+- Row 2: the raw residuals. Gray band: ± the fitted s. Green line: the smooth misfit
   the noise model sees. Dashed lines: ± 2 × the true noise sd. Yellow: within 2 l of
   the step.
 - Row 3: the whitened residuals.
@@ -151,7 +151,7 @@ right: the step is not sharp, the plateau is not flat, or the step is in a sligh
 different place.
 
 ### 3.6 Outliers
-One or two points sit far from their neighbours. They are hard to spot from the
+One or two points sit far from their neighbors. They are hard to spot from the
 diagnostics: an outlier inflates the fitted s (0.17 against a true 0.10 mol% in the draw
 shown), so its own z is only about 2.7–2.9. Coverage stays right (70%); the cost is a
 wider range (median width 21% of the time against 14% for white noise). If a point is
@@ -201,7 +201,7 @@ fitted with the default noise model (blue) and the near-step model (orange):
 In all three the residuals are largest in the yellow near-step zone. The near-step
 best fit can move either way, and in two of the three it falls outside the default 1σ
 range. In all three it lies inside the default 2σ range, and the same holds for the
-dense round robin profiles that trigger the warning. **When the warning fires, the 2σ
+dense round robin profile, which triggers the warning. **When the warning fires, the 2σ
 range is the honest quote.**
 
 ## 5. What to do

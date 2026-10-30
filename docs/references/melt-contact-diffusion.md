@@ -1,6 +1,6 @@
 # Melt contact and the Fe-Mg calibration: Shea et al. (2023) against the refit
 
-How the melt-olivine experiments of Shea et al. (2023) compare with the study offsets of the Fe-Mg refit (`femg_refit2026`) and with Oeser et al. (2026), and what they say about the between-study term and the fO2 exponent. This is an analysis note: forster's laws, presets and uncertainty code are unchanged. Written 2026-10-14. Data `analyses/melt_contact/data/shea2023_table1.csv`; numbers from `analyses/melt_contact/melt_sensitivity.py` (`results/variants.csv`, `shea_residuals.csv`, `element_offsets.csv`). The study itself is summarised in `diffusivity-literature.md`.
+How the melt-olivine experiments of Shea et al. (2023) compare with the study offsets of the Fe-Mg refit (`femg_refit2026`) and with Oeser et al. (2026), and what they say about the between-study term and the fO2 exponent. This is an analysis note: forster's laws, presets and uncertainty code are unchanged. Written 2026-10-14. Data `analyses/melt_contact/data/shea2023_table1.csv`; numbers from `analyses/melt_contact/melt_sensitivity.py` (`results/variants.csv`, `shea_residuals.csv`, `element_offsets.csv`). The study itself is summarized in `diffusivity-literature.md`.
 
 **Status (2026-10-14, later):** the `femg_refit2026` preset has since been refitted to the verified data, without Spandler and O'Neill, with the anisotropy fixed at 6x, with Holzapfel's Au-capsule runs and each run's input errors, with the activation volume fitted, and with each value's published error and a random offset per experiment (`data-to-source.md`, `unconfirmed-data.md`). Against that preset the melt term is +0.54 ± 0.20 (Spandler) or +0.83 ± 0.20 (with Shea's 8 profiles). "The preset" and "previous preset" in this note mean the one before that: the full compilation with Spandler as a study.
 
@@ -21,7 +21,7 @@ How the melt-olivine experiments of Shea et al. (2023) compare with the study of
 
 ## The Shea et al. data used
 
-Table 1 gives 26 profiles (D for Fo, Ni, Ca, Mn, Cr) with temperatures and dwell times but no angles; the angles are in their supplementary table, which we do not have. Figs 2-4 tie 9 rows to a profile, an orientation and a modelled time:
+Table 1 gives 26 profiles (D for Fo, Ni, Ca, Mn, Cr) with temperatures and dwell times but no angles; the angles are in their supplementary table, which we do not have. Figs 2-4 tie 9 rows to a profile, an orientation and a modeled time:
 
 -   ol25 (San Carlos seed, 1240 °C, 48 h): two profiles parallel to c, two parallel to a (Fig 4).
 -   ol20 (Kilauea seed, 1220 °C, 6 h): one parallel to b, one parallel to c (Fig 3).
@@ -30,7 +30,7 @@ Table 1 gives 26 profiles (D for Fo, Ni, Ca, Mn, Cr) with temperatures and dwell
 
 Conditions: QFM−1 from Frost (1991) (`engine.fo2buffer`), 1 atm, and X_Fo at the middle of each profile's Fo range (0.81-0.875).
 
-**Checking the transcription.** Shea et al.'s own residual against the law they used is log10(modelled time / true time). Ours, from the transcribed D and the assumed conditions, differs from it by −0.10 to +0.20 log for Fe-Mg. The largest gap is ol18, reversely zoned from Fo77 to Fo85, where the mid-profile Fo matters most. For Ni the gaps are within −0.19, except ol18 at −0.71, the profile Shea et al. mark as poorly resolved. The ol25 \[001\]/\[100\] ratio is 10.7 (Table 1), against 6 in DC07. Fe-Mg rows 11 and 12 come in the opposite order to Fig 4's times (4.4 and 4.3e-15 against 36.7 and 37.7 d); Ni, Ca and Mn match the figure order.
+**Checking the transcription.** Shea et al.'s own residual against the law they used is log10(modeled time / true time). Ours, from the transcribed D and the assumed conditions, differs from it by −0.10 to +0.20 log for Fe-Mg. The largest gap is ol18, reversely zoned from Fo77 to Fo85, where the mid-profile Fo matters most. For Ni the gaps are within −0.19, except ol18 at −0.71, the profile Shea et al. mark as poorly resolved. The ol25 \[001\]/\[100\] ratio is 10.7 (Table 1), against 6 in DC07. Fe-Mg rows 11 and 12 come in the opposite order to Fig 4's times (4.4 and 4.3e-15 against 36.7 and 37.7 d); Ni, Ca and Mn match the figure order.
 
 Fe-Mg residuals (log10; from Shea et al.'s times, the refit column adding DC07 − refit at each row's conditions):
 
@@ -129,7 +129,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
 
 ## Decisions (Henry's, not made here)
 
-1.  **Whether to re-export `femg_refit2026` with melt as a fixed term.** τ would be about 0.11, the RR1200 level +0.16 against DC07, and the law 1σ 0.06. This touches `export_preset.py` and `diffusivity.py`. The review-fixes refactor that blocked it landed in 462680b. `export_preset.py` exits 1 unless the law it builds equals the preset exactly. The current τ is also quoted in:
+1.  **Whether to re-export `femg_refit2026` with melt as a fixed term.** τ would be about 0.11, the RR1200 level +0.16 against DC07, and the law 1σ 0.06. This touches `export_preset.py` and `diffusivity.py`. The review-fixes refactor that blocked it landed in 462680b. `export_preset.py` exits 1 unless the law it builds equals the preset exactly. **Moot since 2026-10-15:** the shipped `femg_refit2026` leaves Spandler and Oeser out, so melt is not in τ (τ = 0.072, `femg-refit2026.md`); the numbers below are for the earlier fit. The current τ is also quoted in:
 
     -   `src/forster/diffusivity.py` (the value and its source text);
     -   `law-uncertainty-limits.md` (how the range is computed, step 4; the "Gaussian in log10 D" bullet, 0.11-0.66 and 0.164-0.671);
@@ -164,7 +164,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
 **Fig. 2. The fO2 dependence with and without a melt term.**
 
 -   **(a) The data at 1200 °C, Fo90, 1 atm, \[001\] against fO2**, moved in T, Fo, P and axis (not fO2) by the Spandler + Shea melt-term fit.
-    -   Grey: previous preset. Blue: solid contact. Wine: melt contact. Bands are 68%.
+    -   Gray: previous preset. Blue: solid contact. Wine: melt contact. Bands are 68%.
     -   The shaded span is the round robin and paper fO2.
 -   **(b) The fO2 exponent (±1σ)** of each variant in both forms, plus Dohmen's and Petry's own exponents (`fo2_figures._within_study`), against DC07's 1/6 and Mutch et al.'s 0.224.
 -   Numbers are in `figures/fig2_fo2_exponents.csv`.
@@ -176,7 +176,7 @@ So a study or melt offset shared across elements is supported by Shea and half s
 -   **Rows:** solid-source studies above the line, melt-contact studies (pink labels) below. Bars are the mean ± 1 sd.
 -   **Solid-source residuals** are computed from the compiled data (Holzapfel at Ni-NiO, assumed). Their means reproduce the refit's `compare_laws` table.
 -   **Jurewicz and Watson, and Shea's full set,** are Shea et al.'s own residuals, read from the vector graphics of their Fig. 6 (`extract_shea2023_figs.py`).
--   **Shea's 8 profiles with a known axis** are residuals from Shea et al.'s modelled times (Figs. 2-4).
+-   **Shea's 8 profiles with a known axis** are residuals from Shea et al.'s modeled times (Figs. 2-4).
 -   All of the figure-read values are listed for checking in `figure-extracted-data.md`.
 -   Numbers are in `figures/fig3_offsets.csv`.
 

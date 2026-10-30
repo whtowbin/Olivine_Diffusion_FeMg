@@ -14,7 +14,7 @@ are private, so their results are described in words only, without numbers. The 
 ## Summary
 
 - Each model profile is compared with the **measured points**, not with an
-  interpolated curve. The errors on those points are modelled as **white
+  interpolated curve. The errors on those points are modeled as **white
   analytical noise plus a smooth, spatially correlated misfit**. The size and
   length scale of both are fitted to the data.
 - The best fit is the time of maximum likelihood. The 1σ range is where χ²
@@ -30,9 +30,7 @@ are private, so their results are described in words only, without numbers. The 
   about the same width, shifted slightly toward longer times (section 6).
 - **Initial-condition errors are not in the single-fit range.** With the step 3 µm
   off, it covers the true time only 21–23% of the time. `forster.scan` fits a set
-  of candidate initial conditions and lifts that to 65–74% (section 7). On one of
-  the round robin profiles it moved the step by several micrometres and changed the
-  fitted time substantially. Each step position and the edge, core and plateau Fo can be
+  of candidate initial conditions and lifts that to 65–74% (section 7). Each step position and the edge, core and plateau Fo can be
   given a Gaussian (1σ) or uniform (± half-width) uncertainty, from Python or in
   `parameters.csv`.
 - **Early stopping** gives the same fits as running to `max_time_days`, 6.6×
@@ -46,9 +44,9 @@ questions correctly only if each point's error is independent and σ is known.
 Real profiles break both assumptions:
 
 - **The model never fits perfectly.** Initial-condition shape, 1-D geometry,
-  beam convolution and growth leave smooth misfit. Neighbouring residuals share a
+  beam convolution and growth leave smooth misfit. Neighboring residuals share a
   sign (Fig. 1b). Counting such points as independent overstates the evidence.
-- **σ is rarely known well.** The dense round robin profiles scatter by much
+- **σ is rarely known well.** The dense round robin profile scatters by much
   more than the 0.2 Fo their original fits assumed.
 
 Rescaling the errors so that reduced χ² = 1 does not fix this. The number of
@@ -84,7 +82,7 @@ y = m(t) + ε,    ε ~ Normal(0, C)
 −2 log L(t) = rₖᵀ C⁻¹ rₖ + log|C| + n log 2π
 ```
 
-With C fixed, only the first term depends on time. It is the generalised χ².
+With C fixed, only the first term depends on time. It is the generalized χ².
 With C = σ²I it reduces to the familiar Σ rᵢ²/σ².
 
 **Step 6. The covariance.**
@@ -109,7 +107,7 @@ residuals are correlated (Czekala et al. 2015).
 
 **Step 7. What correlation does.** Two analyses 1 µm apart on the same bump of
 misfit carry one piece of information about that bump, not two. C⁻¹ discounts
-points by how redundant they are with their neighbours. The smooth part of the
+points by how redundant they are with their neighbors. The smooth part of the
 profile then carries roughly (profile length ÷ L) independent pieces of information,
 not n.
 
@@ -121,7 +119,7 @@ are the residual checks recommended by Andrae et al. (2010) in place of reduced
 
 **Step 9. Fitting s, ρ and L.** These are chosen by maximum likelihood on the
 residuals r₀ of a first, white-noise best fit. Here the log|C| term matters: it
-penalises a large covariance, so the noise cannot be made arbitrarily large to
+penalizes a large covariance, so the noise cannot be made arbitrarily large to
 absorb misfit. For fixed (ρ, L) the best s has a closed form,
 s² = r₀ᵀ B⁻¹ r₀ / n with B = I + ρ²K, so only (ρ, L) is searched on a grid:
 - ρ: 0, then 12 values from 0.1 to 30;
@@ -142,7 +140,7 @@ section 8).
 steps.
 
 With one fitted parameter and the noise known, Δ = 1. This is Wilks' (1938) limit
-and the "Δχ² = 1 after minimising over everything else" rule of Press et al.
+and the "Δχ² = 1 after minimizing over everything else" rule of Press et al.
 (2007, §15.6). But s is estimated from the same n residuals, and that has two
 effects:
 - **The estimate is biased low.** The fit absorbs part of the scatter, so the
@@ -270,7 +268,7 @@ curve: the default (small-sample threshold), Δ = 1, and the Bayesian posterior
 
 **Figure 2.** Share of 400 synthetic profiles per case whose 1σ range contains the
 true time. Open orange: independent errors with fitted σ. Filled blue: the
-correlated likelihood (default). The vertical line is the 68% target; the grey band
+correlated likelihood (default). The vertical line is the 68% target; the gray band
 is the 95% sampling range for 400 trials (±4.6 points).
 
 | Profile | White only | Misfit L = 3 µm | L = 10 µm | L = 30 µm |
@@ -323,7 +321,7 @@ Section 7 shows how the scan covers it.
 
 **Figure 3.** Fitted L (median and interquartile range of the trials where a
 correlated term was found) against the true L, for each sampling geometry, with
-misfit of 0.4 Fo. Grey band: below the median point spacing. Percentages: share of
+misfit of 0.4 Fo. Gray band: below the median point spacing. Percentages: share of
 trials in which the fit chose a correlated term (ρ > 0).
 
 - **L is recovered when it exceeds the point spacing.** Fitted medians were
@@ -370,7 +368,7 @@ Among the 35 real profiles it fires for one, WHT01_Ol_192 (section 5).
 method. The 17 round robin profiles were checked the same way; their data are
 private, so they are left out of the figure and of the numbers below.
 - (a) Fitted L against median point spacing for the 13 profiles where the fit chose
-  a correlated term. The line is L = spacing. Labelled profiles have L more than 3×
+  a correlated term. The line is L = spacing. Labeled profiles have L more than 3×
   the diffusion length √(D t).
 - (b) Lag-1 autocorrelation of the residuals at the best fit, before (open) and
   after (filled) whitening.
@@ -415,7 +413,7 @@ integrated out:
 - the 1σ range is the central 68% of that posterior.
 
 This is the same Student-t family as the small-sample threshold, reached by
-marginalising rather than profiling. The function is
+marginalizing rather than profiling. The function is
 `forster.uncertainty.posterior_interval`. It needs χ² over every time with
 appreciable posterior weight, so use it on a fit with `stop_early=False`.
 
@@ -510,11 +508,6 @@ Bayesian posterior, and a step scan of ±6 µm in 1 µm steps (profile and margi
 ranges). Three round robin profiles were compared the same way; their results are
 private and are left out of the figure.
 
-- **Round robin profiles (private):** on one of the three, the data clearly
-  rejected the nominal step position, the scan moved the step by several
-  micrometres and the fitted time changed substantially; for that profile the
-  choice of step dominates the uncertainty in time. On the other two the nominal
-  step was already the best and the scan ranges matched the single fit.
 - **WHT01_Ol_63:** the best step moves 1 µm, to 23 µm. The range widens from
   4.20–6.19 d to 4.21–6.87 d (profile) or 4.67–7.96 d (marginal).
 - **WHT01_Ol_192 and Xenocryst_ol6:** the steps move by 1 µm, and the times by
@@ -526,7 +519,10 @@ with the scan's time step below.
 ### Uncertainties on each step and concentration
 
 Each step position (`step1_um`, `step2_um`), and the edge, core and plateau Fo
-(`edge_fo`, `core_fo`, `step_fo`), can be given an uncertainty, Gaussian or uniform,
+(`edge_fo`, `core_fo`, `step_fo`; these are the names in the code when this note was
+written, and the old table columns of those names are still read, with a warning,
+and will be removed in a later version; the current names are in
+`docs/site/columns.md`), can be given an uncertainty, Gaussian or uniform,
 chosen per parameter:
 
 ```python
@@ -544,8 +540,12 @@ scan.profile_days, scan.marginal_days, scan.best_values
 In `parameters.csv` the same is `steps_sd_um = 2` and `edge_fo_range = 0.003` (the
 `_sd` columns are Gaussian, the `_range` columns uniform, at most one per parameter).
 `forster fit` then also writes `<run>_scan.csv` and the `scan_*` columns of
-`summary.csv` (see `COLUMNS.md`).
+`summary.csv` (see `docs/site/columns.md`).
 
+- **Method.** The text below describes the grid scan. Since 2026-10-15 the default
+  `scan_method` is `auto` (the Laplace sampler, falling back to nested sampling
+  when its effective sample size is low); a blank `scan_method` still means `grid`
+  when `scan_points` is given, as in tables written before the samplers.
 - **Grid.** `scan_points` nodes per uncertain parameter: by default 13 for one
   parameter, 9 for two and 5 for more. The number of model runs is their product,
   printed before the scan; grids over 2000 candidates are refused unless the limit
@@ -563,7 +563,7 @@ In `parameters.csv` the same is `steps_sd_um = 2` and `edge_fo_range = 0.003` (t
   so their uncertainty also covers the boundary conditions, not only the starting
   profile.
 - **Limits.** If the best value of a parameter is at the end of its grid (±2.5σ, or
-  the edge of the range), the scan warns that the data favour values beyond it.
+  the edge of the range), the scan warns that the data favor values beyond it.
 
 ### The scan's time step
 
@@ -612,7 +612,7 @@ the marginal for when the stated uncertainties are trusted as priors.
 ## 8. Early stopping
 
 Runs used to go to `max_time_days` even when the fit was at a small fraction of it:
-Xenocryst_ol6_prof_1 fits at 0.14 d out of 200 d modelled. Since 2026-10-13, the correlated
+Xenocryst_ol6_prof_1 fits at 0.14 d out of 200 d modeled. Since 2026-10-13, the correlated
 method runs the model in blocks of about 1% of `max_time_days` and stops once three
 things hold:
 - the run is 2× past the best fit so far;
@@ -632,7 +632,7 @@ a late second minimum would show:
 - the ends of the 1σ range differed by exactly 0 s;
 - total fitting time fell from 129 s to 19 s (6.6×), up to 90× for single
   profiles (Xenocryst_ol6: 7.3 s to 0.08 s);
-- the two round robin profiles whose best fit lies late in the modelled time ran
+- the two round robin profiles whose best fit lies late in the modeled time ran
   the full time, as they should.
 
 `tests/test_uncertainty.py` checks a two-step profile, including with stop settings
@@ -726,7 +726,7 @@ on every test run.
 - Kennedy, M. C. and O'Hagan, A. (2001). Bayesian calibration of computer models.
   Journal of the Royal Statistical Society B 63, 425-464.
 - Mutch, E. J. F., Maclennan, J., Shorttle, O., Rudge, J. F. and Neave, D. A.
-  (2021). DFENS: Diffusion chronometry using Finite Elements and Nested Sampling.
+  (2021). DFENS: Diffusion chronometry using finite elements and nested sampling.
   Geochemistry, Geophysics, Geosystems 22(4), e2020GC009303.
 - Numerical Recipes forum, "multi-parameter fits", thread t-1249,
   <http://www.numerical.recipes/forumarchive/index.php/t-1249.html>.

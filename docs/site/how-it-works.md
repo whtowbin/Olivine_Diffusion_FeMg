@@ -116,12 +116,15 @@ fraction is the **coverage**:
 | White noise only | 69% | 96% |
 | Smooth, shorter than the diffusion length | 67% | 92% |
 | Smooth, about as long as the diffusion length | 57% | 87% |
-| Concentrated near the step | 61% (45-61% in other tests) | 89% |
+| Concentrated near the step | 61% (45-71% in other tests) | 89% |
 | One or two outliers | 70% | 97% |
 | Scatter 4× larger at the rim | 63% | 95% |
 
-The 1σ range is therefore right in the common cases. It is too narrow in three cases
-that the diagnostics can flag, and then you should quote the 2σ range ([Reading the
+The 1σ range is therefore right in the common cases. It is too narrow when the misfit
+is smooth and about as long as the diffusion length, concentrated near the step, or
+larger at the rim. Only the near-step case is flagged reliably (the warning fires in
+94% of those tests and in 0-3% of the others), so a 1σ range can be too narrow
+without a warning. When a warning appears, quote the 2σ range ([Reading the
 results](results.md#warnings)). A range that assumed independent errors, as the
 `legacy` method and most earlier software do, covered only 18-40% when real smooth
 misfit was present.
@@ -140,8 +143,8 @@ assumes the inputs are right:
 - **The starting profile.** A step 3 µm out of place biased the time by 18%, and the
   single-fit range covered the true time only about 22% of the time. Fit the starting
   profile to include this uncertainty.
-- **Temperature, pressure, oxygen fugacity and the diffusion law** (the equation that
-  gives D). These scale D, and so the time, for every point at once, so the fit cannot
+- **Temperature, pressure, oxygen fugacity and the diffusion equation** (the equation
+  that gives D). These scale D, and so the time, for every point at once, so the fit cannot
   see them.
 
 [Uncertainty beyond the fit](uncertainty.md) adds both.
@@ -170,7 +173,7 @@ profile tested.
 
 ![Three published profiles where the near-step check fires](images/noise-near-step-profiles.png)
 
-*The three published profiles (Towbin and Plank 2026) where the near-step check
+*The three published profiles ([Towbin and Plank 2026](changelog.md#citing)) where the near-step check
 fires, fitted with the default noise model (blue) and with the near-step model
 (orange). The residuals are largest in the yellow near-step zones. The near-step model
 moves the best fit by -12% to +58%. In two of the three cases the new best fit lies
@@ -190,7 +193,8 @@ step, and the near-step check sees almost none. FORSTER warns. Check that the fi
 not collapsed onto the step, and treat the range with care.
 
 **The misfit spans the profile.** When the fitted misfit length L reaches half the
-profile and the smooth misfit is at least half the white noise, the residuals drift
+profile and the smooth misfit is at least half the white noise (or the ratio of smooth
+misfit to white noise reaches the top of the searched grid, 30), the residuals drift
 across the whole profile. The cause is usually a plateau or core level that sits off
 the model's, or a step in the wrong place, rather than noise. Check the starting
 profile and its held values.

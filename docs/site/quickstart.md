@@ -60,7 +60,7 @@ The fit takes about two seconds.
 | `<run>_fit.png` | The figure below. |
 | `<run>_curves.csv` | The model profile at time zero, at the best fit and at the ends of the 1σ and 2σ ranges, on the model's grid. Plot these in your own software. |
 | `<run>_points.csv` | The fitted measured points, the best fit at each one and the residual (measured minus model). |
-| `summary.csv` | One row per run: the time, its ranges, the fit statistics and every input. |
+| `summary.csv` | One row per run: the time, its ranges, the fit statistics and the inputs the model used (fO2 in Pa and the orientation as three angles; `notes`, `crystal` and `sample` are not repeated). |
 | `diffusivities.csv` | The diffusion equations the runs used, so the summary can be refitted exactly. |
 
 (`<run>` is the run name with its spaces replaced, here `AZ18_WHT01_Ol_63_prof_1`.)
@@ -72,7 +72,7 @@ modeled part of the profile and are not fitted. The dashed line is the starting
 profile and the blue line is the best fit. The 1σ and 2σ bands are bounded by the
 model profiles at the ends of each range.*
 
-The first columns of `summary.csv` for this run:
+Some of the columns of `summary.csv` for this run:
 
 | Column | Value | Meaning |
 |---|---|---|
@@ -81,7 +81,7 @@ The first columns of `summary.csv` for this run:
 | `low2_days`, `high2_days` | 3.47, 7.56 | 2σ range (95%). |
 | `white_sigma_fo` | 0.00055 | Point-to-point scatter fitted to the residuals: 0.055 mol% Fo. Compare with your analytical precision. |
 | `correlated_sigma_fo`, `correlation_length_um` | 0.00044, 4.0 | A smooth misfit of 0.044 mol% over about 4 µm that the model does not follow ([How the fit works](how-it-works.md)). |
-| `near_step_daic` | -0.76 | No sign that the misfit is concentrated near the step (a warning appears below -6). |
+| `near_step_daic` | -0.74 | No sign that the misfit is concentrated near the step (a warning appears below -6). |
 | `core_end_diffusion_lengths` | 4.4 | The data run 4.4 diffusion lengths past the step, enough to reach the flat core (a warning appears below 3). |
 | `points_outside_domain` | 3 | Points before 2.5 µm or past 72 µm, not fitted. |
 | `grid_error_pct` | 0.31 | Worst-case error of the time from the model's grid spacing. |
@@ -92,7 +92,7 @@ The first columns of `summary.csv` for this run:
 ## 4. Add uncertainties (optional)
 
 The 1σ range above assumes that the starting profile, temperature, pressure, oxygen
-fugacity and diffusion law are exactly right. To include their uncertainties, add
+fugacity and diffusion equation are exactly right. To include their uncertainties, add
 columns to `parameters.csv`. This example has a step position known to ±2 µm, the Fo
 of the two segments known to ±0.002, and temperature, pressure and fO2 known to
 ±20 °C, ±0.1 GPa and ±0.3 log units (all 1σ):
@@ -106,46 +106,48 @@ steps_sd_um,segment_fo_sd,mc_T_sd_C,mc_P_sd_Pa,mc_fO2_sd_log
 [1/1] AZ18 WHT01_Ol_63_prof_1
   fitting the initial condition (auto)
   5.14 days (4.24-6.21)
-  with the conditions and the law: 6.48 days (4.41-9.64; 90%: 3.49-12.38)
+  with the conditions and the diffusion equation: 6.48 days (4.41-9.64; 90%: 3.49-12.38)
   with initial-condition uncertainty: 6.23 days (5.25-8.20); best step1_um=21.329; a_fo=0.915639; b_fo=0.898575
   79% of the variance of time from the initial condition (laplace, 1145 model runs)
 ```
 
-FORSTER now fits the step position and the two Fo values along with the time. It
-prefers a step at 21.3 µm over 24 µm, and the range of time that includes this
-uncertainty is 5.25-8.20 days. It then draws temperature, pressure and fO2 at random
+FORSTER now fits the step position and the two Fo values along with the time (the
+terminal output calls the starting profile the "initial condition"). The best
+starting profile has the step at 21.3 µm instead of 24 µm and gives 6.23 days. The
+median time over all the starting profiles the data allow is 6.51 days, and its 68%
+range, which includes this uncertainty, is 5.25-8.20 days. It then draws temperature, pressure and fO2 at random
 to give the final distribution: median 6.48 days, 68% range 4.41-9.64 days. Two more
 files appear, `<run>_scan.csv` (the distribution of time over the starting profile)
-and `<run>_mc.csv` (the Monte Carlo draws), along with a third figure:
+and `<run>_mc.csv` (the Monte Carlo draws), along with one more figure:
 
 ![Time distributions for the worked example](images/quickstart-time.png)
 
 *`<run>_time.png`. The distribution of time from the fit alone (gray), with the
 starting profile's uncertainty added (blue), and with the conditions and the
-diffusion law added as well (histogram). Each legend entry gives the median and the
+diffusion equation added as well (histogram). Each legend entry gives the median and the
 central 68%. The median from the fit alone (5.31 days) differs slightly from the best
 fit (5.14 days) because the distribution of time is skewed toward long times.*
 
 [Uncertainty beyond the fit](uncertainty.md) explains both steps.
 
-## 5. Compare diffusion laws (optional)
+## 5. Compare diffusion equations (optional) { #5-compare-diffusion-laws-optional }
 
 The `--compare-laws` option fits the run once with each of the four built-in Fe-Mg
-diffusion laws:
+diffusion equations:
 
 ```bash
 forster fit my_fits/profiles.csv my_fits/parameters.csv --out my_fits/laws --compare-laws
 ```
 
-![The worked example under four diffusion laws](images/quickstart-laws.png)
+![The worked example under four diffusion equations](images/quickstart-laws.png)
 
 *`<run>_laws.png`. The four fits look the same because a profile fixes the product
-D × t, not t itself. The times differ (2.45-5.14 days) because the laws give
+D × t, not t itself. The times differ (2.45-5.14 days) because the equations give
 different D at these conditions. Thick bars show the 1σ range from the profile alone.
-Thin bars add the law's own calibration uncertainty, for the laws that publish one.*
+Thin bars add the equation's own calibration uncertainty, for the equations that publish one.*
 
-The spread between laws is often larger than the fit's own range. [Setting up a
-run](setup.md#the-diffusion-law) explains the four laws.
+The spread between equations is often larger than the fit's own range. [Setting up a
+run](setup.md#the-diffusion-law) explains the four equations.
 
 ## 6. Use your own data
 
@@ -164,13 +166,13 @@ Useful options:
 |---|---|
 | `--run NAME ...` | Fits only the named runs. |
 | `--profiles-sheet`, `--parameters-sheet` | Picks the sheet when the tables are Excel files (.xlsx). |
-| `--diffusivity NAME` | Fits every run with one diffusion law, whatever the `diffusivity` column says. |
-| `--compare-laws` | Fits every run with each of the four built-in laws. |
+| `--diffusivity NAME` | Fits every run with one diffusion equation, whatever the `diffusivity` column says. (The template has no `diffusivity` column; add one to choose an equation per run.) |
+| `--compare-laws` | Fits every run with each of the four built-in equations. |
 | `--diffusivities FILE` | Reads your own diffusion equations from a table like `diffusivities.csv`. |
 
 `summary.csv` uses the same column names as the parameter table, so you can give it
 back to `forster fit` as a parameter table to repeat the same fits. If a run used your
-own diffusion equation, add `--diffusivities results/diffusivities.csv`.
+own diffusion equation, add `--diffusivities my_fits/results/diffusivities.csv`.
 
 ## The same from Python
 

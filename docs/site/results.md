@@ -1,7 +1,7 @@
 # Reading the results
 
-`forster fit` writes a file called `summary.csv` with one row per run, and Export in the
-app writes the same file. This page groups its columns by purpose, says which time to
+`forster fit` writes a file called `summary.csv` with one row per run, and the app's
+**Export > Summary CSV...** writes nearly the same file (without `forster_version`). This page groups its columns by purpose, says which time to
 quote, and explains what to do about each of FORSTER's warnings. The
 [Column reference](columns.md#summarycsv) lists every column.
 
@@ -17,7 +17,7 @@ quote, and explains what to do about each of FORSTER's warnings. The
 | `<run>_scan.csv` | starting profile fitted | The posterior of time over the starting profile. |
 | `<run>_mc.csv` | Monte Carlo run | The Monte Carlo draws of time. |
 | `<run>_time.png` | either of the two above | The time distributions on one axis. |
-| `<run>_laws.png` | `--compare-laws` | The run with each of the four built-in diffusion laws. |
+| `<run>_laws.png` | `--compare-laws` | The run with each of the four built-in diffusion equations. With this option each equation is a run of its own, named `<run>_<equation>` (for example `<run>_dipra`, the Dohmen and Chakraborty 2007 equation as tabulated in DIPRA), with its own row in `summary.csv` and its own fit, curves and points files. |
 | `<run>_kriged.csv` | `uncertainty = legacy` | The kriged profile that the legacy method fits. |
 
 ## summary.csv, by purpose
@@ -27,11 +27,11 @@ quote, and explains what to do about each of FORSTER's warnings. The
 | Column | Meaning |
 |---|---|
 | `time_days` | Best-fit time. |
-| `low_days`, `high_days` | 1σ range (68%) from the profile alone, with the starting profile, conditions and diffusion law held fixed. |
+| `low_days`, `high_days` | 1σ range (68%) from the profile alone, with the starting profile, conditions and diffusion equation held fixed. |
 | `low2_days`, `high2_days` | 2σ range (95%). |
 | `time_since_last_stage_days` | With growth stages, the time since the last stage began. Without them it equals `time_days`. |
-| `law_low_days`, `law_high_days` | 1σ range including the calibration uncertainty of the diffusion law (only for laws with a covariance). |
-| `all_low_days`, `all_high_days` | 1σ range that also includes the spread between laboratories. That spread is known only for the `refit` equation; for the others this range equals the law range. |
+| `law_low_days`, `law_high_days` | 1σ range including the calibration uncertainty of the diffusion equation (only for equations with a covariance). |
+| `all_low_days`, `all_high_days` | 1σ range that also includes the spread between laboratories. That spread is known only for the `refit` equation (FORSTER's 2026 refit); for the others this range equals the diffusion-equation range. |
 | `law_sigma_log10`, `between_study_log10` | Those two uncertainties (calibration, and spread between laboratories) as 1σ in log10 D. |
 
 ### With the starting profile fitted (`scan_` columns)
@@ -52,10 +52,10 @@ quote, and explains what to do about each of FORSTER's warnings. The
 
 | Column | Meaning |
 |---|---|
-| `mc_median_days` | Median time with the uncertainties of the fit (or of the fitted starting profile), the conditions and the diffusion law combined. |
+| `mc_median_days` | Median time with the uncertainties of the fit (or of the fitted starting profile), the conditions and the diffusion equation combined. |
 | `mc_low_days`, `mc_high_days` | 16th and 84th percentiles (68%). |
 | `mc_p05_days`, `mc_p95_days` | 5th and 95th percentiles (90%). |
-| `mc_sd_log10` | Spread of log10 time from each source on its own (fit, law, studies, T, P, fO2). It shows which input matters most. |
+| `mc_sd_log10` | Spread of log10 time from each source on its own (fit, equation, studies, T, P, fO2). It shows which input matters most. |
 | `mc_method`, `mc_draws` | `rescale` (exact, no model runs) or `refit` (growth stages), and the number of draws. |
 
 ### How well the model fits (the noise model)
@@ -88,9 +88,10 @@ quote, and explains what to do about each of FORSTER's warnings. The
 
 ### Inputs and provenance
 
-`summary.csv` repeats every column of the parameter table, with fO2 in Pa and the
-orientation as its three angles. It adds `diffusivity_label` (the display name of the
-diffusion law) and `forster_version`, and it records the grid actually used (`dx_um`,
+`summary.csv` repeats the inputs of the parameter table that the model used, with fO2
+in Pa and the orientation as its three angles. It leaves out `notes`, `crystal`,
+`sample` and the `scan_dx_um`, `scan_dt_s` and `scan_max_time_days` grid settings. It adds `diffusivity_label` (the display name of the
+diffusion equation) and `forster_version`, and it records the grid actually used (`dx_um`,
 `dt_s`). You can therefore give `summary.csv` back to `forster fit` as a parameter table
 and repeat the fits exactly.
 
@@ -99,12 +100,12 @@ and repeat the fits exactly.
 | Situation | Quote |
 |---|---|
 | A single fit, no warnings | `time_days` with `low_days`-`high_days` (1σ). |
-| Comparing crystals fitted with the same law and conditions | the 1σ ranges from the profiles alone (`low_days`-`high_days`, or `scan_low_days`-`scan_high_days`). The law's error is common to all the crystals and cancels. |
+| Comparing crystals fitted with the same equation and conditions | the 1σ ranges from the profiles alone (`low_days`-`high_days`, or `scan_low_days`-`scan_high_days`). The equation's error is common to all the crystals and cancels. |
 | The starting profile was fitted | `scan_best_days` (or `scan_median_days`) with `scan_low_days`-`scan_high_days`. |
-| A time that stands on its own, with the uncertainty in T, P, fO2 and the law | the Monte Carlo: `mc_median_days`, `mc_low_days`-`mc_high_days` (68%) or `mc_p05_days`-`mc_p95_days` (90%). |
+| A time that stands on its own, with the uncertainty in T, P, fO2 and the diffusion equation | the Monte Carlo: `mc_median_days`, `mc_low_days`-`mc_high_days` (68%) or `mc_p05_days`-`mc_p95_days` (90%). |
 | A warning says the 1σ range is probably too narrow | the 2σ range, `low2_days`-`high2_days` (see below). |
 
-Always report the diffusion law (`diffusivity_label`) and the conditions with the time.
+Always report the diffusion equation (`diffusivity_label`) and the conditions with the time.
 
 ## Warnings
 

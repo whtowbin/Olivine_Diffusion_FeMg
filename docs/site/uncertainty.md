@@ -1,15 +1,15 @@
 # Uncertainty beyond the fit
 
 The fit's own range ([How the fit works](how-it-works.md)) treats the starting
-profile, the conditions and the diffusion law as exact. This page adds their
+profile, the conditions and the Fe-Mg diffusion equation as exact. This page adds their
 uncertainty in three steps that build on each other:
 
 1. **Fitting the starting profile**: uncertain step positions and segment Fo are
    fitted together with the time.
-2. **The Monte Carlo over T, P, fO2 and the law**: the conditions and the law's
-   parameters are drawn at random, and each draw is turned into a time.
-3. **Law ranges**: a quick version of the law part of the Monte Carlo, reported for
-   every fit whose law carries a covariance.
+2. **The Monte Carlo over T, P, fO2 and the diffusion equation**: the conditions and the
+   equation's parameters are drawn at random, and each draw is turned into a time.
+3. **Diffusion-equation ranges**: a quick version of the equation part of the Monte
+   Carlo, reported for every fit whose equation carries a covariance.
 
 A few terms used below:
 
@@ -90,7 +90,7 @@ from a summary gives the same numbers.
 | `auto` (default) | Laplace importance sampling, with nested sampling when the ESS is too low. |
 | `laplace` | Importance sampling only. |
 | `nested` | Nested sampling only. |
-| `grid` | Fits every node of a regular grid over the parameters (the method before 2026-10-15, kept for old results). It needs about 15 points per parameter to converge (`scan_points`), so it is slow for more than two parameters. |
+| `grid` | Fits every node of a regular grid over the parameters (the method before 2026-10-15, kept for old results; it is also what a blank `scan_method` means when `scan_points` is given). It needs about 15 points per parameter to converge (`scan_points`), so it is slow for more than two parameters. |
 
 `scan_dx_um`, `scan_dt_s` and `scan_max_time_days` set the grid of these model runs.
 Left empty, FORSTER chooses a grid coarser than the final fit's, for about 5%
@@ -122,7 +122,7 @@ starting profile.
 
 ![Three published profiles with their starting profiles fitted](images/starting-profile-fit-examples.png)
 
-*Three published profiles (Towbin and Plank 2026) with their nominal (blue, dashed)
+*Three published profiles ([Towbin and Plank 2026](changelog.md#citing)) with their nominal (blue, dashed)
 and fitted (green, dotted) starting profiles, the best fit from each, and their
 residuals. **WHT06_ol43**: the first step moves from 2 to 6.7 µm and the plateau rises
 0.24 mol%. The residuals become white and the time falls 40%. **Xenocryst_ol6**: the
@@ -141,11 +141,13 @@ sign that a single sharp step does not explain it.*
 - If the near-step warning persists (`scan_near_step_daic` below -6), quote the 2σ
   range of the fit and consider a starting profile with another shape.
 
-## The Monte Carlo over T, P, fO2 and the law
+## The Monte Carlo over T, P, fO2 and the diffusion equation { #the-monte-carlo-over-t-p-fo2-and-the-law }
 
 FORSTER can draw the uncertain inputs many times at random and look at the spread of
 the resulting times. This is a **Monte Carlo**, and `forster fit` runs one when you
-give any of these columns:
+give any of `mc_T_sd_C`, `mc_P_sd_Pa`, `mc_fO2_sd_log`, `mc_law` or
+`mc_between_study`. The other `mc_` columns (`mc_fO2_buffer`, `mc_samples`, `mc_seed`)
+only set how it runs and do not start it:
 
 | Column | Default | Meaning |
 |---|---|---|
@@ -153,17 +155,19 @@ give any of these columns:
 | `mc_P_sd_Pa` | | 1σ of pressure (Pa). |
 | `mc_fO2_sd_log` | | 1σ of log10 fO2. |
 | `mc_fO2_buffer` | the run's buffer | QFM or NNO: draw fO2 relative to that buffer, so it rises and falls with each drawn temperature (as it does in nature for a buffered magma). Empty, with fO2 given in Pa: fO2 is drawn on its own. |
-| `mc_law` | yes | Draw the diffusion law's parameters from its published covariance (the correlations between its fitted values). Laws without one, such as `dipra`, are taken as exact. |
-| `mc_between_study` | no | Add the spread between laboratories (`refit` only): for an absolute time, if the crystal may sit off the laboratories' average as one more experiment would. |
+| `mc_law` | yes | Draw the diffusion equation's parameters from its published covariance (the correlations between its fitted values). Equations without one, such as `dipra` (Dohmen and Chakraborty 2007, as tabulated in DIPRA), are taken as exact. |
+| `mc_between_study` | no | Add the spread between laboratories' average offsets (what a new laboratory adds, not the scatter of one experiment within a laboratory) (`refit`, the FORSTER refit 2026 equation, only): for an absolute time, if the crystal may sit off the laboratories' average as one more experiment would. |
 | `mc_samples` | 4000 | Number of draws. |
 | `mc_seed` | 0 | Fixes the draws. |
 
 **How it works.** The fit fixes the product D × t: the same profile at twice the
 diffusivity would take half the time. For each draw FORSTER computes D at the drawn
-conditions with the drawn law and rescales the time: t = t_fit × D_fit / D_draw. The
+conditions with the drawn equation and rescales the time: t = t_fit × D_fit / D_draw. The
 fitted time is drawn too, from the fit's own distribution, or from the
 starting-profile posterior when the starting profile was fitted. The result therefore
-combines all the sources. Rescaling is exact for a held rim and needs no new
+combines all the sources. Rescaling is exact for a held rim except for the
+Fo dependence of D, which it evaluates a third of the way from the edge Fo to the core
+Fo (within 0.001 log units in tests), and needs no new
 model runs, so it takes milliseconds. Runs with growth stages are refitted for each
 draw instead (200 draws by default).
 
@@ -180,36 +184,41 @@ mc_sd_log10    fit=0.0978; law=0; studies=0; T=0.128; P=0.0119; fO2=0.0496
 ```
 
 Temperature (0.128 log units) contributes more than the fit and the starting profile
-together (0.098). Pressure hardly matters. The law contributes 0 because the default
-law has no covariance (use `refit` or a DFENS law to include it).
+together (0.098). Pressure hardly matters. The equation contributes 0 because the default
+`dipra` has no covariance (use `refit`, or `dfens_tamed` or `dfens_global`, the Mutch et al. (2019)
+equations used by the DFENS program, to include it).
 
 `<run>_time.png` and the app's Time distribution view show all three distributions on
 one axis ([Quick start](quickstart.md#4-add-uncertainties-optional)).
 
-## Law ranges
+## Diffusion-equation ranges { #law-ranges }
 
-Every fit whose law carries a covariance (all built-in laws except `dipra`) also
-reports these columns, with no extra model runs:
+Every fit whose equation carries a covariance also
+reports these columns, with no extra model runs. Of the built-in equations, the
+Fe-Mg ones except `dipra` (`refit`, `dfens_tamed`, `dfens_global`) and the Mutch et al.
+(2019) Ni and Mn equations have one; `dipra`, the Girona and Costa (2013) Ni, Mn and Ca
+equations and the Petry et al. (2004) Ni equation do not.
+The columns are:
 
 | Column | Meaning |
 |---|---|
-| `law_sigma_log10` | 1σ of log10 D from the law's covariance at the run's conditions (and so of log10 time). |
-| `law_low_days`, `law_high_days` | The 1σ range of time with the law's uncertainty added to the fit's. |
-| `between_study_log10` | The spread between laboratories in the law's calibration data (`refit`: 0.07 log units). |
+| `law_sigma_log10` | 1σ of log10 D from the equation's covariance at the run's conditions (and so of log10 time). |
+| `law_low_days`, `law_high_days` | The 1σ range of time with the equation's uncertainty added to the fit's. |
+| `between_study_log10` | The spread between laboratories' average offsets (what a new laboratory adds, not the scatter of one experiment within a laboratory) in the equation's calibration data (`refit`: 0.07 log units). |
 | `all_low_days`, `all_high_days` | With that spread added as well. |
 
 **Which range to quote.**
 
 | You want to... | Quote |
 |---|---|
-| compare crystals fitted with the same law and conditions (relative times) | `low_days`-`high_days`: the law's error is common to all of them and cancels. |
+| compare crystals fitted with the same diffusion equation and conditions (relative times) | `low_days`-`high_days`: the equation's error is common to all of them and cancels. |
 | give a time on its own | `law_low_days`-`law_high_days`, or better the Monte Carlo range with your T, P and fO2 uncertainties. |
 | give an absolute time that allows for the crystal sitting off the laboratories' average | `all_low_days`-`all_high_days`, or the Monte Carlo with `mc_between_study`. |
 
-The law ranges are not available for runs with growth stages or with a rim value that
+The diffusion-equation ranges are not available for runs with growth stages or with a rim value that
 changes in time. In those runs the time no longer scales as 1/D, and the Monte Carlo
-refits them instead. The law range also assumes that the form of the law is right.
-The larger differences between laws ([Setting up a run](setup.md#the-diffusion-law))
+refits them instead. The range also assumes that the form of the equation is right.
+The larger differences between equations ([Setting up a run](setup.md#the-diffusion-law))
 are a separate, systematic question.
 [law-uncertainty-limits.md](https://github.com/whtowbin/Olivine_Diffusion_FeMg/blob/master/docs/references/law-uncertainty-limits.md)
-on GitHub explains what the law range assumes and where it was tested.
+on GitHub explains what the diffusion-equation range assumes and where it was tested.

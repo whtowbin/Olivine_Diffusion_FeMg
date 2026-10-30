@@ -61,7 +61,7 @@ private round robin repository.
    is small next to `uniform_uncert` (0.001) and `sigma_min`
    (1e-4), so every grid point had almost the same weight, about 0.11 Fo. The
    intended down-weighting of gaps between analyses did not happen. Legacy mode
-   keeps this behaviour so old results reproduce. The intent (Henry, 2026-10-21) was
+   keeps this behavior so old results reproduce. The intent (Henry, 2026-10-21) was
    that points far from a measurement, with a larger kriging uncertainty, would count
    for less in chi-squared. Even with the standard deviation used correctly, that
    would not have removed the overcounting of point 1: a weight scales each point
@@ -97,7 +97,7 @@ not arise when time is the only parameter fitted.
 
    s has a closed-form best value for each (rho, L), which are searched on a grid.
    A warning is raised if the best (rho, L) is at the edge of that grid.
-5. Second pass: the generalised chi-squared r^T C^-1 r for every time step. Points
+5. Second pass: the generalized chi-squared r^T C^-1 r for every time step. Points
    closer together than about L count as partly redundant. Its minimum is the best
    fit and the 1-sigma range is where it is within 1 of the minimum, with the ends
    interpolated between time steps. This is a profile-likelihood interval, valid
@@ -113,7 +113,7 @@ points) it takes 0.04 s, against 0.14 s for v2's grid chi-squared and 1.9 s for
 the whole fit. On a dense round robin profile with 298 analyses (525,601 steps x
 150 grid points) it takes 0.07 s, against
 0.34 s for v2's chi-squared plus 0.30 s for kriging, and 8.1 s for the fit.
-Kriging still runs, for plots only.
+Since 2026-10-16 the correlated method does not krige at all; only `uncertainty="legacy"` krigs (the kriged profile is drawn only for that method; see `docs/site/uncertainty.md`).
 
 ## Evidence
 
@@ -140,20 +140,24 @@ exploratory study (2026-10-11) with a coarser noise-model search;
 (200 profiles per case, seeded).
 
 The real round robin profiles do have smoothly correlated residuals, and the
-analyses on the dense round robin profiles scatter by more than the 0.2 Fo that
+analyses on the dense round robin profile scatter by more than the 0.2 Fo that
 the round robin kriging nugget assumed. v3 estimates the scatter from the data.
 
 ## Not included in the range
 
 - **Temperature, pressure, fO2, orientation, activation energy.** D factors as
-  D0(T, P, fO2, orientation) x 10^(3 (0.9 - X_Fo)), so the modelled profile
+  D0(T, P, fO2, orientation) x 10^(3 (0.9 - X_Fo)), so the modeled profile
   depends only on D0 x t, and the fitted time scales as 1/D0. These
   uncertainties can be propagated afterwards by Monte Carlo on D0 without re-running
   the model, as `Round_Robin_Diffusion_Modeling Part 2.py` does. See the issues
-  below before reusing that code.
+  below before reusing that code. Since 2026-10-15 the package does this itself:
+  `forster.rescale.monte_carlo` draws T, P, fO2 and the diffusivity law with a fixed
+  seed and combines them with the fit's range (see `docs/site/uncertainty.md`).
 - **Initial condition** (step position and plateau values). Fitting the step
-  position as a second parameter and taking the range over both is possible (a few
-  seconds per position) but not implemented.
+  position as a second parameter and taking the range over both was not implemented
+  when this note was written. Since 2026-10-13 (`forster.scan`) and 2026-10-15 (`forster.sampling`) it is: the
+  starting-profile fit fits the step positions and plateau values
+  together and its posterior feeds `monte_carlo`.
 - **Discretization error.** About 1.5% at dx = 1 um on the synthetic test in
   `tests/test_physics.py`. Check by refitting at a finer grid or with
   `scheme="dipra"`.
@@ -167,7 +171,7 @@ Monte Carlo over T, P, fO2 and activation energy:
    `T_C_rand` and passes it to `D_Fo_For_PT_Uncert_Sampling(T=...)`, which uses T
    in kelvin (as do the defaults, `T=1200`). The median ratio is unaffected; the
    spread is too wide.
-2. **33.33% and 66.66% quantiles are labelled +-1 sigma.** They span the middle
+2. **33.33% and 66.66% quantiles are labeled +-1 sigma.** They span the middle
    third; 1 sigma is 15.87% to 84.13%. The spread is too narrow.
 3. **`Diffusion_Uncert2` (the 1102 C round robin sample) uses the 1200 C samples**
    (`Sample_1to3_Diffusivity_array_scale` in both `match` cases).
@@ -179,27 +183,28 @@ Monte Carlo over T, P, fO2 and activation energy:
    dominates the Monte Carlo spread. Dohmen et al. (2007) publish no E-D0
    correlation; Mutch et al. (2019, 2021) publish a regression with full
    covariance, which gives x0.78 to x1.29 at 1200 C for the calibration term.
-   See `diffusivity-literature.md`. [Henry to decide whether to adopt it.]
+   See `diffusivity-literature.md`. Adopted as options since 2026-10-14: the presets
+   `mutch2019_tamed` and `mutch2019_global` carry that covariance.
 
-Items 1 and 2 partly cancel. For samples 1-3 (1200 C, T +-30 C, fO2 +-0.2 log,
-E +-8 kJ/mol) the time multiplier reported as +-1 sigma was x0.66 to x1.51; with
-kelvin and 1-sigma quantiles it is x0.48 to x2.10 (x0.45 to x2.25 at 1102 C). The
-Combined +-1 sigma column of the round robin table also adds the v2 fit range in
-quadrature.
+Items 1 and 2 partly cancel: the temperature spread was too wide and the quantile
+spread too narrow. The time multipliers they gave for the round robin samples are in
+the private round robin repository.
 
 ## Open items
 
-- [ ] Refit and report round robin and paper results with v3, or state which
-      version produced each published number. [Henry: confirm whether the paper's
-      reported ranges used the chi-squared range or only the P-T Monte Carlo
-      percentiles.]
+- [x] Refit and report round robin and paper results with v3, or state which
+      version produced each published number. Done by 2026-10-29: the release
+      notes (CHANGELOG.md, item 2 of "Results differ ...") say the paper's reported
+      ranges came from the Monte Carlo over the pressure-temperature path; the round
+      robin refit is private.
 - [ ] Fix or retire the diffusivity Monte Carlo above, and decide how to treat
       the activation-energy uncertainty (item 4).
 - [ ] One round robin profile warns that the noise model is at the edge of its
       grid (a very long correlation length): the misfit is a long-wavelength
       trend. Check that profile's initial condition.
-- [ ] Consider putting the D0 Monte Carlo into the package, combined with the v3
-      range in log time rather than in quadrature in days.
+- [x] Consider putting the D0 Monte Carlo into the package, combined with the v3
+      range in log time rather than in quadrature in days. Done 2026-10-15:
+      `forster.rescale.monte_carlo`.
 
 ## References
 
@@ -210,7 +215,7 @@ quadrature.
   reduced chi-squared. arXiv:1012.3754.
 - Numerical Recipes forum, "multi-parameter fits", thread t-1249
   (<http://www.numerical.recipes/forumarchive/index.php/t-1249.html>):
-  delta chi-squared = 1 for one parameter after minimising over the others
+  delta chi-squared = 1 for one parameter after minimizing over the others
   ("Theorem D") is valid; projections of multi-parameter fits need care.
 - Sohn, R. A. and Menke, W. (2002). Application of maximum likelihood and
   bootstrap methods to nonlinear curve-fit problems in geochemistry. G-cubed

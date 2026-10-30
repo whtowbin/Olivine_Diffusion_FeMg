@@ -3,7 +3,8 @@
 Where studies since 2007 support, and where they diverge from, the
 Dohmen and Chakraborty (2007) expression that forster uses, and what each
 divergence would do to fitted times. This is a synthesis to inform later
-decisions; the equation in the code is unchanged. Started 2026-10-12.
+decisions. The default equation in the code is unchanged; since 2026-10-14 the code also
+offers a refit, `femg_refit2026` (`femg-refit2026.md`). Started 2026-10-12.
 
 ## Summary
 
@@ -125,7 +126,7 @@ perpendicular to the interface may explain some of it.
 
 Fo100-Fo90 couples at 1400-1600 C, 1 atm. E = 280-320 kJ/mol, 80-120 kJ/mol above
 the lower-temperature value, and anisotropy D[001] > D[010] > D[100]. Outside
-the temperatures modelled here, but it is the high-temperature end of the trend
+the temperatures modeled here, but it is the high-temperature end of the trend
 Oeser et al. (2026) extend downward.
 
 ### Oeser et al. (2026): anisotropy changes near 1150 C
@@ -162,7 +163,9 @@ profiles from Tables 1-3 (the PDF's text, not figures), written by
 - an italic flag for convolution-corrected values.
 
 The composition is Fo91.5. A first look (`oeser_first_look.py`, not a fit; numbers in
-`analyses/femg_refit/results/oeser2026_*.csv`):
+`analyses/femg_refit/results/oeser2026_*.csv`; measured on 2026-10-14 against
+`femg_refit2026` as it was then, so the offsets are approximate for the refit shipped
+after 2026-10-15):
 
 - **Level against femg_refit2026: +0.20 log below 1200 C, +0.75 at 1200-1303 C.** Below
   1200 C, [001] and [100] are within -0.30 to +0.26 of the refit; [010] is +0.09 to +0.46.
@@ -184,13 +187,14 @@ The composition is Fo91.5. A first look (`oeser_first_look.py`, not a fit; numbe
 **Fitted with the compilation (2026-10-14).** See `docs/plans/2026-10-14-oeser-additive.md`.
 The depth-profile runs leave the refit's level at RR1200 (D[001] at the round robin 1200 C
 conditions: fO2 1.4e-3 Pa, Fo85, 42 MPa) unchanged (+0.01) and narrow its
-1 sigma from 0.12 to 0.10. A two-mechanism law fits the PED points too, but changes
+1 sigma from 0.12 to 0.10 (at that date; the shipped refit, refitted on 2026-10-15,
+has 0.132 there, `femg-refit2026.md`). A two-mechanism law fits the PED points too, but changes
 nothing at our fO2 and does not reproduce the steepening.
 
 ### Shea et al. (2023): melt makes diffusion about 10x faster
 
 Natural Kilauea and San Carlos olivine seeds in Kilauea basalt, superliquidus
-anneal at 1290 C, then dwell at 1200-1255 C for 6-84 h at QFM-1. Modelling the
+anneal at 1290 C, then dwell at 1200-1255 C for 6-84 h at QFM-1. Modeling the
 resulting profiles with published diffusivities gives times 5-20x longer than
 the true dwell time for Fe-Mg (Ni 2-21x, Mn 4-24x, Ca 5-65x); fitted
 diffusivities are about 10x (Fe-Mg), 7.5x (Ni), 9x (Mn) and 10x (Ca) faster.
@@ -212,11 +216,11 @@ Error bars on each diffusivity span 0.6 log units.
 
 ### Shea, Nizam and Helz (2026): the same speed-up in a natural lava lake
 
-Geology, doi:10.1130/G55140.1 (in `~/Downloads/g55140-2.pdf`).
+Geology, doi:10.1130/G55140.1.
 
 **What they did.** Olivine from the 1959 Kilauea Iki lava lake, from drill cores taken in
 1960-1988. A 3-D cooling model of the lake supplies each sample's temperature-time path,
-which drives 3-D diffusion models of olivine populations: 300-850 modelled crystals per
+which drives 3-D diffusion models of olivine populations: 300-850 modeled crystals per
 sample, against 24-65 cores measured by electron probe. They tested DC07 times 1, 3, 5,
 7.5, 10 and 15, scoring each against the measured core Fo distributions by the
 Wasserstein distance.
@@ -256,7 +260,7 @@ Wasserstein distance.
   against the melt-bearing experiments (Shea; Spandler and O'Neill; Jurewicz and
   Watson), about 1 log unit apart.
 
-## What this means for forster results (equation unchanged)
+## What this means for forster results (default equation unchanged)
 
 1. **Below about 1150 C** (the round robin runs at 1102 C), DC07 is supported; the main
    uncertainty is the calibration's, best propagated with covariance. The choice
@@ -275,14 +279,18 @@ Low-cost steps short of redeveloping the equations:
 - Report the calibration (DC07 or a Mutch regression) with every time, and give
   the alternative as a systematic. Since 2026-10-12 forster records it
   (`diffusivity` in summary.csv) and can fit with either: presets
-  `dohmen_chakraborty2007` (default), `mutch2019_tamed`, `mutch2019_global`, or
-  a user equation in a diffusivities table.
+  `dohmen_chakraborty2007` (default), `mutch2019_tamed`, `mutch2019_global`,
+  `femg_refit2026` (the refit of 2026-10-14, `femg-refit2026.md`), the Ni, Mn and Ca
+  equations (`mutch2019_ni`, `mutch2019_mn`, `girona_costa2013_mn`,
+  `girona_costa2013_ni`, `petry2004_ni`, `girona_costa2013_ca`), or a user equation in
+  a diffusivities table.
 - Report each profile's share of D coming from [010] (cos^2(beta) / 6 over the
   total) so profiles sensitive to the anisotropy question can be flagged.
 - For melt-contact profiles, state the Shea et al. (2023) caveat and the x0.1
   scenario alongside the main result.
 - Propagate the calibration uncertainty with the Mutch et al. covariance (see
-  `fit-uncertainty.md`, round robin Monte Carlo item 4).
+  `fit-uncertainty.md`, round robin Monte Carlo item 4). Since 2026-10-15
+  `forster.rescale.monte_carlo` does this for the refit's covariance.
 
 Not covered here: the effect of water on Fe-Mg diffusion (Hier-Majumder et al.
 2005, cited by Shea et al. 2023 and Mutch et al. 2021), which forster does not
@@ -319,7 +327,7 @@ published coefficients and the forster parameter tables:
   (2019). Rapid transcrustal magma movement under Iceland. Nature Geoscience 12,
   569-574. doi:10.1038/s41561-019-0376-9 (Supplementary Tables 1-2)
 - Mutch, E. J. F., Maclennan, J., Shorttle, O., Rudge, J. F. and Neave, D. A.
-  (2021). DFENS: Diffusion chronometry using Finite Elements and Nested Sampling.
+  (2021). DFENS: Diffusion chronometry using finite elements and nested sampling.
   Geochemistry, Geophysics, Geosystems 22(4). doi:10.1029/2020GC009303
 - Oeser, M., Dohmen, R. and Weyer, S. (2026). Fe-Mg in olivine: simultaneous
   experimental determination of the diffusion-driven isotope fractionation along
@@ -341,7 +349,7 @@ published coefficients and the forster parameter tables:
 
 Also seen but not read in full (paywalled): Wu et al. (2022), Diffuser,
 Computers & Geosciences 163; Morgado and Morgan (2024), DiffSim, Frontiers in
-Earth Science, doi:10.3389/feart.2024.1431516; the 2026 review "Olivine
+Earth Science, doi:10.3389/feart.2024.1431516; the 2026 review by Rawlings and Mutch, "Olivine
 diffusion chronometry: recent developments and future directions"
 (doi:10.1080/29932092.2026.2678716), whose summary also notes that olivine-melt
 experiments give Fe-Mg diffusion up to an order of magnitude faster.

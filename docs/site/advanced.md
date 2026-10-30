@@ -37,7 +37,8 @@ The domain, step and Fo columns describe the crystal **before** the first stage.
 times after the last stage are fitted. The reported `time_days` counts from the start
 of the run, and `time_since_last_stage_days` counts from the last stage. Growth stages
 need `dx_um` and `dt_s` given, the correlated uncertainty method, and no
-starting-profile fit (no `_sd` or `_range` columns). In the app, the stages are a
+starting-profile fit (no `_sd` or `_range` columns). They cannot be combined with
+`centre_um` (a whole crystal), and the near-step check is not run on a staged fit. In the app, the stages are a
 table in the Advanced tab.
 
 **From Python:**
@@ -80,8 +81,8 @@ the same T, P and fO2, the Fo of each segment (dashed levels) and the edge Fo. E
 profile has its own steps, its own orientation and D, an Fo offset for microprobe
 drift between sessions, and optionally an edge position offset. **c** The joint misfit
 is the sum of the two profiles', and its range is narrower than either
-profile's alone. Illustrative, synthetic crystal, drawn while the joint fit was being built (hence
-"planned" in panel c).*
+profile's alone. Illustrative, synthetic crystal. Panel c is labeled "planned" because
+the figure was drawn before the joint fit was built; it now exists.*
 
 ```python
 import forster
@@ -108,7 +109,10 @@ What it does:
   the steps are well constrained.
 - A segment can belong to one profile only. For example,
   `own_segments={"run_b": ["c"]}` lets that profile fit its own core.
-- The sampler is the same as for a single starting-profile fit. Its settings were
+- The sampler is the one used for a single starting-profile fit (Laplace importance
+  sampling, with nested sampling as the fallback), with two differences: the Laplace
+  approximation is refined along its own directions, and the number of draws is set by a
+  sample-count rule instead of the effective-sample-size threshold. Its settings were
   calibrated on two real crystals to about 5% on the 16th, 50th and 84th percentiles
   of time.
 
@@ -145,7 +149,8 @@ joint = fit_joint(fo_profile, [ni], conditions, orientation, fo_initial, None, g
 print(result.time_days, joint.time_days, joint.consistency_p, joint.species_days)
 ```
 
-The element fits can use DIPRA's Ni, Mn and Ca equations (Girona and Costa 2013,
+The element fits can use the Ni, Mn and Ca equations of DIPRA, the program that tabulates
+the widely used Fe-Mg equation of Dohmen and Chakraborty (2007) (Girona and Costa 2013,
 Table 1), with DIPRA's Ni equation as the default for Ni. The Ni equation of Petry et
 al. (2004) is also available on its own (`petry2004_ni`). DIPRA's Ni equation pairs
 Petry's pre-factor with the activation energy of a different fit, which makes Ni 0.14
@@ -171,5 +176,5 @@ tables:
 The command line reads the same tables, so `forster fit profiles.csv parameters.csv`
 reruns a saved project. A project can be shared as a zip (the app's Export) or kept
 under version control (leave out `.forster/`). From Python, `forster.project.Project`
-opens, edits and saves a project with the same checks as the app
+(import it with `from forster.project import Project`) opens, edits and saves a project with the same checks as the app
 ([Python API](api.md#project-folders-forsterprojectproject)).

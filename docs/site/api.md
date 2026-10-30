@@ -1,7 +1,9 @@
 # Python API
 
 Everything the command line and the desktop app do can also be done from Python.
-`import forster` gives you the names below. Each heading shows the module that defines
+`import forster` gives you the names below, except the two sections on `forster.imports`
+and `forster.project`, which need their own import (`import forster.imports`,
+`from forster.project import Project`). Each heading shows the module that defines
 the name, but the short name works too: `forster.fit_profile` and
 `forster.model.fit_profile` are the same function. This page is generated from the
 docstrings in the code.
@@ -28,6 +30,8 @@ pressure and fO2 in Pa, times in seconds inside the model and in days in results
 ::: forster.io.read_runs
 
 ::: forster.io.read_diffusivities
+
+::: forster.io.RunDefaults
 
 ::: forster.io.fit_run
 
@@ -71,7 +75,13 @@ pressure and fO2 in Pa, times in seconds inside the model and in days in results
 
 ::: forster.sampling.ICPosterior
 
-## Monte Carlo over the conditions and the law
+::: forster.io.scan_run
+
+::: forster.io.scan_summary
+
+::: forster.io.scan_table
+
+## Monte Carlo over the conditions and the diffusion equation
 
 ::: forster.rescale.ConditionUncertainty
 
@@ -89,13 +99,23 @@ pressure and fO2 in Pa, times in seconds inside the model and in days in results
 
 ::: forster.elements.ElementProfile
 
+::: forster.elements.ElementInitial
+
 ::: forster.elements.fit_element
 
 ::: forster.elements.fit_joint
 
+::: forster.elements.JointFit
+
 ## Diffusivity equations
 
 ::: forster.diffusivity.ArrheniusDiffusivity
+
+::: forster.diffusivity.LawUncertainty
+
+## Citing
+
+::: forster.citation.cite
 
 ## Plotting
 
@@ -136,6 +156,7 @@ The project folder used by the desktop app (see [Advanced](advanced.md#project-f
 ::: forster.project.Project
     options:
       members:
+        - new
         - open
         - save
         - export_zip

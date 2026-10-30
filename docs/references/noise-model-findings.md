@@ -8,13 +8,13 @@ advice for users is collected in [practical-advice.md](../guide/practical-advice
 how to read FORSTER's noise numbers is in [noise-models-guide.md](noise-models-guide.md).
 The method, with its derivation and sources, is in
 [likelihood-method.md](likelihood-method.md); a fuller mechanisms guide with citations
-is planned for the release.
+follows after 0.1.0 (`docs/development-log.md`, before-release checklist).
 
 ## In brief
 
 1. **Whitening is valid for these profiles, with one exception.** FORSTER's noise model
    (independent scatter plus a smooth misfit of one size along the profile) describes the
-   residuals of all 36 real profiles tested. The exception is misfit concentrated near
+   residuals of all 36 real profiles tested (other notes here count 35 real profiles; open: which profile is the 36th). The exception is misfit concentrated near
    the step, which makes the 1σ range too narrow (it covers 45-61% of true times instead
    of 68%).
 2. **Misfit near the step usually means the starting profile is slightly off, and fitting
@@ -35,7 +35,7 @@ is planned for the release.
    WHT06_ol43), because the model ends at the last measured point and holds the core Fo
    there. On real profiles the plateau starts about 2 diffusion lengths past the step.
 
-**What changed in FORSTER** (commit a0d676a; details in section 5):
+**What changed in FORSTER** (commit a0d676a; details in section 4):
 
 | Change | When it fires | What the user should do |
 |---|---|---|
@@ -55,7 +55,7 @@ is planned for the release.
 - **Whitening**: transforming the residuals with the fitted noise model so that, if the
   model is right, they become independent and of equal size. The goodness of fit, and
   from it the range of times, is computed from the whitened residuals. Whitening is what
-  stops 15 neighbouring points with the same misfit from being counted as 15 independent
+  stops 15 neighboring points with the same misfit from being counted as 15 independent
   measurements.
 - **Starting profile** (initial condition, IC): the profile before diffusion, set by the
   step positions and the Fo of the edge, each plateau and the core.
@@ -77,7 +77,7 @@ sometimes dense, and have their misfit in particular places?
 
 **Done** ([whitening-validity study](../plans/2026-10-15-whitening-validity/README.md)):
 on 36 real profiles (paper profiles and round robin profiles), tested the shape of the
-correlation, whether whitening removes the correlation between neighbouring residuals,
+correlation, whether whitening removes the correlation between neighboring residuals,
 whether the whitened residuals look normal, and whether the misfit near the step is larger
 than far from it. On synthetic profiles of known age, measured coverage under seven kinds
 of misfit the noise model does not assume.
@@ -85,7 +85,7 @@ of misfit the noise model does not assume.
 **Found:**
 - The smooth-misfit shape FORSTER uses (squared exponential) was adequate on 36/36
   profiles; no profile preferred another shape.
-- Whitening removed the correlation between neighbouring residuals (for example lag-1
+- Whitening removed the correlation between neighboring residuals (for example lag-1
   correlation 0.43 → −0.07 on WHT01_bigol1).
 - 30 of 34 profiles scatter more near the step than far from it, 12 significantly. This
   is the one place the noise model fails: it assumes one misfit size for the whole
@@ -122,7 +122,7 @@ The near-edge feature of one round robin sample needs several parameters tuned t
 dampen the signal used to choose between starting profiles? Could the near-step ΔAIC be
 used in the parameter search, or to flag a starting profile that fits badly?
 
-**How FORSTER fits the starting profile:** an optimiser varies the uncertain parameters
+**How FORSTER fits the starting profile:** an optimizer varies the uncertain parameters
 and scores each candidate starting profile by the whitened goodness of fit. The noise
 model is fitted at the nominal starting profile first, then **refitted once at the first
 optimum**, and the optimum refined (`forster.sampling.fit_initial_condition`). The
@@ -147,7 +147,7 @@ the differences between candidates shrink.
 **Figure 1.** (A) WHT06_ol43: the likelihood of each starting-profile parameter under the
 four scorings. The noise model fitted once at the nominal profile (b, dashed) gives wider
 curves than refitting at the best value (c, blue: FORSTER), by up to 1.5×; white noise
-only (a, grey) gives curves up to 2× too narrow. (B) Synthetic recovery: with a wrong
+only (a, gray) gives curves up to 2× too narrow. (B) Synthetic recovery: with a wrong
 nominal starting profile, (b) covers the true value 96-99.5% of the time with intervals
 2-3× wider than the real error; FORSTER's refit (c) covers 66-76%; white noise only falls
 to 18-40% once there is real smooth misfit.
@@ -194,7 +194,7 @@ nominal and fitted value against its allowed range (the prior, ±2.5σ).
 **Meaning:** misfit near the step is a signal about the starting profile, and the fit
 already uses it. The useful change is to send users to the starting-profile fit when the
 near-step warning fires, and to check the near-step misfit again at the fitted starting
-profile (section 5). A fitted value at the edge of its prior, or misfit that remains after
+profile (section 4). A fitted value at the edge of its prior, or misfit that remains after
 the fit, points to a starting-profile shape FORSTER does not have yet (a graded rim zone,
 growth while diffusing); see "Still open".
 
@@ -232,7 +232,7 @@ while the real uncertainty does not.
 ![Plateau length, real profiles](figures/noise_findings/fig4_plateau_real.png)
 
 **Figure 3.** Real profiles cut back from the end of the data. The x axis is the plateau
-kept past where the data reach it, in diffusion lengths; grey marks cuts where the data
+kept past where the data reach it, in diffusion lengths; gray marks cuts where the data
 stop at the plateau's start or on the slope. Blue: the full-length model with only the
 points removed; pink: as FORSTER runs a short profile. Numbers on top: the near-step ΔAIC
 of each cut.
@@ -242,7 +242,7 @@ of each cut.
 **Figure 4.** WHT06_ol43 with every point (model domain extended to 132 µm), cut 1
 diffusion length into the plateau, and cut on the slope. The pink model ends at its last
 point (40 µm) and holds the core Fo (89.5 mol%) there, where the measured profile is still
-about 1 mol% lower; that steepens the modelled step and the time falls 63%. Cut 1
+about 1 mol% lower; that steepens the modeled step and the time falls 63%. Cut 1
 diffusion length into the plateau, the time moves 4%.
 
 **Found on real profiles:**
@@ -292,11 +292,11 @@ model removes that. What does move the time is data that stop before they reach 
 plateau. Trimming plateaus is never the answer: it does not move the time and it hides
 the near-step warning. Two published runs never reach a plateau within their data
 (WHT06_ol_overgrowth2 and GCB1A R31_MP_Ol5_prof_1, 2.8 and 2.7 diffusion lengths past
-the step), so the new warning fires on them. Their profiles reach the centre of small
+the step), so the new warning fires on them. Their profiles reach the center of small
 crystals, and their core Fo was set from other crystals of the same sample, so measuring
 further is not possible: for them the issue is FORSTER's fixed core Fo at the end of the
 model. FORSTER models half profiles (one rim, a held core); these crystals need the whole
-crystal modelled, rim to rim, with the core free to change (see "Still open").
+crystal modeled, rim to rim, with the core free to change (see "Still open").
 
 ## 4. How the fixes work
 
@@ -312,12 +312,14 @@ robust way to find the plateau in noisy data (see "Still open").
 
 **Stronger near-step advice** (`forster.model._near_step`). The check itself is unchanged
 (section 1): FORSTER fits the residuals at the white-noise best fit with a noise model
-whose misfit variance may be up to about 100× larger (its size about 10×) within one
-diffusion length of a step, and compares AIC. The warning now tells the user to fit the starting profile first and to check the
+whose misfit variance may be up to 10000× larger (its size up to 100×; the grid was
+extended from 100 to 10000 on 2026-10-16) within about one diffusion length l of a step (the boost
+falls off as exp(-(x - step)^2 / 2 l^2); "near the step" in the point counts means
+within 2 l), and compares AIC. The warning now tells the user to fit the starting profile first and to check the
 fitted values, and only then to quote the 2σ range.
 
 **Near-step check after the starting-profile fit** (`forster.model.near_step_at_best_initial`).
-Both ways of fitting the starting profile (the optimiser and sampler, and the grid scan)
+Both ways of fitting the starting profile (the optimizer and sampler, and the grid scan)
 run the same check on the residuals at their best starting profile and time, report it as
 `scan_near_step_daic`, and warn if it is still below −6. It costs one model run and one
 check, about 0.2 s on a 300-point profile.
@@ -334,14 +336,13 @@ check, about 0.2 s on a 300-point profile.
 - **Make the near-step model part of the fit.** It is the only model whose ranges do not
   depend on how much plateau was measured (whitening study, follow-ups 1-6).
 - **Starting-profile shapes FORSTER does not have:** a graded rim zone (Xenocryst_ol6),
-  growth while diffusing, steps proposed automatically from the data (ideas in
-  `TODO_local.md`). Misfit near the step that survives the starting-profile fit is the
+  growth while diffusing, steps proposed automatically from the data. Misfit near the step that survives the starting-profile fit is the
   signal for these.
-- **Whole crystals:** model two rims and a free core, not only half profiles with a held
-  core (the solvers already hold a value at each end; the starting-profile names and
-  tables assume a half profile). That also covers profiles reaching a small crystal's
-  centre. The short-plateau warning applies to half profiles only; it could also be based
-  on where the data flatten rather than on the diffusion length.
+- **Whole crystals** (done since 2026-10-16, `centre_um`; see `docs/site/setup.md`):
+  the model runs to the crystal's center and mirrors there, so the core is free to
+  change and a profile that reaches a small crystal's center is covered. The short-plateau warning applies to
+  half profiles only; it could also be based on where the data flatten rather than
+  on the diffusion length.
 - **Priors from the crystal population:** core, rim and plateau Fo differ between crystals
   of a sample; histograms across the sample, or a joint fit of its crystals, would give
   priors for the starting-profile fit.

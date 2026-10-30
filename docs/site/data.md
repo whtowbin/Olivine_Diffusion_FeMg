@@ -13,7 +13,7 @@ one row per analysis point.
 | `profile` | | Profile name. The `profile` column of `parameters.csv` refers to it. Many profiles can share one table. |
 | `distance_um` | µm | Distance of the analysis from the crystal edge. |
 | `fo` | fraction | Forsterite content, Mg/(Mg + Fe) in moles, as a fraction: 0.895, not 89.5. |
-| `Marked_bad` | | Optional. A point marked `bad` is left out of the fits (these are the points masked in the desktop app). |
+| `Marked_bad`, `Ignore` | | Optional. A point with `bad` in `Marked_bad`, or `yes` in `Ignore`, is left out of the fits (the points masked in the desktop app are saved as `Marked_bad` = `bad`). |
 
 ```text
 profile,distance_um,fo
@@ -28,10 +28,15 @@ matter. A profile needs at least 3 points, and a name with fewer is skipped with
 warning. Extra columns are ignored, so oxide data, totals and notes can stay in the
 same table.
 
+A CSV is read as UTF-8; a file saved by Excel on Windows (cp1252) is read too, with a
+note. Profile names are read as text, so `007`, `1.10` and `NA` stay as written. Cells
+in the distance or `fo` column that are not numbers (`n.d.`, `-`) count as blank, and
+their rows are dropped with a warning.
+
 **Distance from which edge?** Distances are measured from **edge 1**, the end of the
 profile where the model holds Fo. This is usually the crystal rim. If your traverse ran
-from the core outward, flip it (the app's Data tab and the import step can both do
-this). The first point does not have to sit at zero. The model domain
+from the core outward, flip it (the app's Data tab and its import dialog can both do
+this; `forster import` has no flip or offset option, so edit the distances in the table). The first point does not have to sit at zero. The model domain
 (`domain_start_um`, `domain_end_um`) sets which part of the profile is modeled.
 
 ## Importing other spreadsheet layouts
@@ -68,7 +73,7 @@ This writes `probe_session_profiles.csv` in the layout above. Along the way:
   reason to look at a point again. It does not prove the point is bad. Change the
   window with `--total-window 98 102`.
 - **Excluded rows.** Rows marked in an exclusion column (`bad`, `yes`, `x`, `1`, ...)
-  are left out.
+  are left out of `forster import`'s output. The desktop app keeps them as masked points instead.
 
 Once confirmed, the `.import.json` file is an **import template**, and later files with
 the same columns import with it directly. If a file has columns the template does not
@@ -78,7 +83,7 @@ with the `forster template` command, which writes the parameter tables.)
 
 | Option | Does |
 |---|---|
-| `--sheet NAME` | Excel sheet to read (default: the first). |
+| `--sheet NAME` | Excel sheet to read (default: the first). The desktop app always reads the first sheet. |
 | `--save-template FILE` | Where to write the proposed mapping (default `FILE.import.json`). |
 | `--out FILE` | Profiles table to write (default `FILE_profiles.csv`). |
 | `--total-window LOW HIGH` | Window for flagging totals (default 98.5 101.5). |
@@ -102,7 +107,7 @@ files is an error that names both files. A file whose columns differ from the ma
 (extra or missing columns) is reported by name, and **nothing is written** until you
 fix or move it. The combined table is written next to the folder
 (`grains_profiles.csv`), not into it, so it is not read as an input on the next run.
-One file with many profiles needs a name column and works as before.
+One file with many profiles needs a name column; its profiles are imported the same way.
 
 From Python:
 
@@ -122,9 +127,9 @@ writes the same import templates ([The desktop app](app.md#importing-profiles)).
 Python, use `forster.imports.guess`, `ImportTemplate` and `apply` ([Python
 API](api.md#importing-spreadsheets-forsterimports)).
 
-FORSTER also reads parameter and profile tables in two older layouts: the tables of
-Towbin and Plank (2026), and the lab layout with `Profile_Name`, `Distance µm` and
-`Fo#` in percent.
+FORSTER also reads tables in two older layouts: parameter tables from the code behind
+Towbin and Plank (2026), and profile tables from the lab, with the columns
+`Profile_Name`, `Distance µm` and `Fo#` (Fo in percent).
 
 ## Collecting profiles
 
@@ -141,7 +146,7 @@ published profiles of Towbin and Plank (2026). It uses two terms.
 
 | Advice | Why |
 |---|---|
-| **Keep measuring for at least one diffusion length after the profile goes flat.** More is better. | FORSTER ends the model at the last measured point and holds the core Fo there. On real profiles the plateau starts about 2 diffusion lengths past the step. Data that stopped right where the plateau starts moved the time by -15% to +22%, and data that stopped on the slope moved it by -63% or more. With 1 diffusion length of plateau or more, every profile tested stayed within 4%. FORSTER warns when the data end within 3 diffusion lengths of the step. |
+| **Keep measuring for at least one diffusion length after the profile goes flat.** More is better. | FORSTER ends the model at the last measured point (or at the domain's end, whichever is nearer) and holds the core Fo there. On real profiles the plateau starts about 2 diffusion lengths past the step. Data that stopped right where the plateau starts moved the time by -15% to +22%, and data that stopped on the slope moved it by -63% or more. With 1 diffusion length of plateau or more, every profile tested stayed within 4%. FORSTER warns when the data end within 3 diffusion lengths of the step. |
 | Take care with that warning when the profile ends at the center of a small crystal. | Here the data cannot go any further. Diffusion from both rims meets at the center, and once it arrives the center's Fo falls. A fixed core Fo cannot follow that change. Model the whole crystal instead (`centre_um`, [Setting up a run](setup.md#whole-crystals-centre_um)). |
 | **Plateaus of different lengths on different profiles are fine.** | Once the data reach the plateau, its length does not move the time (within 4% on six real profiles with 1 to 21 diffusion lengths of plateau). |
 | **Never trim plateau points** to tighten a range or remove a warning. | Trimming does not move the time. It only hides misfit near the step. On one published profile the near-step check gave a clear warning with the full plateau and none with the plateau cut to 2 diffusion lengths, although the range was still too narrow. |

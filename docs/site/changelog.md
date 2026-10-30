@@ -9,32 +9,56 @@ on GitHub, with the results that moved and by how much.
 
 If you used earlier versions of this code, these are the changes to know about:
 
+- **A coding error in the diffusion model is fixed.** The term for the change of
+  diffusivity across a step was twice too large, so earlier times were biased low where
+  the diffusivity varies strongly across the step. For the profiles of Towbin and Plank
+  (2026) the medians move by 2-5% for the melt veins, +28% for the exterior contact
+  overgrowths (the largest Fo contrast) and +9% for the xenocryst, all well inside the
+  published ranges, which are dominated by the pressure-temperature path. Details are in
+  [CHANGELOG.md](https://github.com/whtowbin/Olivine_Diffusion_FeMg/blob/master/CHANGELOG.md).
+- **How time is counted.** The model's profile at row k of the time grid is now reported
+  as time k × Δt (row 0 is the starting profile); earlier code reported (k + 1) × Δt.
+  This matters only when Δt is a sizable fraction of the fitted time.
 - **The default uncertainty method** now compares the model with the measured points
   themselves, under a fitted noise model (white noise plus a smooth correlated
   misfit). Earlier versions compared it with a kriged interpolation of the data
   ([How the fit works](how-it-works.md)). Best fits can move relative to earlier fits,
   most where the misfit has a long wavelength, and ranges are wider where the
-  residuals are correlated. `uncertainty = legacy` reproduces the old rule.
+  residuals are correlated. `uncertainty = legacy` keeps the March 2026 rule, but it
+  does not reproduce the paper's numbers because of the two changes above.
 - **The default numerical scheme** is now implicit (TR-BDF2) on an automatically
-  chosen grid, and the time is accurate to about 0.3%. The earlier explicit scheme
-  (`central`) is still available and is the default with `uncertainty = legacy`, so
-  old results reproduce exactly.
+  chosen grid, aimed at an error of about 1% in the fitted time (0.3% on the published
+  profiles). The earlier explicit scheme (`central`) is still available and is the
+  default with `uncertainty = legacy`.
 - **Starting-profile names** have changed. Segments (`segment_fo`, `segment_names`)
-  and `edge1_fo` replace `edge_fo`, `core_fo`, `step_fo` and `rim_fo`. Until the
-  release, FORSTER still reads the old names and gives a warning.
+  and `edge1_fo` replace `edge_fo`, `core_fo`, `step_fo` and `rim_fo`. FORSTER
+  still reads the old names, with a warning; they will be removed in a later version.
 - **New in this version**: fitting the starting profile, the Monte Carlo over T, P,
-  fO2 and the diffusion law, four diffusion laws with their calibration uncertainties,
+  fO2 and the diffusion equation, four diffusion equations (all but `dipra` with their calibration uncertainties),
   growth stages, whole-crystal models (`centre_um`), the near-step and short-plateau
   checks, `forster import`, the desktop app, and joint fits of several profiles from
   one crystal (in Python).
 
 ## Citing
 
+`forster cite` prints how to cite FORSTER and, with `--diffusivity NAME`, the source of the
+equation you used; the app's Help menu has "Cite FORSTER…", and GitHub's "Cite this
+repository" button uses `CITATION.cff`.
+
 If you use FORSTER, please cite:
 
-> Towbin, W. H., and Plank, T. (2026). *Journal of Petrology* 67(9), egag077.
+> Towbin, W. H. FORSTER: Fitting Olivine Residence & Storage Timescales from Elemental
+> Relaxation (version from `forster --version`).
+> https://github.com/whtowbin/Olivine_Diffusion_FeMg. A DOI will be added after the
+> first release.
 
-and the source of the diffusion law you used:
+and the paper that describes the method:
+
+> Towbin, W. H., and Plank, T. (2026). Decompression Melting of Peridotite Xenoliths.
+> *Journal of Petrology* 67(9), egag077,
+> [doi:10.1093/petrology/egag077](https://doi.org/10.1093/petrology/egag077).
+
+Please also cite the source of the diffusion equation you used:
 
 | Choice | Cite |
 |---|---|
@@ -43,7 +67,7 @@ and the source of the diffusion law you used:
 | `dfens_tamed`, `dfens_global` | Mutch et al. (2019) for the equations; Mutch et al. (2021) for their covariance. |
 | Ni, Mn and Ca (Python) | DIPRA Table 1 (Girona and Costa 2013): Ni from Petry et al. (2004), Ca from Coogan et al. (2005), Mn as given there. `petry2004_ni`: Petry et al. (2004). |
 
-The 201 ± 8 kJ/mol activation energy used by the Monte Carlo over the diffusion law
+The 201 ± 8 kJ/mol activation energy used by the Monte Carlo over the diffusion equation
 is from Dohmen, Becker and Chakraborty (2007), part I. For Fe-Mg diffusion above
 about 1150 °C, where newer experiments find faster diffusion, see Oeser et al.
 (2026).
@@ -85,6 +109,10 @@ ed., chapter 8; *Numerical Recipes* (Press et al. 2007), §15.6 and §20.2; Gery
 University of Warwick CO906 lecture notes (2009); DIPRA's auxiliary material; and
 Costa et al. (2008), Appendix I. Using a central difference for the term in the
 gradient of D follows T. Girona (personal communication, 2020).
+
+## History and use of AI
+
+FORSTER grew out of code Henry Towbin wrote from about 2020, with early contributions from Jollands and Shi. That code produced the timescales in Towbin and Plank (2026) and chapter 2 of Towbin (2023). From October 2026 the code was restructured and extended with Anthropic's Claude (Claude Code; mainly Claude Opus 5.5, with Claude Sonnet and Haiku for delegated tasks). This included the package structure, the command line and desktop app, the correlated-noise uncertainty method, the starting-profile fit, the tests and most of the documentation text. Henry Towbin directed the work, made the scientific and design decisions (recorded in docs/plans/) and reviewed the results. Changes meant to leave results unchanged were checked by replaying every existing fit through the old and new code; new methods were checked against synthetic profiles of known age and against the published profiles. Commits written with Claude say so in their messages. The early version of this code used to fit the olivine profiles in Towbin and Plank (2026) is tagged `paper-jpet-2026`, and the paper's scripts are archived at https://github.com/whtowbin/Xenolith_Melt_Vein_Modeling.
 
 ## License
 
