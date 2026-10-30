@@ -35,6 +35,9 @@ a = Analysis(
         "matplotlib.backends.backend_pdf",
         "matplotlib.backends.backend_svg",
         "matplotlib.backends.backend_ps",
+        # pandas imports its Excel readers by name: .xlsx (openpyxl) and the old .xls.
+        "openpyxl",
+        "xlrd",
     ],
     excludes=[
         # Present in a development environment, never used by the app.

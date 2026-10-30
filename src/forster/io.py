@@ -237,7 +237,8 @@ class Run:
 
 
 def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
-    """A CSV file, or one sheet of an Excel workbook (the first by default)."""
+    """A CSV file, or one sheet of an Excel workbook (.xlsx, .xlsm or the old .xls; the
+    first sheet by default)."""
     path = Path(path)
     if path.suffix.lower() == ".csv":
         # pandas' default float parser can be 1 ulp off; round_trip reads back exactly
@@ -246,8 +247,9 @@ def read_table(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
         return pd.read_csv(path, float_precision="round_trip")  # ty: ignore[no-matching-overload]
     if path.suffix.lower() in {".xlsx", ".xlsm"}:
         return pd.read_excel(path, sheet_name=sheet, engine="openpyxl")
-    # openpyxl cannot read the old binary .xls format: save it as .xlsx or .csv.
-    raise ValueError(f"{path}: expected a .csv or .xlsx file")
+    if path.suffix.lower() == ".xls":  # the old binary format, which openpyxl cannot read
+        return pd.read_excel(path, sheet_name=sheet, engine="xlrd")
+    raise ValueError(f"{path}: expected a .csv, .xlsx or .xls file")
 
 
 def _usable_rows(df: pd.DataFrame) -> pd.Series:

@@ -329,7 +329,7 @@ def _import_folder(args: argparse.Namespace, folder: Path) -> int:
     sheet: str | int = args.sheet if args.sheet is not None else 0
     files = list_profile_files(folder)
     if not files:
-        raise ValueError(f"{folder} has no .csv, .xlsx or .xlsm files")
+        raise ValueError(f"{folder} has no .csv, .xlsx, .xlsm or .xls files")
     if args.template is None:
         draft = Path(args.save_template or folder.with_name(folder.name + ".import.json"))
         if draft.exists() and not args.force:
@@ -461,7 +461,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     imp.add_argument(
         "file",
-        help="spreadsheet of analysis points (.csv or .xlsx), or a folder of them (one "
+        help="spreadsheet of analysis points (.csv, .xlsx or .xls), or a folder of them (one "
         "profile per file, named after the file unless it has a name column): the "
         "mapping is proposed from the first file and applied to all",
     )

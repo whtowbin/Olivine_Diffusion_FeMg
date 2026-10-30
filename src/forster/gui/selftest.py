@@ -2,8 +2,8 @@
 real window headless (``QT_QPA_PLATFORM=offscreen``) through a new project, a fit, a
 starting-profile fit, a Monte Carlo, the law comparison, exports, save and reopen, and
 checks the files a bundle tends to lose (forster's data and metadata, scipy's Sobol
-direction numbers). ``startup_probe`` quits once the window has painted, to time a
-cold start.
+direction numbers, the Excel readers). ``startup_probe`` quits once the window has
+painted, to time a cold start.
 
 Run by the bundle's launcher (``packaging/gui/run_gui.py --self-test DIR``); also
 importable in a development checkout.
@@ -15,6 +15,7 @@ import time
 from collections.abc import Callable
 from importlib.metadata import version
 from importlib.resources import files
+from importlib.util import find_spec
 from pathlib import Path
 
 from PySide6.QtCore import QEventLoop, QTimer
@@ -64,6 +65,9 @@ def check_bundle_files() -> None:
     check(any(p.name.endswith(".csv") for p in data.iterdir()), "forster/data tables")
     sobol = Path(scipy.stats.__file__).parent / "_sobol_direction_numbers.npz"
     check(sobol.exists(), "scipy's Sobol direction numbers")
+    # pandas imports its Excel readers by name, so PyInstaller only sees them if told.
+    for reader in ("openpyxl", "xlrd"):
+        check(find_spec(reader) is not None, f"Excel reader {reader}")
 
 
 def self_test(folder: Path) -> int:

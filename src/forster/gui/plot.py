@@ -71,7 +71,9 @@ class ProfileCanvas(FigureCanvasQTAgg):
         self.mpl_connect("button_press_event", self._press)
         self.mpl_connect("motion_notify_event", self._motion)
         self.mpl_connect("button_release_event", self._release)
-        self.show_message("Open a project folder, or start one from the example.")
+        self.show_message(
+            "Import profiles (CSV or Excel) to start a project, or open a project folder."
+        )
 
     # -- drawing --------------------------------------------------------------------
 

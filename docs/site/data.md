@@ -95,7 +95,7 @@ forster import grains/ --template grains.import.json # writes grains_profiles.cs
 ```
 
 The mapping is proposed from the first file (in name order) and applied to every
-`.csv`, `.xlsx` and `.xlsm` file in the folder. Hidden files and Office lock files
+`.csv`, `.xlsx`, `.xlsm` and `.xls` file in the folder. Hidden files and Office lock files
 (`~$...`) are ignored. A profile is named by the mapping's name column; a file
 without one gives its file name (`g1.csv` becomes `g1`). The same profile name in two
 files is an error that names both files. A file whose columns differ from the mapping

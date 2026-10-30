@@ -163,9 +163,9 @@ class MainWindow(QMainWindow):
         bar.setMovable(False)
         self.actions_: dict[str, QAction] = {}
         for text, slot, key, tip in (
-            ("New from example…", self._choose_new, QKeySequence.StandardKey.New, None),
-            ("Open…", self._choose_open, QKeySequence.StandardKey.Open, None),
-            ("Save", self.save, QKeySequence.StandardKey.Save, None),
+            ("New project…", self._choose_new, QKeySequence.StandardKey.New, "An empty project"),
+            ("Open…", self._choose_open, QKeySequence.StandardKey.Open, "A FORSTER project folder"),
+            ("Save", self._choose_save, QKeySequence.StandardKey.Save, None),
             ("Save as…", self._choose_save_as, QKeySequence.StandardKey.SaveAs, None),
             (
                 "Import profiles…",
@@ -198,11 +198,31 @@ class MainWindow(QMainWindow):
             ("Project as zip…", self._choose_export_zip),
         ):
             menu.addAction(text).triggered.connect(slot)
-        button = QToolButton()
-        button.setText("Export")
-        button.setMenu(menu)
-        button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        bar.addWidget(button)
+        self.export_button = QToolButton()
+        self.export_button.setText("Export")
+        self.export_button.setMenu(menu)
+        self.export_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        bar.addWidget(self.export_button)
+        help_menu = self.menuBar().addMenu("Help")
+        for text, slot in (
+            ("Open the worked example…", self._choose_example),
+        ):
+            action = QAction(text, self)
+            action.triggered.connect(slot)
+            help_menu.addAction(action)
+            self.actions_[text] = action
+
+    def _enable_actions(self) -> None:
+        """Grey out the buttons that need an open project or a selected run (they used
+        to do nothing, silently); the rest start or open a project."""
+        has_project, has_run = self.project is not None, self.current is not None
+        for text in ("Save", "Save as…", "Fit all"):
+            self.actions_[text].setEnabled(has_project)
+        self.export_button.setEnabled(has_project)
+        self.run_buttons["Add"].setEnabled(has_project)
+        self.actions_["Copy settings…"].setEnabled(has_run)
+        for text in ("Duplicate", "Rename", "Delete", "Copy"):
+            self.run_buttons[text].setEnabled(has_run)
 
     def _build_runs(self) -> QWidget:
         left = QWidget()
@@ -302,16 +322,33 @@ class MainWindow(QMainWindow):
     # -- the project folder -----------------------------------------------------------
 
     def _choose_new(self) -> None:
-        folder = QFileDialog.getExistingDirectory(
-            self, "Choose an empty folder for the new project (the worked example)"
+        folder = self._new_folder("New project: name its folder", Path.home() / "FORSTER project")
+        if folder:
+            self.new_project(folder, example=False)
+
+    def _choose_example(self) -> None:
+        folder = self._new_folder(
+            "The worked example: name its folder", Path.home() / "FORSTER example"
         )
         if folder:
             self.new_project(folder)
+
+    def _new_folder(self, title: str, suggested: Path) -> str:
+        """A new (or empty) folder for a project, named in a save dialog so the user can
+        type the name; `Project.new` refuses a folder that is not empty."""
+        path, _ = QFileDialog.getSaveFileName(
+            self, title, str(suggested), "", options=QFileDialog.Option.DontConfirmOverwrite
+        )
+        return path
 
     def _choose_open(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Open a FORSTER project folder")
         if folder:
             self.open_project(folder)
+
+    def _choose_save(self) -> None:
+        # Not `save` itself: the action's triggered(checked) landed in `folder` as False.
+        self.save()
 
     def _choose_save_as(self) -> None:
         if self.project is None:
@@ -354,11 +391,12 @@ class MainWindow(QMainWindow):
         if path:
             self.export_zip(path)
 
-    def new_project(self, folder: str | Path) -> bool:
+    def new_project(self, folder: str | Path, *, example: bool = True) -> bool:
+        """A project in a new or empty folder: the worked example, or empty."""
         if not self._may_discard():
             return False
         try:
-            project = Project.new(folder)
+            project = Project.new(folder, example=example)
         except (FileExistsError, OSError, ValueError) as exc:
             return self._refuse("Cannot start a project there", exc)
         self._set_project(project)
@@ -378,7 +416,10 @@ class MainWindow(QMainWindow):
                 )
             ):
                 project = project.restore_autosave()
-        except (FileNotFoundError, OSError, ValueError) as exc:
+        except FileNotFoundError as exc:
+            hint = "; to bring in CSV or Excel profiles, use Import profiles or Import folder"
+            return self._refuse("Cannot open that folder", FileNotFoundError(f"{exc}{hint}"))
+        except (OSError, ValueError) as exc:
             return self._refuse("Cannot open that folder", exc)
         self._set_project(project)
         return True
@@ -469,11 +510,12 @@ class MainWindow(QMainWindow):
         blocked = self.run_list.blockSignals(True)
         self.run_list.clear()
         self.run_list.blockSignals(blocked)
-        for button in self.run_buttons.values():
-            button.setEnabled(self.project is not None)
         if self.project is None:
+            self._enable_actions()
             self.panel.load(None)
-            self.canvas.show_message("Open a project folder, or start one from the example.")
+            self.canvas.show_message(
+                "Import profiles (CSV or Excel) to start a project, or open a project folder."
+            )
             self._show_notes([])
             return
         self.run_list.addItems(self._run_labels())
@@ -483,8 +525,11 @@ class MainWindow(QMainWindow):
             self.run_list.setCurrentRow(names.index(selected) if selected else 0)
         else:
             self.panel.load(None)
-            self.canvas.show_message("This project has no runs: Add one.")
+            self.canvas.show_message(
+                "This project has no runs: import profiles (CSV or Excel), or Add a run."
+            )
         self._fill_results()
+        self._enable_actions()
 
     def _run_labels(self) -> list[str]:
         assert self.project is not None
@@ -601,11 +646,15 @@ class MainWindow(QMainWindow):
         self._redraw()
         self._restore_view(name)
         self._refresh_views()
+        self._enable_actions()
         if self.project.result(name) is None:
             self.request_fit(name)
 
     def _choose_add(self) -> None:
-        if self.project is None or not self.project.profiles:
+        if self.project is None:
+            return
+        if not self.project.profiles:
+            self._refuse("No profiles", ValueError("import profiles (CSV or Excel) first"))
             return
         profiles = list(self.project.profiles)
         profile, ok = QInputDialog.getItem(self, "Add a run", "Profile", profiles, 0, False)
@@ -674,19 +723,18 @@ class MainWindow(QMainWindow):
 
     # -- importing profiles and copying settings ---------------------------------------
 
+    def _start_folder(self) -> str:
+        return str(self.project.folder) if self.project is not None else str(Path.home())
+
     def _choose_import(self) -> None:
-        if self.project is None:
-            return
         names, _ = QFileDialog.getOpenFileNames(
-            self, "Import profiles", str(self.project.folder), "Tables (*.csv *.xlsx *.xlsm)"
+            self, "Import profiles", self._start_folder(), "Tables (*.csv *.xlsx *.xlsm *.xls)"
         )
         self._import_paths([Path(n) for n in names])
 
     def _choose_import_folder(self) -> None:
-        if self.project is None:
-            return
         folder = QFileDialog.getExistingDirectory(
-            self, "Import every table in a folder", str(self.project.folder)
+            self, "Import every table in a folder", self._start_folder()
         )
         if not folder:
             return
@@ -696,18 +744,21 @@ class MainWindow(QMainWindow):
             self._refuse("Cannot read that folder", exc)
             return
         if not paths:
-            self._refuse("Nothing to import", ValueError("no .csv, .xlsx or .xlsm file there"))
+            self._refuse(
+                "Nothing to import", ValueError("no .csv, .xlsx, .xlsm or .xls file there")
+            )
             return
         self._import_paths(paths)
 
     def _import_paths(self, paths: list[Path]) -> None:
         """Import the files: the mapping dialog opens once, for the first file, and its
-        mapping, flip and offset apply to all of them."""
-        if self.project is None or not paths:
+        mapping, flip and offset apply to all of them. With no project open, the user names
+        a folder for a new, empty one after accepting the mapping."""
+        if not paths:
             return
         try:
             table = read_columns(paths[0])
-        except (OSError, ValueError) as exc:
+        except (ImportError, OSError, ValueError) as exc:  # ImportError: no Excel reader
             self._refuse("Cannot read that file", exc)
             return
         dialog = ImportDialog(paths[0], table, self, paths=paths)
@@ -720,6 +771,13 @@ class MainWindow(QMainWindow):
             # Parented to the window, a closed dialog stayed alive (about 3 MB per
             # import; analyses/gui_memory, 2026-10-20).
             dialog.deleteLater()
+        if self.project is None:
+            folder = self._new_folder(
+                "Save the imported profiles in a new project: name its folder",
+                paths[0].parent / "FORSTER project",
+            )
+            if not folder or not self.new_project(folder, example=False):
+                return
         if len(paths) == 1:
             self.import_table(
                 table, template, name=name, flip=flip, offset_um=offset, add_runs=add_runs
@@ -1005,7 +1063,12 @@ class MainWindow(QMainWindow):
         if self.project is None:
             return
         todo = [n for n in self.project.run_names if self.project.summary(n) is None]
+        if not todo:
+            text = "Every run is fitted" if self.project.run_names else "No runs to fit"
+            self.statusBar().showMessage(text, 5000)
+            return
         self.wanted += [n for n in todo if n not in self.wanted]
+        self.statusBar().showMessage(f"Fitting {len(todo)} run(s)", 5000)
         self.debounce.start()
 
     def _start_fit(self) -> None:

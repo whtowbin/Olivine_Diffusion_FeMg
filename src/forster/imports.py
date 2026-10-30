@@ -500,11 +500,11 @@ def read_with_template(
 
 # ------------------------------------------------------------------------------ batch
 
-PROFILE_FILE_SUFFIXES = (".csv", ".xlsx", ".xlsm")
+PROFILE_FILE_SUFFIXES = (".csv", ".xlsx", ".xlsm", ".xls")
 
 
 def list_profile_files(folder: str | Path) -> list[Path]:
-    """The ``*.csv``, ``*.xlsx`` and ``*.xlsm`` files directly in ``folder``, sorted by
+    """The ``*.csv``, ``*.xlsx``, ``*.xlsm`` and ``*.xls`` files directly in ``folder``, sorted by
     name; hidden files (leading dot) and Office lock files (``~$...``) are left out."""
     folder = Path(folder)
     if not folder.is_dir():
@@ -583,7 +583,7 @@ def import_files(
     else:
         files = [Path(s) for s in sources]
     if not files:
-        raise ValueError("no .csv, .xlsx or .xlsm files to import")
+        raise ValueError("no .csv, .xlsx, .xlsm or .xls files to import")
     from forster.io import read_table
 
     if template is None:

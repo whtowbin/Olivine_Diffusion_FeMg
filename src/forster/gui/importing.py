@@ -49,7 +49,7 @@ class Imported:
 
 
 def read_columns(path: str | Path, sheet: str | int = 0) -> pd.DataFrame:
-    """The table to map (CSV, or one sheet of an .xlsx)."""
+    """The table to map (CSV, or the first sheet of an .xlsx, .xlsm or .xls)."""
     return read_table(path, sheet)
 
 

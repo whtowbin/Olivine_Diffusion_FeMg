@@ -6,6 +6,8 @@ PySide6 (the ``gui`` extra)."""
 import os
 import time
 import zipfile
+from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -460,3 +462,150 @@ def test_the_import_dialog_starts_each_profile_at_its_first_point_with_advice(ap
         assert dialog.options()[2] is None
     finally:
         dialog.deleteLater()
+
+
+
+def record_dialogs(monkeypatch, opened, answers=None):
+    """Every file, input and app dialog the window can open records its name in
+    ``opened`` and answers from ``answers`` (by name), else as if cancelled."""
+    from forster.gui.dialogs import CopySettingsDialog
+
+    answers = answers or {}
+
+    def fake(name, cancelled):
+        def ask(*args, **kwargs):
+            opened.append(name)
+            answer = answers.get(name, cancelled)
+            return answer(*args) if callable(answer) else answer
+
+        return ask
+
+    for name, cancelled in (
+        ("getOpenFileNames", ([], "")),
+        ("getExistingDirectory", ""),
+        ("getSaveFileName", ("", "")),
+    ):
+        monkeypatch.setattr(f"forster.gui.app.QFileDialog.{name}", fake(name, cancelled))
+    for name, cancelled in (("getItem", ("", False)), ("getText", ("", False))):
+        monkeypatch.setattr(f"forster.gui.app.QInputDialog.{name}", fake(name, cancelled))
+    for dialog in (ImportDialog, CopySettingsDialog):
+        monkeypatch.setattr(dialog, "exec", fake(dialog.__name__, 0))
+
+
+@pytest.mark.parametrize("state", ["no project", "empty project", "example project"])
+def test_every_enabled_button_does_something_visible(app, tmp_path, monkeypatch, state):
+    """The way a user meets the app: press every toolbar, menu and run button. An
+    enabled one must open a dialog, write to the status line or change the project;
+    one that cannot act yet must be greyed out. (Import, Fit all, Save and Export did
+    nothing at all with no project open: every earlier test opened the example first.)"""
+    opened: list[str] = []
+    record_dialogs(monkeypatch, opened)
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        if state != "no project":
+            assert window.new_project(tmp_path / "p", example=state == "example project")
+        app.processEvents()
+        buttons: list[tuple[str, Callable[[], object], Callable[[], bool]]] = [
+            (text, action.trigger, action.isEnabled) for text, action in window.actions_.items()
+        ]
+        buttons += [
+            (f"Export > {action.text()}", action.trigger, window.export_button.isEnabled)
+            for action in window.export_button.menu().actions()
+        ]
+        # Delete last, so the run is still there for the others.
+        buttons += [
+            (text, button.click, button.isEnabled)
+            for text, button in sorted(window.run_buttons.items(), key=lambda t: t[0] == "Delete")
+        ]
+        silent, greyed = [], []
+        for text, press, enabled in buttons:
+            if not enabled():
+                greyed.append(text)
+                continue
+            opened.clear()
+            window.statusBar().clearMessage()
+            before = (window.project, window.project and list(window.project.run_names))
+            press()
+            app.processEvents()
+            after = (window.project, window.project and list(window.project.run_names))
+            if not opened and not window.statusBar().currentMessage() and before == after:
+                silent.append(text)
+        assert silent == [], f"{state}: these buttons did nothing: {silent}"
+        always = ["New project…", "Open…", "Import profiles…", "Import folder…"]
+        assert not set(always) & set(greyed)
+        if state == "no project":
+            assert {"Save", "Fit all", "Export > Summary CSV…", "Add"} <= set(greyed)
+        if state == "example project":
+            assert greyed == []
+    finally:
+        window.close()
+
+
+def test_cold_start_import_excel_fit_save_reopen(app, tmp_path, monkeypatch):
+    """A new user's path, through the real buttons: no project open, Import folder on
+    two Excel workbooks, map the columns, name a folder for the new project; then Import
+    profiles on an old-format .xls; fit, Save, reopen. Opening a folder of spreadsheets
+    points to Import."""
+    data = tmp_path / "probe data"
+    data.mkdir()
+    for grain in ("1", "2"):
+        table = pd.read_csv(lab_csv(tmp_path / f"{grain}.csv"))
+        table["Sample"] += grain  # A1, B1 in grain 1.xlsx, ...
+        table.to_excel(data / f"grain {grain}.xlsx", index=False)
+    extra = Path(__file__).parent / "data" / "probe_export.xls"  # profile X1, old format
+    folder = tmp_path / "my project"
+    mapped = []
+
+    def accept(dialog):
+        ok = dialog.buttons.button(dialog.buttons.StandardButton.Ok)
+        assert ok.isEnabled(), dialog.error.text()  # the guessed mapping is usable
+        mapped.append(dialog.path.name)
+        return 1
+
+    opened: list[str] = []
+    record_dialogs(
+        monkeypatch,
+        opened,
+        {
+            "getExistingDirectory": str(data),
+            "getSaveFileName": (str(folder), ""),
+            "getOpenFileNames": ([str(extra)], ""),
+            "ImportDialog": accept,
+        },
+    )
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        assert not window.open_project(data)
+        assert "Import profiles or Import folder" in window.last_error
+        assert window.project is None and not window.actions_["Save"].isEnabled()
+
+        window.actions_["Import folder…"].trigger()
+        assert opened == ["getExistingDirectory", "ImportDialog", "getSaveFileName"]
+        assert mapped == ["grain 1.xlsx"]
+        project = window.project
+        assert project is not None and project.folder == folder
+        assert set(project.profiles) == {"A1", "B1", "A2", "B2"}
+        assert "from 2 file(s)" in window.statusBar().currentMessage()
+        assert window.actions_["Save"].isEnabled() and window.run_buttons["Delete"].isEnabled()
+
+        opened.clear()
+        window.actions_["Import profiles…"].trigger()
+        assert opened == ["getOpenFileNames", "ImportDialog"]  # into the open project
+        assert "X1" in project.profiles
+
+        wait(app, lambda: project.result(window.current) is not None and settled(window), "fit")
+        fitted = window.current
+        window.actions_["Save"].trigger()
+        assert (folder / "parameters.csv").exists() and not project.dirty
+    finally:
+        window.close()
+
+    again = MainWindow(ask=False)
+    try:
+        assert again.open_project(folder)
+        assert again.project is not None and "X1" in again.project.profiles
+        assert again.project.result(fitted) is not None  # from the cache
+    finally:
+        again.close()

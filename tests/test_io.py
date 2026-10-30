@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -260,10 +261,15 @@ def test_bad_inflection_c_is_a_value_error():
         _plateau_fraction("88,,5")
 
 
-def test_xls_is_refused(tmp_path):
+def test_an_old_xls_is_read_and_other_types_are_refused(tmp_path):
+    """tests/data/probe_export.xls: a small table saved as .xls by LibreOffice (the
+    binary format some probe software still writes)."""
     from forster.io import read_table
 
-    path = tmp_path / "old.xls"
+    table = read_table(Path(__file__).parent / "data" / "probe_export.xls")
+    assert list(table.columns) == ["Sample", "Distance (um)", "Fo"] and len(table) == 15
+    assert table["Fo"].iloc[0] == pytest.approx(87.5)
+    path = tmp_path / "table.ods"
     path.write_bytes(b"")
-    with pytest.raises(ValueError, match=r"\.csv or \.xlsx"):
+    with pytest.raises(ValueError, match=r"\.csv, \.xlsx or \.xls"):
         read_table(path)

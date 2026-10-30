@@ -37,9 +37,12 @@ The window has three parts:
 - **Right: the run's settings**, in tabs: **Segments**, **Data**, **Conditions**,
   **Orientation**, **Equation**, **Uncertainties** and **Advanced**.
 
-Across the top are **New from example**, **Open**, **Save**, **Save as**, **Import
-profiles**, **Copy settings**, **Fit all** (fit every run) and **Export**. Hover over
-any field to see its unit and the table column it is saved in.
+Across the top are **New project** (an empty project), **Open** (a project folder),
+**Save**, **Save as**, **Import profiles** and **Import folder** (CSV or Excel files),
+**Copy settings**, **Fit all** (fit every run) and **Export**. With no project open,
+importing starts one: after you map the columns, you name a folder for the new
+project. **Help > Open the worked example** makes a copy of the worked example to try
+the app on. Hover over any field to see its unit and the table column it is saved in.
 
 ## The Profile view and the Segments tab
 
