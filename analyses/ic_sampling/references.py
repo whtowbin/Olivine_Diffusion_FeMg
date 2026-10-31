@@ -36,15 +36,17 @@ import sys
 import time
 import traceback
 import warnings
-from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, wait
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests"))
 from conftest import PAPER_DATA, PAPER_PARAMS, ROUND_ROBIN_DATA, ROUND_ROBIN_PARAMS
+from _workers import process_executor
 from likelihood import Problem, ic_value, is_valid
 from methods import (
     method_dynesty_weighted,
@@ -398,7 +400,7 @@ def run_all(workers, only=None, seed_check=True):
     with (
         open(CSV_PATH, "a", newline="") as fh,
         open(private_path, "a", newline="") as fh_private,
-        ProcessPoolExecutor(max_workers=min(workers, MAX_WORKERS)) as pool,
+        process_executor(min(workers, MAX_WORKERS)) as pool,
     ):
         public = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
         private = csv.DictWriter(fh_private, fieldnames=FIELDS, extrasaction="ignore")

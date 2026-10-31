@@ -17,13 +17,14 @@ import pytest
 pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEvent, QEventLoop, QPoint, Qt
+from PySide6.QtCore import QEvent, QEventLoop, QPoint, Qt, QTimer
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QPushButton
 
 from forster.gui.app import MainWindow
 from forster.gui.dialogs import ImportDialog
 from forster.gui.importing import read_columns
+from forster.gui.quit_dialog import QuitDialog
 from forster.gui.state import RESULT_COLUMNS, RunEditor
 from forster.imports import guess
 
@@ -843,3 +844,129 @@ def test_the_import_dialog_keeps_the_notes_of_merged_files(app, tmp_path, monkey
         wait(app, lambda: settled(window), "fit")
     finally:
         window.close()
+
+
+def answer_quit(window, action, seen, before=None):
+    """Click a button of the quit dialog once it is open; ``seen`` collects its text."""
+
+    def click():
+        dialog = window.findChild(QuitDialog)
+        try:
+            assert dialog is not None, "no quit dialog"
+            seen.append(dialog.text.text())
+            if before is not None:
+                before(dialog)
+            dialog.findChild(QPushButton, f"quit-{action}").click()
+        except Exception as exc:  # a failed assertion must not leave exec() waiting
+            seen.append(f"ERROR {exc!r}")
+            if dialog is not None:
+                dialog.reject()
+
+    QTimer.singleShot(50, click)
+
+
+def window_with_project(tmp_path):
+    window = MainWindow(ask=True)
+    window.show()
+    assert window.new_project(tmp_path / "example")
+    return window
+
+
+def start_scan_with_priors(app, window):
+    """Give the example a prior on the step and a segment, save, and start its scan."""
+    wait(app, lambda: settled(window), "fit")
+    editor = window.editor
+    assert editor.set_step_spread(0, "2") and editor.set_cell(1, "spread", "0.2")
+    window.panel.load(editor)
+    window._edited()
+    wait(app, lambda: settled(window), "refit")
+    assert window.save()
+    assert window.start_scan()
+
+
+def test_closing_an_idle_clean_project_asks_nothing(app, tmp_path):
+    window = window_with_project(tmp_path)
+    wait(app, lambda: settled(window), "fit")
+    assert window.save() and not window.project.dirty
+    opened = []
+    original = QuitDialog.exec
+    QuitDialog.exec = lambda self: opened.append(self) or 0
+    try:
+        assert window.close()
+    finally:
+        QuitDialog.exec = original
+    assert not window.isVisible() and opened == []
+
+
+def test_closing_with_unsaved_changes_offers_cancel_discard_and_save(app, tmp_path):
+    window = window_with_project(tmp_path)
+    wait(app, lambda: settled(window), "fit")
+    project = window.project
+    project.dirty = True
+    folder = project.folder
+    seen = []
+
+    answer_quit(window, "cancel", seen)
+    assert not window.close()
+    assert window.isVisible() and project.dirty
+    assert "Unsaved changes" in seen[0] and "example" in seen[0] and "Still running" not in seen[0]
+
+    answer_quit(window, "quit", seen)
+    assert window.close()
+    assert not window.isVisible() and project.dirty and len(seen) == 2
+    assert not any(s.startswith("ERROR") for s in seen)
+
+    window = MainWindow(ask=True)
+    window.show()
+    assert window.open_project(folder)
+    reopened = window.project
+    assert reopened is not None
+    reopened.dirty = True
+    answer_quit(window, "save", seen)
+    assert window.close()
+    assert not window.isVisible() and not reopened.dirty
+    assert (folder / "parameters.csv").is_file() and (folder / "project.json").is_file()
+    assert not any(s.startswith("ERROR") for s in seen)
+
+
+def test_closing_during_a_scan_lists_it_and_stop_and_quit_cancels_it(app, tmp_path):
+    window = window_with_project(tmp_path)
+    start_scan_with_priors(app, window)
+    seen = []
+
+    answer_quit(window, "cancel", seen)
+    assert not window.close()
+    assert window.isVisible() and window.scan_job is not None and not window.scan_cancel.is_set()
+    assert "Still running" in seen[0] and f"Starting-profile scan of {EXAMPLE}" in seen[0]
+    assert "Unsaved" not in seen[0]
+
+    # Unsaved changes appear in the same dialog; the buttons follow.
+    window.project.dirty = True
+    labels = []
+
+    def buttons(dialog):
+        labels.extend(b.text() for b in dialog.box.buttons())
+
+    answer_quit(window, "quit", seen, before=buttons)
+    assert window.close()
+    assert not window.isVisible() and window.scan_cancel.is_set()
+    assert sorted(labels) == ["Cancel", "Quit without saving", "Save and quit"]
+    assert "Still running" in seen[1] and "Unsaved changes" in seen[1]
+    assert not any(s.startswith("ERROR") for s in seen)
+    assert window.scan_pool.waitForDone(1000)  # the pool was waited for
+
+
+def test_the_quit_dialog_drops_a_job_that_finishes_while_it_is_open(app, tmp_path):
+    window = window_with_project(tmp_path)
+    start_scan_with_priors(app, window)
+    seen = []
+
+    def stop_scan(dialog):
+        window.cancel_scan()
+        wait(app, lambda: window.scan_job is None, "scan canceled")
+        dialog.refresh()
+        seen.append(dialog.text.text())
+
+    answer_quit(window, "quit", seen, before=stop_scan)
+    assert window.close()
+    assert "Nothing is running" in seen[-1] and not any(s.startswith("ERROR") for s in seen)

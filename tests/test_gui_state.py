@@ -215,3 +215,42 @@ def test_inconsistent_angles_and_out_of_order_steps_are_refused_in_the_editor(ed
     assert not editor.set_cell(0, "end", str(rows[1].end_um + 1))  # past the next step
     assert editor.errors["segment:0:end"]
     assert project.run(EXAMPLE).initial.steps_um == tuple(r.end_um for r in rows[:-1])
+
+
+def test_quit_plan_lists_running_work_and_unsaved_changes():
+    from forster.gui.quit_plan import QuitPlan, RunningJob, quit_plan
+
+    idle = quit_plan([], None)
+    assert not idle.needs_dialog and idle.running == () and not idle.waits
+
+    jobs = [
+        RunningJob("fit", "A"),
+        RunningJob("scan", "A", "120 model runs"),
+        RunningJob("mc", "B", "40/200"),
+        RunningJob("laws", "B"),
+    ]
+    both = quit_plan(jobs, "myproject")
+    assert both.running == (
+        "Fitting A",
+        "Starting-profile scan of A (120 model runs)",
+        "Monte Carlo of B (40/200)",
+        "Comparing diffusion laws for B",
+    )
+    assert both.waits and both.unsaved == "myproject" and both.needs_dialog
+    assert [a for a, _ in both.buttons] == ["save", "quit", "cancel"]
+    assert [t for _, t in both.buttons] == ["Save and quit", "Quit without saving", "Cancel"]
+
+    only_running = quit_plan(jobs[1:3], None)
+    assert not only_running.waits and only_running.unsaved is None
+    assert [t for _, t in only_running.buttons] == ["Stop and quit", "Cancel"]
+
+    only_dirty = quit_plan([], "myproject")
+    assert only_dirty.needs_dialog and only_dirty.running == ()
+    assert isinstance(only_dirty, QuitPlan)
+
+    # A scan's stage names are not progress.
+    assert quit_plan([RunningJob("scan", "A", "Stage one")], None).running == (
+        "Starting-profile scan of A",
+    )
+    with pytest.raises(ValueError):
+        quit_plan([RunningJob("nope", "A")], None)

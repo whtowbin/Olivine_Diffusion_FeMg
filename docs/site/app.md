@@ -237,6 +237,12 @@ The app and its plots follow the system's light or dark setting.
   them): choose a new or empty folder.
 - Fits, starting-profile fits and Monte Carlos are cached in the project folder
   (`.forster/cache`), so a reopened project shows its results straight away.
+- Closing the window or quitting asks first when something is running or unsaved. One
+  dialog lists the running fit, starting-profile scan, Monte Carlo or diffusion-law
+  comparison (quitting stops it and its result is lost; a fit cannot be interrupted, so
+  quitting waits for the current one) and the unsaved changes. Choose **Save and quit**,
+  **Quit without saving** (or **Stop and quit** when only work is running), or **Cancel**
+  to keep working. With nothing running and nothing unsaved the app closes at once.
 - The project is autosaved every minute (`.forster/autosave`). If you open a project with unsaved changes from an earlier session, the app offers to restore them.
 - **Export** writes the plot or view on screen as PNG or PDF, the fit figure as
   `forster fit` draws it, `summary.csv` (**Summary CSV...**), or the whole project as a

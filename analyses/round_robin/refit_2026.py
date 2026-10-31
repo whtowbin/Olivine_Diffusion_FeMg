@@ -54,7 +54,7 @@ import subprocess
 import sys
 import time
 import warnings
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from dataclasses import replace
 from importlib.metadata import version
 from pathlib import Path
@@ -88,6 +88,9 @@ from forster import (
 )
 from forster.diffusivity import FE_MG_CHOICES, resolve
 from forster.grid import narrowest_gap_um
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from _workers import process_executor  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 RR = ROOT / "Diffusion Round Robin"
@@ -757,7 +760,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{len(jobs)} jobs, {len(todo)} to fit ({len(jobs) - len(todo)} cached)", flush=True)
     failed = []
     if todo:
-        with ProcessPoolExecutor(max_workers=max(1, min(4, args.workers))) as pool:
+        with process_executor(max(1, min(4, args.workers))) as pool:
             futures = {pool.submit(task, j): j for j in todo}
             for future in as_completed(futures):
                 kind, name = futures[future]

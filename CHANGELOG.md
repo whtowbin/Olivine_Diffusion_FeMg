@@ -37,6 +37,7 @@ Results from FORSTER differ from those of the paper-era scripts for four reasons
 -   Command line (`forster template`, `forster fit`, `forster import`) and a desktop app (`forster gui`) on the same project tables.
 -   Import a whole folder of per-profile spreadsheets at once, from the command line, Python or the app, with one column mapping. CSV (including files saved by Excel on Windows), .xlsx, .xlsm and the old .xls are read.
 -   Desktop app installers, built and self-tested in CI (the self-test starts the built app).
+-   The app asks before quitting while a fit, starting-profile scan, Monte Carlo or law comparison is running or the project has unsaved changes: one dialog lists what is running and what is unsaved ("Save and quit", "Quit without saving" or "Stop and quit", "Cancel").
 -   Checks that warn when a range is probably too narrow (misfit concentrated near a step, a profile that ends before its plateau) or a prior conflicts with the data.
 -   Joint fits of several profiles of one crystal, and Ni, Mn and Ca fits (Python).
 -   Automatic grids estimate the time in the fit's own scheme, which is faster.

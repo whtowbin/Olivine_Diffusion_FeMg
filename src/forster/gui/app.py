@@ -22,7 +22,7 @@ from typing import Any
 import pandas as pd
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from matplotlib.figure import Figure
-from PySide6.QtCore import QEvent, QThreadPool, QTimer
+from PySide6.QtCore import QEvent, Qt, QThreadPool, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QPalette
 from PySide6.QtWidgets import (
     QApplication,
@@ -56,6 +56,7 @@ from .dialogs import CiteDialog, CopySettingsDialog, ImportDialog
 from .importing import Imported, add_imported, import_files, import_table, read_columns
 from .panels import ERROR_COLOR, SidePanel
 from .plot import ProfileCanvas
+from .quit_plan import QuitPlan, RunningJob, quit_plan
 from .state import (
     RESULT_COLUMNS,
     RESULT_TITLES,
@@ -120,6 +121,7 @@ class MainWindow(QMainWindow):
         self.law_job: Job | None = None
         self.scan_cancel = threading.Event()
         self.mc_cancel = threading.Event()
+        self.job_progress: dict[str, str] = {}  # the latest text of the scan and the Monte Carlo
         self.law_fits: dict[str, FitResult] = {}
         self.wanted: list[str] = []  # runs to fit, the selected one first
         self.debounce = QTimer(self, singleShot=True, interval=DEBOUNCE_MS)
@@ -602,16 +604,59 @@ class MainWindow(QMainWindow):
         mark = " *" if self.project.dirty else ""
         self.setWindowTitle(f"FORSTER: {self.project.folder.name}{mark}")
 
+    def _running_jobs(self) -> list[RunningJob]:
+        out = []
+        for kind, job in (
+            ("fit", self.fit_job),
+            ("scan", self.scan_job),
+            ("mc", self.mc_job),
+            ("laws", self.law_job),
+        ):
+            if job is not None:
+                task = job.tag[1]  # ty: ignore[not-subscriptable]  # (serial, task)
+                run = getattr(task, "name", task)
+                out.append(RunningJob(kind, run, self.job_progress.get(kind, "")))
+        return out
+
+    def _quit_plan(self) -> QuitPlan:
+        dirty = self.project is not None and self.project.dirty
+        return quit_plan(self._running_jobs(), self.project.folder.name if dirty else None)
+
+    def _ask_quit(self) -> str:
+        """Ask what to do about running work and unsaved changes: "save", "quit" or
+        "cancel". Asks nothing (returns "quit") when neither is at stake."""
+        if not self._quit_plan().needs_dialog:
+            return "quit"
+        from .quit_dialog import QuitDialog
+
+        dialog = QuitDialog(self, self._quit_plan)
+        try:
+            dialog.exec()
+            return dialog.choice
+        finally:
+            dialog.deleteLater()
+
     def closeEvent(self, event: QCloseEvent) -> None:
         self._remember_view()
-        if not self._may_discard():
-            event.ignore()
-            return
+        if self.ask:
+            choice = self._ask_quit()
+            if choice == "cancel" or (choice == "save" and not self.save()):
+                event.ignore()
+                return
+        busy = any(j is not None for j in (self.fit_job, self.scan_job, self.mc_job, self.law_job))
         self.scan_cancel.set()
         self.mc_cancel.set()
         self.autosave_timer.stop()
-        for pool in (self.fit_pool, self.scan_pool, self.mc_pool, self.law_pool):
-            pool.waitForDone(30_000)
+        if busy:
+            self.statusBar().showMessage("Stopping…")
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            QApplication.processEvents()  # paint the message before the wait
+        try:
+            for pool in (self.fit_pool, self.scan_pool, self.mc_pool, self.law_pool):
+                pool.waitForDone(30_000)
+        finally:
+            if busy:
+                QApplication.restoreOverrideCursor()
         event.accept()
 
     # -- per-run views ----------------------------------------------------------------
@@ -1209,6 +1254,7 @@ class MainWindow(QMainWindow):
         job.signals.cancelled.connect(self._scan_cancelled)
         job.signals.progress.connect(self._scan_progress)
         self.scan_job = job
+        self.job_progress.pop("scan", None)
         tab.error.show_errors([])
         self._scan_busy(True, f"Fitting the starting profile of {name}…")
         return True
@@ -1236,6 +1282,7 @@ class MainWindow(QMainWindow):
             tab.apply_button.setEnabled(False)
 
     def _scan_progress(self, tag: tuple[int, ScanTask], text: str) -> None:
+        self.job_progress["scan"] = text
         tab = self.panel.uncertainties
         if text in STAGES:
             tab.progress.setValue(STAGES[text])
@@ -1325,6 +1372,7 @@ class MainWindow(QMainWindow):
         job.signals.cancelled.connect(self._mc_cancelled)
         job.signals.progress.connect(self._mc_progress)
         self.mc_job = job
+        self.job_progress.pop("mc", None)
         tab.mc_error.show_errors([])
         self._mc_busy(True, f"Monte Carlo for {name}…")
         return True
@@ -1341,6 +1389,7 @@ class MainWindow(QMainWindow):
         tab.mc_result.setText(message)
 
     def _mc_progress(self, _tag: tuple[int, McTask], text: str) -> None:
+        self.job_progress["mc"] = text
         done, n = (int(v) for v in text.split("/"))
         bar = self.panel.uncertainties.mc_progress
         bar.setRange(0, n)
