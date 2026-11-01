@@ -80,9 +80,10 @@ near the fast c axis and one near the slow a axis. **b** The profiles share one 
 the same T, P and fO2, the Fo of each segment (dashed levels) and the edge Fo. Each
 profile has its own steps, its own orientation and D, an Fo offset for microprobe
 drift between sessions, and optionally an edge position offset. **c** The joint misfit
-is the sum of the two profiles', and its range is narrower than either
-profile's alone. Illustrative, synthetic crystal. Panel c is labeled "planned" because
-the figure was drawn before the joint fit was built; it now exists.*
+is the sum of the two profiles'. In this example its time range is narrower than either
+profile's alone; over 12 noise seeds it was a median 14% narrower than the better
+single profile's, and in two seeds wider, because the fast profile carries most of the
+information. Illustrative, synthetic crystal.*
 
 ```python
 import forster

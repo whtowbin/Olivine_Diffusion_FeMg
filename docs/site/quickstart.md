@@ -115,8 +115,8 @@ FORSTER now fits the step position and the two Fo values along with the time (th
 terminal output calls the starting profile the "initial condition"). The best
 starting profile has the step at 21.3 µm instead of 24 µm and gives 6.23 days. The
 median time over all the starting profiles the data allow is 6.51 days, and its 68%
-range, which includes this uncertainty, is 5.25-8.20 days. It then draws temperature, pressure and fO2 at random
-to give the final distribution: median 6.48 days, 68% range 4.41-9.64 days. Two more
+range, which includes this uncertainty, is 5.25-8.20 days. It then draws temperature,
+pressure and fO2 at random to give the final distribution: median 6.48 days, 68% range 4.41-9.64 days. Two more
 files appear, `<run>_scan.csv` (the distribution of time over the starting profile)
 and `<run>_mc.csv` (the Monte Carlo draws), along with one more figure:
 

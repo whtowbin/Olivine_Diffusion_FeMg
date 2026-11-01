@@ -153,7 +153,9 @@ def test_time_distributions_figure(example):
     legend = ax.get_legend()
     assert legend is not None
     labels = [t.get_text() for t in legend.get_texts()]
-    assert labels[0].startswith("Fit alone") and labels[1].startswith("With conditions and law")
+    assert labels[0].startswith("Fit alone") and labels[1].startswith(
+        "With conditions and equation"
+    )
     assert ax.get_xscale() == "log"
     lo, hi = ax.get_xlim()
     assert lo < mc.percentiles_days[5] and hi > mc.percentiles_days[95]

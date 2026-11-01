@@ -489,13 +489,14 @@ def apply(
         )
     if short:
         notes.append(
-            f"skipped {len(short)} name(s) with fewer than {MIN_PROFILE_POINTS} points: {short}"
+            f"skipped {len(short)} name(s) with fewer than {MIN_PROFILE_POINTS} points: "
+            + ", ".join(map(str, short))
         )
     _, total_from = _total(df, template)
     flagged = points[points["total_ok"].eq(False)]
     if len(flagged):
         lo, hi = template.total_window
-        by_profile = flagged.groupby("profile").size().to_dict()
+        by_profile = "; ".join(f"{p}: {n}" for p, n in flagged.groupby("profile").size().items())
         notes.append(
             f"{len(flagged)} point(s) with an analytical total outside {lo:g}-{hi:g} wt% "
             f"({total_from}), kept and flagged (total_ok False): {by_profile}"

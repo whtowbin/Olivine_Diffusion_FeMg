@@ -153,7 +153,7 @@ def _write_laws_figure(run_name: str, results: list[FitResult], out_dir: Path) -
     except Exception as error:  # a figure must not lose the fits already done
         print(f"  law comparison figure failed: {_describe(error)}", file=sys.stderr)
         return
-    print(f"  law comparison of {len(results)} fits: {path.name}")
+    print(f"  diffusion-equation comparison of {len(results)} fits: {path.name}")
 
 
 def _user_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
@@ -229,7 +229,7 @@ def _print_row(row: dict) -> None:
     print(f"  {row['time_days']:.2f} days ({row['low_days']:.2f}-{row['high_days']:.2f})")
     if "mc_median_days" in row:
         print(
-            f"  with the conditions and the law: {row['mc_median_days']:.2f} days "
+            f"  with the conditions and the diffusion equation: {row['mc_median_days']:.2f} days "
             f"({row['mc_low_days']:.2f}-{row['mc_high_days']:.2f}; 90%: "
             f"{row['mc_p05_days']:.2f}-{row['mc_p95_days']:.2f})"
         )

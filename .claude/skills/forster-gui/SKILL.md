@@ -43,6 +43,7 @@ core must use `notes.warn`, or the app will not see them.
 - Drive the real widgets (synthetic mouse events on the canvas, typing into table cells)
   rather than mocking the controller.
 - Screenshots for review go to `docs/plans/gui-screenshots/`; look at them.
+- Docs screenshots: `uv run --extra gui python docs/site/make_app_screenshots.py` (writes docs/site/images/app-*.png; look at each).
 
 ## Keep it light (Henry, 2026-10-16; open work in TODO_local.md "GUI: keep it light")
 - Measure first (memory with a window open, after a fit, a scan, a Monte Carlo) before

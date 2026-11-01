@@ -301,7 +301,7 @@ def test_import_mask_monte_carlo_views_export_and_reopen(app, tmp_path):
         assert window.time_page.drawn
         legend = window.time_page.figure.axes[0].get_legend()
         assert legend is not None
-        assert any("conditions and law" in t.get_text() for t in legend.texts)
+        assert any("conditions and equation" in t.get_text() for t in legend.texts)
         window.show_centre("Law comparison")
         wait(app, lambda: window.law_job is None and window.law_page.drawn, "law fits")
         assert len(window.law_page.figure.subfigs) == 2
@@ -844,6 +844,36 @@ def test_the_import_dialog_keeps_the_notes_of_merged_files(app, tmp_path, monkey
         wait(app, lambda: settled(window), "fit")
     finally:
         window.close()
+
+
+def test_hint_text_follows_a_switch_to_dark_mode(app):
+    """The gray hints use ``palette(placeholder-text)`` in a style sheet, which Qt resolves
+    once: after a light-to-dark switch with the window open they kept the light gray,
+    unreadable on the dark background (seen in the dark-mode screenshot)."""
+    from PySide6.QtGui import QColor, QPalette
+    from PySide6.QtWidgets import QLabel
+
+    role, hint = QPalette.ColorRole, "palette(placeholder-text)"
+    before = app.palette()
+    light, dark = QPalette(before), QPalette(before)
+    light.setColor(role.PlaceholderText, QColor("#808080"))
+    dark.setColor(role.Window, QColor("#1f1f1f"))
+    dark.setColor(role.WindowText, QColor("#e8e8e8"))
+    dark.setColor(role.PlaceholderText, QColor("#a0a0a0"))
+    app.setPalette(light)
+    window = MainWindow(ask=False)
+    window.show()
+    try:
+        notes = [w for w in window.findChildren(QLabel) if hint in w.styleSheet()]
+        assert notes, "no hint labels found"
+        app.processEvents()
+        assert notes[0].palette().color(role.WindowText).name() == "#808080"
+        app.setPalette(dark)
+        app.processEvents()
+        assert notes[0].palette().color(role.WindowText).name() == "#a0a0a0"
+    finally:
+        window.close()
+        app.setPalette(before)
 
 
 def answer_quit(window, action, seen, before=None):

@@ -13,7 +13,7 @@
 | drift applies to all segments of a profile | profile 2 curve and data shifted by the same amount at every plateau and at the rim | OK |
 | joint misfit = sum | panel c black curve is p1 + p2 (computed) | OK |
 | "pins the time and edge value better than either alone" | computed: true for time in this seed (0.80 of the better); edge ≈ the fast profile's (0.97); over 12 seeds the joint is sometimes wider | The figure claims less than the brief's sentence: label says "joint (sum)" only; caption gives the numbers |
-| planned feature | panel c heading "Joint fit (planned)" + caption | OK |
+| status | panel c heading "Joint fit" (built 2026-10-16, Python only); "planned" dropped 2026-10-30 | OK |
 | no habit, no face labels, no numeric ticks | checked | OK |
 
 ## Rubric (1-5)

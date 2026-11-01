@@ -301,7 +301,7 @@ def test_monte_carlo_and_sampled_scan_from_the_table_refit_identically(tmp_path,
     done = forster("fit", template / "profiles.csv", template / "parameters.csv", cwd=tmp_path)
     assert done.returncode == 0, done.stderr
     assert "fitting the initial condition (auto)" in done.stdout
-    assert "with the conditions and the law" in done.stdout
+    assert "with the conditions and the diffusion equation" in done.stdout
     out = tmp_path / "results"
     for suffix in ("scan.csv", "mc.csv", "time.png"):
         assert (out / f"{STEM}_{suffix}").stat().st_size > 0

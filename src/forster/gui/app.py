@@ -314,6 +314,13 @@ class MainWindow(QMainWindow):
     def apply_theme(self) -> None:
         app = QApplication.instance()
         dark = isinstance(app, QApplication) and is_dark(app)
+        # A style sheet resolves palette(...) colors once; after a light/dark switch the
+        # hint labels kept the old gray (unreadable on dark) until set again.
+        for widget in self.findChildren(QWidget):
+            sheet = widget.styleSheet()
+            if "palette(" in sheet:
+                widget.setStyleSheet("")
+                widget.setStyleSheet(sheet)
         self.canvas.set_palette(palette(dark))
         self.time_page.set_palette(palette(dark))
         self.law_page.set_palette(palette(dark))

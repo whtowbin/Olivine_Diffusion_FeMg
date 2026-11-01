@@ -82,7 +82,7 @@ def test_times_one_row_a_law_on_a_log_axis(example):
         assert list(fit_bars[3 - i].get_xdata()) == list(fit.time_range_days())
         if 3 - i in law_bars:
             assert list(law_bars[3 - i].get_xdata()) == list(fit.time_range_days("law"))
-    assert "no law covariance" in [text.get_text() for text in ax.texts]
+    assert "no calibration covariance" in [text.get_text() for text in ax.texts]
 
 
 @pytest.mark.parametrize("plot", [plot_law_comparison, plot_law_times])
@@ -117,7 +117,7 @@ def test_a_failed_law_still_leaves_the_others_figure(example, tmp_path, monkeypa
     assert code == 1
     out = capsys.readouterr()
     assert "this law failed" in out.err
-    assert f"law comparison of 3 fits: {STEM}_laws.png" in out.out
+    assert f"diffusion-equation comparison of 3 fits: {STEM}_laws.png" in out.out
     assert (tmp_path / f"{STEM}_laws.png").stat().st_size > 0
     assert not (tmp_path / f"{STEM}_dfens_global_fit.png").exists()
     assert (tmp_path / f"{STEM}_dipra_fit.png").stat().st_size > 0

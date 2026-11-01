@@ -832,7 +832,7 @@ def copy_settings(project: Project, source: str, targets: list[str], groups: lis
 TIME_VIEWS = {
     "fit": "The fit alone",
     "start": "With the starting profile",
-    "all": "With conditions and law",
+    "all": "With conditions and equation",
 }
 
 

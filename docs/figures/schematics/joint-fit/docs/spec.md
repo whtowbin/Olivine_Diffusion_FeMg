@@ -84,7 +84,7 @@ a thin section is a flat object and its colour is data.
 ## Negative constraints (must not appear)
 - face indices, a named habit, scale bars with numbers, numeric Fo or time ticks;
 - one origin or shared step positions across the two profiles;
-- anything that implies the joint fit already exists (panel c heading says "planned");
+- anything that implies the crossing point is a fit input (not built);
 - code names (InitialCondition, edge1_offset_um, own_segments).
 
 ## Look-up (step 4)

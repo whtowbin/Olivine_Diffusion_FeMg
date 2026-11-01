@@ -17,7 +17,7 @@ Sources: [N] = FORSTER_FACTS.md (scratchpad research note); [J] = docs/plans/202
 | Traverse 1 ("Profile 1") | a straight line of microprobe spots from the rim inward, 15 degrees from c [001] (the fast direction). | [N] (c about 6x faster); 15 degrees [C] |
 | Traverse 2 ("Profile 2") | a straight line of spots from another rim inward, 15 degrees from a [100] (a slow direction); orthogonal to traverse 1. | "roughly orthogonal" [J]/[N]; 15 degrees [C] |
 | Spot spacing | the same on both traverses. | [C] |
-| Crossing point | where the two traverses cross, inside the core, a little off the crystal centre. Its distance along each profile is a planned input; the model should agree there. | [N], [G] "Intersection"; position [C] |
+| Crossing point | where the two traverses cross, inside the core, a little off the crystal centre. The two models should agree there (a check); giving this distance to the fit is not built (2026-10-30). | [N], [G] "Intersection"; position [C] |
 | Distances | each profile measured from its own edge; no shared origin. | [N], [G] decision 4 |
 | Diffusion in the map | 2D anisotropic diffusion at one time with D along c = 6 x D along a, Fo held at the edge value at the outline. The map is illustrative of the same D x t as the profiles. | [N] physics; [S] |
 | What sits in front | spots on top of the Fo map; the outline on top of the map; labels outside the crystal with leaders. | [C] |
@@ -36,7 +36,7 @@ Sources: [N] = FORSTER_FACTS.md (scratchpad research note); [J] = docs/plans/202
 | Joint misfit = sum over profiles, each with its own noise model | [J] Part 1 "Likelihood", [N] |
 | Quick individual fits first; their times are compared as a check | [J], [N] |
 | On a slow axis with few points on the slope the data may not reach the edge value; the faster axis pins the shared edge value | [J] answer 1(b), [N] |
-| The joint fit is planned, being built now (nothing built yet as of 2026-10-16) | [J] status line, [N] |
+| The joint fit is built (`forster.fit_crystal`, `fit_joint`; Python only so far): shared time, segment Fo and edge Fo, per-profile steps and orientation, a Fo drift offset per profile (prior sd 0.1 mol% by default) and an optional edge position offset (off by default) | src/forster/joint.py (checked 2026-10-30) |
 
 ## Illustrative numbers (in the scripts only; none appear on the figure as values)
 
@@ -76,7 +76,7 @@ drawn seed and the 12-seed sweep are in figure/data/profiles.json and are quoted
 | "drift offset" | [J] answer 1(a), [N] |
 | "one time t; same T, P, fO2" | [J] decided + answer 2 |
 | "shared by the crystal", "own to each profile" | [J] (shared vs per profile) |
-| "Joint fit (planned)" | [J] status line |
+| "Joint fit" | `forster.fit_crystal` / `fit_joint` (built 2026-10-16) |
 | "misfit", "joint (sum)" | [J] Part 1 likelihood (sum over profiles) |
 | "profile 1", "profile 2" | [C] row labels |
 | "1σ", "1σ ranges", "time", "true value" | [N] fit step 3 (1σ from the misfit curve); "true value" = the synthetic truth [S] |

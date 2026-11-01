@@ -19,15 +19,9 @@ reruns a saved project unchanged (the `--diffusivities` part matters when the pr
 has its own equations).
 
 !!! note "About the screenshots"
-    The screenshots come from the app's test runs. "OL7 prof 1" and "OL7 prof 2" are
-    synthetic test profiles, not real crystals. They were taken on 2026-10-17 and show
-    the toolbar of that date, which has **New from example** and no **Import folder**
-    button or **Help** menu; today's toolbar is described above. The settings tabs and
-    plots they show work the same way, with these differences: the field now
-    called **Crystal center** is labeled "Crystal centre" in some, a warning in them
-    that whole-crystal modeling is "not available yet" is out of date (`centre_um`
-    models whole crystals), and the import dialog image lacks the **Start each
-    profile at its first point** box.
+    The screenshots are made by `docs/site/make_app_screenshots.py` from the worked
+    example and two synthetic test profiles, "OL7 prof 1" and "OL7 prof 2" (made-up
+    numbers, not real crystals).
 
 ## The window
 
@@ -155,10 +149,9 @@ with the time. It reports the best fit, the 68% range including the starting pro
 uncertainty, the best starting profile, and how much of the spread in time comes from
 the starting profile. **Use the best starting profile** copies the fitted values into
 the run. *Method* chooses the sampler (`auto` is right almost always). The fit shows
-its progress and can be canceled. In the screenshot, a run with two steps, the first
-known to ±2 µm, gives 4.17 days (68% range 3.07-7.72 days). The starting profile
-accounts for 85% of the spread. The warning below the plot says the profile ends only
-2.2 diffusion lengths past the second step.
+its progress and can be canceled. In the screenshot, the run's one step (at 24 µm),
+known to ±2 µm, gives 4.84 days (68% range 4.21-6.26 days). The starting profile
+accounts for 24% of the spread.
 
 ### Monte Carlo over the conditions and the equation
 

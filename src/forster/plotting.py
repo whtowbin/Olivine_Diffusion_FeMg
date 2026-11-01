@@ -170,7 +170,7 @@ def plot_law_comparison(results: Sequence[FitResult], ax: Axes | None = None) ->
     name = _common_name([r.name for r in results])
     ax.set_title(
         f"{name}\nbest fits {min(days):.1f}-{max(days):.1f} days across {len(results)} "
-        f"laws; 1{SIGMA} ranges from the profile alone",
+        f"diffusion equations; 1{SIGMA} ranges from the profile alone",
         fontsize="medium",
     )
     ax.legend(loc="upper left", bbox_to_anchor=(0, -0.14), frameon=False, fontsize="small")
@@ -199,7 +199,7 @@ def plot_law_times(results: Sequence[FitResult], ax: Axes | None = None) -> Axes
             ax.plot(result.time_range_days("law"), [y, y], color=color, lw=1.2, gid="law_range")
         else:
             ax.annotate(  # under the point, so it stays inside the axes
-                "no law covariance",
+                "no calibration covariance",
                 (result.time_days, y),
                 xytext=(0, -7),
                 textcoords="offset points",
@@ -230,11 +230,11 @@ def plot_law_times(results: Sequence[FitResult], ax: Axes | None = None) -> Axes
     ax.grid(axis="x", which="major", color="0.9", lw=0.8)
     ax.set_axisbelow(True)
     ax.set_xlabel("Time (days, log scale)")
-    ax.set_title(f"Best-fit time under each law, with 1{SIGMA} ranges", fontsize="medium")
+    ax.set_title(f"Best-fit times, with 1{SIGMA} ranges", fontsize="medium")
     ax.legend(
         handles=[
             Line2D([], [], color=CONTEXT_COLOR, lw=5, alpha=0.45, label="Profile alone"),
-            Line2D([], [], color=CONTEXT_COLOR, lw=1.2, label="With the law's calibration"),
+            Line2D([], [], color=CONTEXT_COLOR, lw=1.2, label="With calibration"),
         ],
         loc="upper left",
         bbox_to_anchor=(0, -0.3),
@@ -313,7 +313,7 @@ def plot_time_distributions(
             color=LAW_COLORS[1],
             alpha=0.35,
             lw=0,
-            label=f"With conditions and law: {mid:.3g} d ({lo:.3g}-{hi:.3g})",
+            label=f"With conditions and equation: {mid:.3g} d ({lo:.3g}-{hi:.3g})",
         )
     ax.set_xscale("log")
     ax.set_xlim(min(a for a, _ in spans) / 1.2, max(b for _, b in spans) * 1.2)

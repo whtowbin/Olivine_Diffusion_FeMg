@@ -19,7 +19,7 @@ Profiles measured on one crystal share one history, so fitting them together pin
 - A specific olivine habit, face indices, or that the section plane is a known crystallographic plane.
 - Real numbers for a real crystal (no numeric ticks; curves illustrative, computed).
 - That profiles share step positions, zone widths, an origin or one D.
-- That the joint fit is already available (it is planned, being built now).
+- That the crossing point is a fit input (not built; the two models should simply agree there).
 - That the drift and edge offsets are to scale (they are drawn enlarged).
 - That the two profiles always agree; the individual fits are a check.
 

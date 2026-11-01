@@ -150,7 +150,7 @@ export default async function draw(F, L) {
 
   // =============================== panel c: the joint fit ===============================================
   const c = F.panel('c', { x: 146, y: 0, w: 37, h: 66 });
-  heading(c, 'Joint fit (planned)');
+  heading(c, 'Joint fit');
   const m = pr.misfit, tau = m.tau;
   const cx0 = mm(5), cw = mm(30.5), ctop = mm(9.5), chh = mm(24);
   const TR = [0.2, 2.0], DM = [0, 7];
