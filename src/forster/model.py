@@ -672,6 +672,8 @@ def _diffusion_model(
         raise ValueError('a rim value that changes in time needs scheme="implicit"')
     start = engine.step_condition(model_x, list(initial.steps_um), list(initial.fo_values))
     bounds = (float(rim), initial.core_fo)
+    if scheme == "dipra":
+        dipra.warn_if_contrast_too_high(start, bounds)
     return start, _stepper(scheme, D, dD_dfo, bounds, grid.dt_s, dx_um * 1e-6, fast, substeps)
 
 

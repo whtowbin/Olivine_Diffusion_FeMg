@@ -45,6 +45,7 @@ Results from FORSTER differ from those of the paper-era scripts for four reasons
 ### Other changes to know about
 
 -   Inputs that would give a wrong answer are refused with a message: steps out of order or outside the model domain, profile angles whose squared cosines do not sum to 1, non-finite conditions, and fO2_Pa of 0 or less (fO2 is in Pa, not log units).
+-   `scheme="dipra"` warns when the Fo contrast between adjacent nodes (the held rim and core values included) exceeds 0.145 = 1 / (3 ln 10): above it the scheme undershoots the rim, and from about 0.23 it diverges. Use the default `implicit` scheme there.
 -   Warnings, with no number changed, when fO2 is below the lowest value the diffusion equation's source states (1e-10 Pa for `dipra` and `dfens_tamed`) and when `T_C` is above 1600 (probably kelvin).
 -   The app refuses runs set to the legacy (kriging) uncertainty method; use the command line or Python for those.
 

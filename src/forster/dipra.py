@@ -12,6 +12,13 @@ Both schemes solve dC/dt = D d2C/dx2 + (dD/dx)(dC/dx). They differ only in the
 cross term: DIPRA uses forward differences and the analytic dD/dX_Fo; the engine
 (`engine.diffusion_step`) uses central differences of C and of D. Both converge to
 the same solution as the grid is refined (``tests/test_physics.py``).
+
+Limit: the forward-difference cross term makes the scheme anti-diffusive where the Fo
+contrast between adjacent nodes (the boundary value and its neighbor count) exceeds
+`CONTRAST_LIMIT`, 1 / (3 ln 10) = 0.145 Fo (derivation at the constant). Above it the
+profile undershoots the held rim (measured: contrast 0.16-0.18) and at 0.23 it
+diverges to -inf / NaN. The scheme is kept to reproduce paper-era results; `model`
+warns (`warn_if_contrast_too_high`) and `scheme="implicit"` has no such limit.
 """
 
 from __future__ import annotations
@@ -21,11 +28,39 @@ from collections.abc import Callable
 
 import numpy as np
 
-from forster import engine
+from forster import engine, notes
 
 # D_Fo is proportional to 10**(3 * (0.9 - X_Fo)) (Dohmen and Chakraborty 2007;
 # DIPRA Table 1), so dD/dX_Fo = -3 ln(10) D.
 _FO_EXPONENT = 3.0
+
+
+# With c = X_Fo, the update of node k is c_k + dt/dx^2 [(c_k+1 - c_k)^2 * (-3 ln10 D)
+# + D (c_k+1 - 2 c_k + c_k-1)] = c_k + dt/dx^2 D [(1 - 3 ln10 d) d - d_prev], d = c_k+1 - c_k
+# the forward difference. The coefficient of d is the effective diffusivity of the forward
+# difference; it is negative (anti-diffusion) once d > 1 / (3 ln 10).
+CONTRAST_LIMIT = 1.0 / (_FO_EXPONENT * math.log(10))
+
+
+def max_contrast(c: np.ndarray, bounds_c: tuple[float, float]) -> float:
+    """Largest Fo difference between adjacent nodes of ``c`` with the held boundary
+    values ``bounds_c`` (rim, core) added at its two ends."""
+    full = np.concatenate([[bounds_c[0]], np.asarray(c, dtype=float), [bounds_c[1]]])
+    return float(np.max(np.abs(np.diff(full))))
+
+
+def warn_if_contrast_too_high(c: np.ndarray, bounds_c: tuple[float, float]) -> None:
+    """Warn if the starting profile ``c`` and boundary values ``bounds_c`` have an adjacent
+    contrast above `CONTRAST_LIMIT`, where this scheme undershoots the rim."""
+    contrast = max_contrast(c, bounds_c)
+    if contrast > CONTRAST_LIMIT:
+        notes.warn(
+            f'scheme="dipra" is unreliable at an Fo contrast of {contrast:.3f} between adjacent '
+            f"nodes (limit {CONTRAST_LIMIT:.3f} = 1 / (3 ln 10)): its cross term then makes "
+            "the profile undershoot the held rim, and above about 0.23 it diverges; "
+            'use scheme="implicit"',
+            stacklevel=3,
+        )
 
 
 def D_Fo_and_derivative(
