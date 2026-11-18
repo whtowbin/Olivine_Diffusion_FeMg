@@ -99,6 +99,7 @@ only-include = ["src/forster", "README.md", "LICENSE", "pyproject.toml"]
 testpaths = ["tests"]
 addopts = "-ra -q"
 markers = [
+    "slow: waits on real OS timing (a process kill, a timeout); runs by default, deselect with -m 'not slow'",
     "needs_numba: heavy sampling and joint-fit tests that do not test the NumPy steppers; skipped when FORSTER_NO_NUMBA=1 (the NumPy-only CI job), run with Numba",
 ]
 
